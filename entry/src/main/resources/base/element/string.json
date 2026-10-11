@@ -11,6 +11,298 @@
     {
       "name": "EntryAbility_label",
       "value": "轻鸿"
+    },
+    {
+      "name": "app_name",
+      "value": "轻鸿"
+    },
+    {
+      "name": "search_hint",
+      "value": "搜索或输入网址"
+    },
+    {
+      "name": "tab_limit_reached",
+      "value": "已达到标签页数量上限"
+    },
+    {
+      "name": "download_started",
+      "value": "开始下载"
+    },
+    {
+      "name": "download_completed",
+      "value": "下载完成"
+    },
+    {
+      "name": "download_failed",
+      "value": "下载失败"
+    },
+    {
+      "name": "refresh",
+      "value": "刷新"
+    },
+    {
+      "name": "forward",
+      "value": "前进"
+    },
+    {
+      "name": "home",
+      "value": "主页"
+    },
+    {
+      "name": "new_tab",
+      "value": "新建标签"
+    },
+    {
+      "name": "close_tab",
+      "value": "关闭标签"
+    },
+    {
+      "name": "close_all",
+      "value": "关闭全部"
+    },
+    {
+      "name": "incognito_tab",
+      "value": "无痕标签"
+    },
+    {
+      "name": "incognito_hint",
+      "value": "无痕模式下不会保留浏览记录"
+    },
+    {
+      "name": "add_bookmark",
+      "value": "添加书签"
+    },
+    {
+      "name": "bookmark_added",
+      "value": "已添加书签"
+    },
+    {
+      "name": "find_in_page",
+      "value": "页内查找"
+    },
+    {
+      "name": "find_hint",
+      "value": "查找"
+    },
+    {
+      "name": "no_match",
+      "value": "无匹配"
+    },
+    {
+      "name": "copy_link",
+      "value": "复制链接"
+    },
+    {
+      "name": "link_copied",
+      "value": "链接已复制"
+    },
+    {
+      "name": "bookmarks",
+      "value": "书签"
+    },
+    {
+      "name": "history",
+      "value": "历史记录"
+    },
+    {
+      "name": "downloads",
+      "value": "下载管理"
+    },
+    {
+      "name": "settings",
+      "value": "设置"
+    },
+    {
+      "name": "cancel",
+      "value": "取消"
+    },
+    {
+      "name": "confirm",
+      "value": "确定"
+    },
+    {
+      "name": "save",
+      "value": "保存"
+    },
+    {
+      "name": "delete",
+      "value": "删除"
+    },
+    {
+      "name": "clear",
+      "value": "清空"
+    },
+    {
+      "name": "open",
+      "value": "打开"
+    },
+    {
+      "name": "empty_bookmarks",
+      "value": "暂无书签"
+    },
+    {
+      "name": "add_bookmark_title",
+      "value": "添加书签"
+    },
+    {
+      "name": "bookmark_title_hint",
+      "value": "请输入标题"
+    },
+    {
+      "name": "bookmark_url_hint",
+      "value": "请输入网址"
+    },
+    {
+      "name": "set_quick",
+      "value": "设为主页快捷"
+    },
+    {
+      "name": "remove_quick",
+      "value": "移除主页快捷"
+    },
+    {
+      "name": "delete_confirm",
+      "value": "确定删除该项吗？"
+    },
+    {
+      "name": "empty_history",
+      "value": "暂无历史记录"
+    },
+    {
+      "name": "clear_history",
+      "value": "清空历史"
+    },
+    {
+      "name": "clear_history_confirm",
+      "value": "确定清空全部历史记录吗？"
+    },
+    {
+      "name": "empty_downloads",
+      "value": "暂无下载记录"
+    },
+    {
+      "name": "status_downloading",
+      "value": "下载中"
+    },
+    {
+      "name": "status_completed",
+      "value": "已完成"
+    },
+    {
+      "name": "status_failed",
+      "value": "已失败"
+    },
+    {
+      "name": "search_engine",
+      "value": "搜索引擎"
+    },
+    {
+      "name": "add_engine",
+      "value": "添加搜索引擎"
+    },
+    {
+      "name": "engine_name_hint",
+      "value": "名称"
+    },
+    {
+      "name": "engine_url_hint",
+      "value": "搜索模板（含 %s）"
+    },
+    {
+      "name": "engine_url_invalid",
+      "value": "模板必须包含 %s"
+    },
+    {
+      "name": "restore_session",
+      "value": "恢复上次会话"
+    },
+    {
+      "name": "default_incognito",
+      "value": "默认无痕模式"
+    },
+    {
+      "name": "toolbar_position",
+      "value": "工具栏位置"
+    },
+    {
+      "name": "toolbar_bottom",
+      "value": "底部"
+    },
+    {
+      "name": "toolbar_top",
+      "value": "顶部"
+    },
+    {
+      "name": "clear_browsing_data",
+      "value": "清除浏览数据"
+    },
+    {
+      "name": "clear_history_label",
+      "value": "历史记录"
+    },
+    {
+      "name": "clear_search_history_label",
+      "value": "搜索历史"
+    },
+    {
+      "name": "clear_cache_label",
+      "value": "缓存"
+    },
+    {
+      "name": "clear_cookies_label",
+      "value": "Cookie"
+    },
+    {
+      "name": "cleared",
+      "value": "已清除"
+    },
+    {
+      "name": "homepage_settings",
+      "value": "主页设置"
+    },
+    {
+      "name": "show_homepage_logo",
+      "value": "显示主页 Logo"
+    },
+    {
+      "name": "quick_links_empty_hint",
+      "value": "暂无主页快捷图标，长按书签并选择“设为主页快捷”即可添加"
+    },
+    {
+      "name": "about",
+      "value": "关于"
+    },
+    {
+      "name": "version",
+      "value": "版本"
+    },
+    {
+      "name": "browser_desc",
+      "value": "轻快好用的鸿蒙浏览器"
+    },
+    {
+      "name": "about_desc",
+      "value": "轻鸿是一款轻快好用的鸿蒙浏览器，支持多标签、无痕模式、书签、历史与下载管理。"
+    },
+    {
+      "name": "remove",
+      "value": "移除"
+    },
+    {
+      "name": "removed",
+      "value": "已移除"
+    },
+    {
+      "name": "quick_links",
+      "value": "主页快捷图标"
+    },
+    {
+      "name": "empty_quick_links",
+      "value": "暂无快捷图标"
+    },
+    {
+      "name": "show_homepage_logo_desc",
+      "value": "在主页显示应用 Logo"
     }
   ]
 }
