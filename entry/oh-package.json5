@@ -5,6 +5,7 @@
   "main": "",
   "author": "",
   "license": "",
-  "dependencies": {}
+  "dependencies": {
+    "reflect-metadata": "0.2.1"
+  }
 }
-
