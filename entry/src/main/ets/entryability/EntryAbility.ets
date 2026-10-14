@@ -7,12 +7,19 @@ import { toastUtil } from '../common/utils/ToastUtils';
 import { preferenceUtil } from '../common/utils/persistence/PreferenceUtil';
 import { kvDbUtil } from '../common/utils/KVdbUtil';
 import { appSettings, UISettings } from '../common/entity/SettingsModel';
+import { syncVM } from '../viewmodel/SyncViewModel';
 import { ColorUtils } from '../common/utils/ColorUtils';
 import { ResourceUtils } from '../common/utils/ResourceUtil';
 import { SettingsUtils } from '../common/utils/SettingsUtils';
+import { FontStore } from '../common/utils/FontStore';
+import { adBlockEngine } from '../common/utils/AdBlockEngine';
+import { adBlockStore } from '../common/utils/AdBlockStore';
+import { adBlockSubsStore } from '../common/utils/AdBlockSubs';
 import { animation } from '../common/utils/AnimationUtil';
 import { AppConstants } from '../common/constants/AppConstants';
 import { createLogger } from '../common/utils/Logger';
+import { siteSettingsVM } from '../viewmodel/SiteSettingsViewModel';
+import { webview } from '@kit.ArkWeb';
 
 const logger = createLogger('EntryAbility')
 
@@ -32,9 +39,32 @@ export default class EntryAbility extends UIAbility {
     } catch (error) {
       logger.error(`Init`, `Initialization failed, ${error}`);
     }
+    // 冷启动：记录外部拉起的链接，Index 恢复会话后消费
+    this.captureExternalUrl(want)
+  }
+
+  onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    // 热启动：直接交给已注册的处理器打开
+    this.captureExternalUrl(want)
+  }
+
+  /**
+   * 捕获外部以浏览器身份拉起本应用时传入的 http/https 链接
+   */
+  private captureExternalUrl(want: Want): void {
+    const uri = want.uri ?? ''
+    if (uri.startsWith('http://') || uri.startsWith('https://')) {
+      logger.info('WantUri', `外部拉起链接: ${uri}`)
+      if (QhState.externalUrlHandler) {
+        QhState.externalUrlHandler(uri)
+      } else {
+        QhState.pendingOpenUrl = uri
+      }
+    }
   }
 
   onDestroy(): void {
+    syncVM.destroy()
     logger.info('Lifecycle', 'EntryAbility onDestroy');
   }
 
@@ -51,6 +81,22 @@ export default class EntryAbility extends UIAbility {
         _QhState.UIContext = data.getUIContext()
         // 初始化通知工具
         toastUtil.initContext(_QhState.UIContext, this.context)
+        // 注册沙箱内自定义字体（依赖 UIContext）
+        FontStore.registerAll()
+      // 初始化广告拦截引擎与统计
+      adBlockEngine.init()
+      adBlockStore.load()
+      // 订阅规则文件较大（几万条规则的正则编译耗时），
+      // 延迟到主页首帧渲染后再解析，且引擎内部分块解析让出主线程
+      setTimeout((): void => {
+        adBlockSubsStore.load().then((): void => {
+          adBlockEngine.reloadSubscriptions()
+          if (adBlockSubsStore.isAutoUpdateDue()) {
+            // 更新成功后引擎经 onRulesChanged 回调自动重载
+            adBlockSubsStore.updateAll(true)
+          }
+        })
+      }, 100)
         // 初始化动画工具
         animation.init(_QhState.UIContext)
         // 初始化窗口相关
@@ -101,12 +147,24 @@ export default class EntryAbility extends UIAbility {
     // 加载设置数据
     await appSettings.load()
     await UISettings.load()
+    // 预加载站点无痕覆盖缓存（Web 创建期过滤用，失败不阻塞启动）
+    siteSettingsVM.preloadIncognitoCache()
+    // 启用前进后退缓存框架（默认关闭；生效范围由各标签按站点策略配置 size=0/10）
+    try {
+      webview.WebviewController.enableBackForwardCache(new webview.BackForwardCacheSupportedFeatures())
+    } catch (e) {
+      logger.error('Lifecycle', `enableBackForwardCache 失败: ${e}`)
+    }
+    // 加载 WebDAV 同步配置
+    await syncVM.loadConfig()
     // 初始化颜色工具
     ColorUtils.init(this.context)
     // 初始化资源工具
     ResourceUtils.init(this.context)
     // 设置深浅色模式
     SettingsUtils.setColorMode()
+    // 应用语言偏好
+    SettingsUtils.applyLanguage()
   }
 
   // --- 窗口与UI管理 ---
@@ -133,7 +191,9 @@ export default class EntryAbility extends UIAbility {
       logger.info('WindowRect', 'Avoid manager initialized and listener registered.');
 
       // 初始化窗口尺寸与断点
-      this.initWindowDimensions(windowClass, UIContext);
+      this.initWindowDimensions(windowClass, UIContext)
+      // 应用屏幕方向设置
+      SettingsUtils.applyOrientation();
 
       // 注册窗口状态监听器
       this.registerWindowListeners(windowClass, UIContext);

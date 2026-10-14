@@ -162,7 +162,7 @@ export struct TabSwitcher {
     }
     .width('100%')
     .height('100%')
+    .padding({ bottom: QhState.bottomRectHeight })
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .padding({ top: QhState.topRectHeight, bottom: QhState.bottomRectHeight })
   }
 }

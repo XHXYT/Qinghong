@@ -1,11 +1,11 @@
-import { NaviContainer } from '../../components/NaviContainer';
+import { NaviContainer } from '../../../components/NaviContainer';
 import { CustomContentDialog } from '@kit.ArkUI';
-import { appSettings, CustomSearchEngine } from '../../common/entity/SettingsModel';
-import { SearchEngines, SearchEngine } from '../../common/constants/SearchEngines';
-import { CustomItemInfo, ItemActionType, RadioConfig } from '../../common/entity/CusItemInfo';
-import { CustomListItem } from '../../components/CusItemBuilder';
-import { buildDialogButtons } from '../../components/dialog/AppContentDialog';
-import { toastUtil } from '../../common/utils/ToastUtils';
+import { appSettings, CustomSearchEngine } from '../../../common/entity/SettingsModel';
+import { SearchEngines, SearchEngine } from '../../../common/constants/SearchEngines';
+import { CustomItemInfo, ItemActionType, RadioConfig } from '../../../common/entity/CusItemInfo';
+import { CustomListItem } from '../../../components/CusItemBuilder';
+import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
+import { toastUtil } from '../../../common/utils/ToastUtils';
 
 @Builder
 export function SearchEngineBuilder() {
@@ -93,7 +93,7 @@ struct SearchEnginePage {
       title: engine.name,
       message: $r('app.string.delete_confirm'),
       autoCancel: true,
-      alignment: DialogAlignment.Bottom,
+      alignment: DialogAlignment.Center,
       buttons: [
         {
           value: $r('app.string.delete'),
@@ -169,6 +169,10 @@ struct SearchEnginePage {
         startMargin: 56,
         endMargin: 16
       })
+      .backgroundColor($r('app.color.background_color'))
+      .borderRadius(16)
+      .clip(true)
+      .margin({ left: 16, right: 16, top: 10 })
 
       // 添加搜索引擎
       Row({ space: 8 }) {
@@ -178,17 +182,18 @@ struct SearchEnginePage {
           .fontSize(15)
       }
       .width('100%')
-      .height(52)
+      .height(48)
       .justifyContent(FlexAlign.Center)
-      .backgroundColor($r('sys.color.comp_background_primary'))
-      .borderRadius({ topLeft: 20, topRight: 20 })
+      .backgroundColor($r('app.color.background_color'))
+      .borderRadius(16)
+      .margin({ left: 16, right: 16, top: 8, bottom: 12 })
       .onClick(() => {
         this.addDialog?.open()
       })
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.comp_background_secondary'))
+    .backgroundColor($r('app.color.background_color_accent'))
   }
 
   build() {

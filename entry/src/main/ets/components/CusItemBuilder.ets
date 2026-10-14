@@ -1,6 +1,6 @@
 import { CustomContentDialog, LengthMetrics, SymbolGlyphModifier } from "@kit.ArkUI"
 import UIConstants from "../common/constants/UIConstants";
-import { CustomItemInfo, ItemActionType, MenuOption } from "../common/entity/CusItemInfo";
+import { CustomItemInfo, ItemActionType, MenuOption, ContextMenuItem } from "../common/entity/CusItemInfo";
 import { ColorUtils } from "../common/utils/ColorUtils";
 import { ButtonOptions } from "@ohos.arkui.advanced.Dialog"
 import { toastUtil } from "../common/utils/ToastUtils";
@@ -19,6 +19,7 @@ export struct CustomListItem {
   @Param itemPadding: Padding = { left: 0, right: 0, top: 0, bottom: 0 }
 
   @Local showMenu: boolean = false
+  @Local showCtxMenu: boolean = false
   @Local dialogController: CustomDialogController | undefined
 
   aboutToAppear(): void {
@@ -108,10 +109,12 @@ export struct CustomListItem {
             Text(this.item.title)
               .fontColor(this.item.enabled ? this.item.isDanger ? Color.Red : $r('sys.color.font_primary') : ColorUtils.getUnableColor($r('sys.color.font_primary')))
               .fontSize(16)
+              .fontFamily(appSettings.font_family)
             if (this.item.subtitle && this.item.type != ItemActionType.DIALOG) {
               Text(this.item.subtitle)
                 .fontColor(this.item.enabled ? this.item.isDanger ? Color.Red : $r("sys.color.font_secondary") : ColorUtils.getUnableColor($r("sys.color.font_secondary")))
                 .fontSize(12)
+                .fontFamily(appSettings.font_family)
             }
           }
         }
@@ -132,7 +135,6 @@ export struct CustomListItem {
       }
 
     }
-    .enabled(this.item.enabled)
     .padding(this.itemPadding)
     .alignItems(VerticalAlign.Center)
     .justifyContent(FlexAlign.SpaceBetween)
@@ -151,7 +153,13 @@ export struct CustomListItem {
       })
     .width("100%")
     .onClick(() => {
-      if (!this.item.enabled) return
+      if (!this.item.enabled) {
+        // 置灰行点击提示（如无图模式开启时的显示图片设置）
+        if (this.item.disabledHint !== '') {
+          toastUtil.showToast({ message: this.item.disabledHint })
+        }
+        return
+      }
       if (this.showMenu) return
       if (this.item.type == ItemActionType.MENU) {
         this.showMenu = true
@@ -176,6 +184,40 @@ export struct CustomListItem {
 
       if (this.item.onChange) this.item.onChange(this.item.value)
     })
+    // 长按弹出上下文菜单（isShown 模式，ResponseType.LongPress 在部分场景识别器不注册）
+    .gesture(
+      LongPressGesture({ repeat: false, duration: 500 })
+        .onAction((event?: GestureEvent) => {
+          if (!this.item.enabled) return
+          if (this.item.contextMenuItems && this.item.contextMenuItems.length > 0) {
+            this.showCtxMenu = !this.showCtxMenu
+          }
+        })
+    )
+    .bindContextMenu(this.showCtxMenu!!, this.ctxMenuBuilder(), {
+      onDisappear: (): void => {
+        this.showCtxMenu = false
+      }
+    })
+  }
+
+  @Builder
+  ctxMenuBuilder() {
+    Menu() {
+      ForEach(this.item.contextMenuItems ?? [], (mi: ContextMenuItem, index: number) => {
+        MenuItem({
+          content: mi.title,
+          symbolStartIcon: mi.symbol !== undefined ? new SymbolGlyphModifier(mi.symbol) : undefined
+        })
+          .contentFontColor(mi.isDanger ? Color.Red : $r('sys.color.font_primary'))
+          .onClick(() => {
+            this.showCtxMenu = false
+            mi.action()
+          })
+      }, (mi: ContextMenuItem, index: number) => `${index}`)
+    }
+    .backgroundColor($r("app.color.start_window_background"))
+    .borderRadius(UIConstants.BORDER_RADIUS_20)
   }
 }
 
@@ -208,12 +250,14 @@ export struct ListItemRightAction {
         Row({ space: 8 }) {
           Text(this.item.value as ResourceStr)
             .fontSize(15)
-          SymbolGlyph($r("sys.symbol.chevron_right")).menuSymbolGlyph(24)
+            .fontColor(this.item.enabled ? $r('sys.color.font_primary') : ColorUtils.getUnableColor($r('sys.color.font_primary')))
+          SymbolGlyph($r("sys.symbol.chevron_right")).menuSymbolGlyph(24, this.item.enabled)
             .hitTestBehavior(HitTestMode.None)
         }
       } else if (this.item.type == ItemActionType.TEXT) {
         Text(this.item.value as ResourceStr)
           .fontSize(15)
+          .fontColor(this.item.enabled ? $r('sys.color.font_primary') : ColorUtils.getUnableColor($r('sys.color.font_primary')))
       } else if (this.item.type == ItemActionType.RADIO) {
         Radio({ value: this.item.radioConfig?.value || '', group: this.item.radioConfig?.group || '' })
           .size({ width: 24, height: 24 })
@@ -225,7 +269,8 @@ export struct ListItemRightAction {
       } else if (this.item.type == ItemActionType.DIALOG) {
         Row({ space: 4 }) {
           Text(this.item.value as ResourceStr).menuText()
-          SymbolGlyph($r("sys.symbol.chevron_right")).menuSymbolGlyph(24)
+            .fontColor(this.item.enabled ? $r('sys.color.font_primary') : ColorUtils.getUnableColor($r('sys.color.font_primary')))
+          SymbolGlyph($r("sys.symbol.chevron_right")).menuSymbolGlyph(24, this.item.enabled)
         }
       } else if (this.item.type == ItemActionType.SLIDER) {
         Row() {
@@ -236,6 +281,7 @@ export struct ListItemRightAction {
             SymbolGlyph($r("sys.symbol.minus_circle_fill"))
               .menuSymbolGlyph(21)
               .onClick(() => {
+                if (!this.item.enabled) return
                 const minus = this.item.sliderConfig?.step || 1
                 const old = this.item.value as number
                 this.onSliderChange(old - minus)
@@ -248,6 +294,7 @@ export struct ListItemRightAction {
             style: SliderStyle.InSet,
             step: this.item.sliderConfig?.step || 5
           }).showSteps(true)
+            .enabled(this.item.enabled)
             .blockColor(Color.White)
             .trackThickness(20)
             .minResponsiveDistance(1)
@@ -258,6 +305,7 @@ export struct ListItemRightAction {
             SymbolGlyph($r("sys.symbol.plus_circle_fill"))
               .menuSymbolGlyph(21)
               .onClick(() => {
+                if (!this.item.enabled) return
                 const plus = this.item.sliderConfig?.step || 1
                 const old = this.item.value as number
                 this.onSliderChange(old + plus)

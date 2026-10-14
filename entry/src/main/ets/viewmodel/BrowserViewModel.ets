@@ -69,7 +69,8 @@ export class BrowserViewModel {
     if (!tab.controller) return
     try {
       const c = tab.controller as webview.WebviewController
-      tab.canBack = c.accessBackward()
+      // 网页历史可回退，或可返回主页态，返回按钮均应可用
+      tab.canBack = c.accessBackward() || !tab.isHome
       tab.canForward = c.accessForward()
     } catch (e) {
       logger.error('updateNavState', `${e}`)
@@ -96,10 +97,15 @@ export class BrowserViewModel {
     const tab = tabsVM.activeTab
     if (!tab) return false
     if (tab.isHome) return false
-    if (tab.canBack && tab.controller) {
+    if (tab.controller) {
       try {
-        (tab.controller as webview.WebviewController).backward()
-        return true
+        const c = tab.controller as webview.WebviewController
+        // 有网页历史才走 backward，否则回主页态
+        if (c.accessBackward()) {
+          tab.programmaticNav = true
+          c.backward()
+          return true
+        }
       } catch (e) {
         logger.error('goBack', `${e}`)
       }
@@ -109,13 +115,22 @@ export class BrowserViewModel {
   }
 
   /**
-   * 前进
+   * 前进：网页态走 Web 历史；主页态返回离开主页前的页面
    */
   goForward(): void {
     const tab = tabsVM.activeTab
-    if (!tab || tab.isHome || !tab.controller || !tab.canForward) return
+    if (!tab) return
+    if (tab.isHome) {
+      if (tab.lastWebUrl) {
+        tabsVM.navigate(tab, tab.lastWebUrl)
+      }
+      return
+    }
+    if (!tab.controller || !tab.canForward) return
     try {
-      (tab.controller as webview.WebviewController).forward()
+      tab.programmaticNav = true
+      const c = tab.controller as webview.WebviewController
+      c.forward()
     } catch (e) {
       logger.error('goForward', `${e}`)
     }

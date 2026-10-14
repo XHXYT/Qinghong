@@ -36,7 +36,7 @@ struct HistoryPage {
       title: h.title,
       message: $r('app.string.delete_confirm'),
       autoCancel: true,
-      alignment: DialogAlignment.Bottom,
+      alignment: DialogAlignment.Center,
       buttons: [
         {
           value: $r('app.string.delete'),
@@ -144,6 +144,10 @@ struct HistoryPage {
           endMargin: 16
         })
         .scrollBar(BarState.Off)
+        .backgroundColor($r('app.color.background_color'))
+        .borderRadius(16)
+        .clip(true)
+        .margin({ left: 16, right: 16, top: 10 })
       }
 
       // 清空历史
@@ -156,17 +160,18 @@ struct HistoryPage {
           .fontColor(Color.Red)
       }
       .width('100%')
-      .height(52)
+      .height(48)
       .justifyContent(FlexAlign.Center)
-      .backgroundColor($r('sys.color.comp_background_primary'))
-      .borderRadius({ topLeft: 20, topRight: 20 })
+      .backgroundColor($r('app.color.background_color'))
+      .borderRadius(16)
+      .margin({ left: 16, right: 16, top: 8, bottom: 12 })
       .onClick(() => {
         this.confirmClearAll()
       })
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.comp_background_secondary'))
+    .backgroundColor($r('app.color.background_color_accent'))
   }
 
   build() {

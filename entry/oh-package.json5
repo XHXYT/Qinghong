@@ -6,6 +6,9 @@
   "author": "",
   "license": "",
   "dependencies": {
-    "reflect-metadata": "0.2.1"
-  }
+    "reflect-metadata": "0.2.1",
+    "@ya520/webdav": "^1.0.1"
+  },
+  "devDependencies": {},
+  "dynamicDependencies": {}
 }

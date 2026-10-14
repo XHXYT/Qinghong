@@ -1,0 +1,1600 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "QingHong browser main module"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "QingHong Browser"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "QingHong"
+    },
+    {
+      "name": "app_name",
+      "value": "QingHong"
+    },
+    {
+      "name": "search_hint",
+      "value": "Search or enter URL"
+    },
+    {
+      "name": "tab_limit_reached",
+      "value": "Maximum number of tabs reached"
+    },
+    {
+      "name": "download_started",
+      "value": "Download started"
+    },
+    {
+      "name": "download_completed",
+      "value": "Download completed"
+    },
+    {
+      "name": "download_failed",
+      "value": "Download failed"
+    },
+    {
+      "name": "refresh",
+      "value": "Refresh"
+    },
+    {
+      "name": "forward",
+      "value": "Forward"
+    },
+    {
+      "name": "home",
+      "value": "Home"
+    },
+    {
+      "name": "new_tab",
+      "value": "New tab"
+    },
+    {
+      "name": "close_tab",
+      "value": "Close tab"
+    },
+    {
+      "name": "close_all",
+      "value": "Close all"
+    },
+    {
+      "name": "incognito_tab",
+      "value": "Incognito tab"
+    },
+    {
+      "name": "incognito_hint",
+      "value": "Browsing history is not saved in incognito mode"
+    },
+    {
+      "name": "add_bookmark",
+      "value": "Add bookmark"
+    },
+    {
+      "name": "bookmark_added",
+      "value": "Bookmark added"
+    },
+    {
+      "name": "find_in_page",
+      "value": "Find in page"
+    },
+    {
+      "name": "find_hint",
+      "value": "Find"
+    },
+    {
+      "name": "no_match",
+      "value": "No match"
+    },
+    {
+      "name": "copy_link",
+      "value": "Copy link"
+    },
+    {
+      "name": "link_copied",
+      "value": "Link copied"
+    },
+    {
+      "name": "bookmarks",
+      "value": "Bookmarks"
+    },
+    {
+      "name": "history",
+      "value": "History"
+    },
+    {
+      "name": "downloads",
+      "value": "Downloads"
+    },
+    {
+      "name": "settings",
+      "value": "Settings"
+    },
+    {
+      "name": "cancel",
+      "value": "Cancel"
+    },
+    {
+      "name": "confirm",
+      "value": "OK"
+    },
+    {
+      "name": "save",
+      "value": "Save"
+    },
+    {
+      "name": "delete",
+      "value": "Delete"
+    },
+    {
+      "name": "clear",
+      "value": "Clear"
+    },
+    {
+      "name": "open",
+      "value": "Open"
+    },
+    {
+      "name": "empty_bookmarks",
+      "value": "No bookmarks yet"
+    },
+    {
+      "name": "add_bookmark_title",
+      "value": "Add bookmark"
+    },
+    {
+      "name": "bookmark_title_hint",
+      "value": "Enter a title"
+    },
+    {
+      "name": "bookmark_url_hint",
+      "value": "Enter a URL"
+    },
+    {
+      "name": "set_quick",
+      "value": "Add to home shortcuts"
+    },
+    {
+      "name": "remove_quick",
+      "value": "Remove from home shortcuts"
+    },
+    {
+      "name": "delete_confirm",
+      "value": "Delete this item?"
+    },
+    {
+      "name": "empty_history",
+      "value": "No history yet"
+    },
+    {
+      "name": "clear_history",
+      "value": "Clear history"
+    },
+    {
+      "name": "clear_history_confirm",
+      "value": "Clear all history?"
+    },
+    {
+      "name": "empty_downloads",
+      "value": "No downloads yet"
+    },
+    {
+      "name": "status_downloading",
+      "value": "Downloading"
+    },
+    {
+      "name": "status_completed",
+      "value": "Completed"
+    },
+    {
+      "name": "status_failed",
+      "value": "Failed"
+    },
+    {
+      "name": "search_engine",
+      "value": "Search engine"
+    },
+    {
+      "name": "add_engine",
+      "value": "Add search engine"
+    },
+    {
+      "name": "engine_name_hint",
+      "value": "Name"
+    },
+    {
+      "name": "engine_url_hint",
+      "value": "Search template (with %s)"
+    },
+    {
+      "name": "engine_url_invalid",
+      "value": "Template must contain %s"
+    },
+    {
+      "name": "restore_session",
+      "value": "Restore last session"
+    },
+    {
+      "name": "default_incognito",
+      "value": "Incognito by default"
+    },
+    {
+      "name": "toolbar_position",
+      "value": "Toolbar position"
+    },
+    {
+      "name": "toolbar_bottom",
+      "value": "Bottom"
+    },
+    {
+      "name": "toolbar_top",
+      "value": "Top"
+    },
+    {
+      "name": "clear_browsing_data",
+      "value": "Clear browsing data"
+    },
+    {
+      "name": "clear_history_label",
+      "value": "History"
+    },
+    {
+      "name": "clear_search_history_label",
+      "value": "Search history"
+    },
+    {
+      "name": "clear_cache_label",
+      "value": "Cache"
+    },
+    {
+      "name": "clear_cookies_label",
+      "value": "Cookies"
+    },
+    {
+      "name": "cleared",
+      "value": "Cleared"
+    },
+    {
+      "name": "homepage_settings",
+      "value": "Homepage settings"
+    },
+    {
+      "name": "show_homepage_logo",
+      "value": "Show homepage logo"
+    },
+    {
+      "name": "quick_links_empty_hint",
+      "value": "No home shortcuts yet. Long-press a bookmark and choose \"Add to home shortcuts\""
+    },
+    {
+      "name": "about",
+      "value": "About"
+    },
+    {
+      "name": "version",
+      "value": "Version"
+    },
+    {
+      "name": "browser_desc",
+      "value": "A fast and lightweight HarmonyOS browser"
+    },
+    {
+      "name": "about_desc",
+      "value": "QingHong is a fast and lightweight HarmonyOS browser with multi-tab, incognito mode, bookmarks, history and download management."
+    },
+    {
+      "name": "remove",
+      "value": "Remove"
+    },
+    {
+      "name": "removed",
+      "value": "Removed"
+    },
+    {
+      "name": "quick_links",
+      "value": "Home shortcuts"
+    },
+    {
+      "name": "empty_quick_links",
+      "value": "No shortcuts yet"
+    },
+    {
+      "name": "show_homepage_logo_desc",
+      "value": "Show the app logo on the homepage"
+    },
+    {
+      "name": "settings_general",
+      "value": "General"
+    },
+    {
+      "name": "settings_custom",
+      "value": "Customize"
+    },
+    {
+      "name": "settings_privacy",
+      "value": "Privacy"
+    },
+    {
+      "name": "settings_advanced",
+      "value": "Advanced"
+    },
+    {
+      "name": "settings_script",
+      "value": "Scripts"
+    },
+    {
+      "name": "settings_sync",
+      "value": "Sync"
+    },
+    {
+      "name": "sync_group_account",
+      "value": "Sync account"
+    },
+    {
+      "name": "sync_group_options",
+      "value": "Sync options"
+    },
+    {
+      "name": "sync_group_manual",
+      "value": "Manual sync"
+    },
+    {
+      "name": "webdav_config",
+      "value": "WebDAV settings"
+    },
+    {
+      "name": "webdav_not_configured",
+      "value": "Not configured"
+    },
+    {
+      "name": "webdav_server_address",
+      "value": "Server address"
+    },
+    {
+      "name": "webdav_server_placeholder",
+      "value": "https://dav.example.com/dav/"
+    },
+    {
+      "name": "webdav_account",
+      "value": "Account"
+    },
+    {
+      "name": "webdav_password_hint",
+      "value": "Password"
+    },
+    {
+      "name": "webdav_test_connection",
+      "value": "Test connection"
+    },
+    {
+      "name": "webdav_test_success",
+      "value": "Connected"
+    },
+    {
+      "name": "webdav_save",
+      "value": "Save"
+    },
+    {
+      "name": "webdav_url_required",
+      "value": "Enter the server address"
+    },
+    {
+      "name": "webdav_advanced",
+      "value": "Advanced"
+    },
+    {
+      "name": "webdav_folder_path",
+      "value": "Folder path"
+    },
+    {
+      "name": "webdav_folder_path_placeholder",
+      "value": "Default /QingHong"
+    },
+    {
+      "name": "webdav_digest_auth",
+      "value": "Use digest authentication"
+    },
+    {
+      "name": "webdav_digest_auth_desc",
+      "value": "Enable when the server requires Digest authentication"
+    },
+    {
+      "name": "sync_last_time",
+      "value": "Last sync"
+    },
+    {
+      "name": "sync_never",
+      "value": "Never synced"
+    },
+    {
+      "name": "auto_sync",
+      "value": "Auto sync"
+    },
+    {
+      "name": "auto_sync_desc",
+      "value": "Merge local and cloud data automatically on startup"
+    },
+    {
+      "name": "sync_data_select",
+      "value": "Sync data"
+    },
+    {
+      "name": "sync_data_bookmarks",
+      "value": "Bookmarks"
+    },
+    {
+      "name": "sync_data_settings",
+      "value": "Settings"
+    },
+    {
+      "name": "sync_none",
+      "value": "Nothing selected"
+    },
+    {
+      "name": "sync_upload",
+      "value": "Upload local data to cloud"
+    },
+    {
+      "name": "sync_upload_desc",
+      "value": "Replace cloud data with local bookmarks and settings"
+    },
+    {
+      "name": "sync_download",
+      "value": "Overwrite local with cloud data"
+    },
+    {
+      "name": "sync_download_desc",
+      "value": "Replace local bookmarks and settings with cloud data"
+    },
+    {
+      "name": "sync_merge",
+      "value": "Merge cloud and local data"
+    },
+    {
+      "name": "sync_merge_desc",
+      "value": "Merge bookmarks from both sides; the newer side wins for settings"
+    },
+    {
+      "name": "sync_confirm_upload",
+      "value": "Cloud data will be overwritten by local data. Continue?"
+    },
+    {
+      "name": "sync_confirm_download",
+      "value": "Local bookmarks and settings will be overwritten by cloud data. Continue?"
+    },
+    {
+      "name": "sync_confirm_merge",
+      "value": "Data from both sides will be merged. Continue?"
+    },
+    {
+      "name": "sync_in_progress",
+      "value": "Syncing..."
+    },
+    {
+      "name": "sync_success",
+      "value": "Synced"
+    },
+    {
+      "name": "sync_not_configured",
+      "value": "Configure your WebDAV account first"
+    },
+    {
+      "name": "sync_no_data_selected",
+      "value": "Select at least one data type to sync"
+    },
+    {
+      "name": "settings_ua",
+      "value": "Browser identifier"
+    },
+    {
+      "name": "ua_default",
+      "value": "Default"
+    },
+    {
+      "name": "ua_desktop",
+      "value": "Desktop"
+    },
+    {
+      "name": "ua_mobile",
+      "value": "Mobile"
+    },
+    {
+      "name": "ua_add_title",
+      "value": "Add user agent"
+    },
+    {
+      "name": "ua_edit_title",
+      "value": "Edit user agent"
+    },
+    {
+      "name": "ua_name_hint",
+      "value": "Name"
+    },
+    {
+      "name": "ua_value_hint",
+      "value": "User agent string"
+    },
+    {
+      "name": "ua_delete_confirm",
+      "value": "Delete this user agent?"
+    },
+    {
+      "name": "ua_custom_empty_hint",
+      "value": "No custom user agents yet. Tap \"+\" in the top-right corner to add one"
+    },
+    {
+      "name": "ua_desktop_mode",
+      "value": "User agent in desktop mode"
+    },
+    {
+      "name": "ua_simplify",
+      "value": "Simplify user agent"
+    },
+    {
+      "name": "ua_simplify_desc",
+      "value": "Remove device and minor version details from the user agent"
+    },
+    {
+      "name": "ua_custom",
+      "value": "Custom"
+    },
+    {
+      "name": "ua_android_phone",
+      "value": "Android (Phone)"
+    },
+    {
+      "name": "ua_android_tablet",
+      "value": "Android (Tablet)"
+    },
+    {
+      "name": "ua_windows_chrome",
+      "value": "Windows (Chrome)"
+    },
+    {
+      "name": "ua_windows_ie",
+      "value": "Windows (IE 11)"
+    },
+    {
+      "name": "ua_macos",
+      "value": "macOS"
+    },
+    {
+      "name": "ua_iphone",
+      "value": "iPhone"
+    },
+    {
+      "name": "ua_ipad",
+      "value": "iPad"
+    },
+    {
+      "name": "ua_symbian",
+      "value": "Symbian"
+    },
+    {
+      "name": "edit",
+      "value": "Edit"
+    },
+    {
+      "name": "clear_data",
+      "value": "Clear data"
+    },
+    {
+      "name": "ad_block",
+      "value": "Ad blocking"
+    },
+    {
+      "name": "ad_block_stats",
+      "value": "%1$d ads blocked, %2$s of data saved"
+    },
+    {
+      "name": "ad_block_builtin",
+      "value": "Built-in rules"
+    },
+    {
+      "name": "ad_block_builtin_desc",
+      "value": "Built-in rules only block common ads"
+    },
+    {
+      "name": "ad_block_custom_rules",
+      "value": "Custom rules"
+    },
+    {
+      "name": "ad_block_custom_rules_desc",
+      "value": "Includes blocking rules and flagged ads"
+    },
+    {
+      "name": "ad_block_subscription",
+      "value": "Rule subscriptions"
+    },
+    {
+      "name": "ad_block_subscription_desc",
+      "value": "Subscribe to Adblock Plus filter lists"
+    },
+    {
+      "name": "help",
+      "value": "Help"
+    },
+    {
+      "name": "ad_block_rules_hint",
+      "value": "One filter rule per line"
+    },
+    {
+      "name": "ad_block_rules_help",
+      "value": "QingHong supports almost all Adblock Plus filter rules.\n\nBlock all requests to example.com:\n||example.com^ (or example.com)\n\nWildcards are supported, e.g.:\n||example.com/js/ads_*.js\n\nAllow specific requests (whitelist), e.g.:\n@@||example.com^\n\nHide page elements with rules like:\nexample.com###ad"
+    },
+    {
+      "name": "ad_block_rules_help_view",
+      "value": "View rules"
+    },
+    {
+      "name": "ad_block_rules_help_close",
+      "value": "Close"
+    },
+    {
+      "name": "ad_block_subs_auto_update",
+      "value": "Auto-update"
+    },
+    {
+      "name": "ad_block_subs_interval_manual",
+      "value": "Manually"
+    },
+    {
+      "name": "ad_block_subs_interval_12h",
+      "value": "Every 12 hours"
+    },
+    {
+      "name": "ad_block_subs_interval_daily",
+      "value": "Daily"
+    },
+    {
+      "name": "ad_block_subs_interval_weekly",
+      "value": "Weekly"
+    },
+    {
+      "name": "ad_block_subs_interval_monthly",
+      "value": "Monthly"
+    },
+    {
+      "name": "ad_block_subs_never_auto",
+      "value": "Never auto-updated"
+    },
+    {
+      "name": "ad_block_subs_last_auto",
+      "value": "Last auto-update: %s"
+    },
+    {
+      "name": "ad_block_sub_item_desc",
+      "value": "%1$s · %2$s"
+    },
+    {
+      "name": "ad_block_sub_rules",
+      "value": "%d rules"
+    },
+    {
+      "name": "ad_block_subs_empty",
+      "value": "No subscriptions yet. Tap + to add one"
+    },
+    {
+      "name": "ad_block_subs_add_title",
+      "value": "Add subscription"
+    },
+    {
+      "name": "ad_block_subs_add",
+      "value": "Add"
+    },
+    {
+      "name": "ad_block_subs_url_hint",
+      "value": "Filter list URL"
+    },
+    {
+      "name": "ad_block_subs_url_invalid",
+      "value": "Enter a valid filter list URL"
+    },
+    {
+      "name": "ad_block_subs_added",
+      "value": "Added"
+    },
+    {
+      "name": "ad_block_sub_downloading",
+      "value": "Downloading…"
+    },
+    {
+      "name": "ad_block_sub_updating",
+      "value": "Updating…"
+    },
+    {
+      "name": "ad_block_subs_exists",
+      "value": "Subscription already exists"
+    },
+    {
+      "name": "ad_block_sub_menu_preview",
+      "value": "Preview"
+    },
+    {
+      "name": "ad_block_sub_menu_update",
+      "value": "Update"
+    },
+    {
+      "name": "ad_block_sub_menu_rename",
+      "value": "Update name"
+    },
+    {
+      "name": "ad_block_sub_rename_failed",
+      "value": "No name found in rules"
+    },
+    {
+      "name": "ad_block_sub_menu_copy_link",
+      "value": "Copy link"
+    },
+    {
+      "name": "ad_block_sub_edit_title",
+      "value": "Edit subscription"
+    },
+    {
+      "name": "ad_block_sub_name_hint",
+      "value": "Name"
+    },
+    {
+      "name": "ad_block_sub_updated",
+      "value": "Updated"
+    },
+    {
+      "name": "ad_block_sub_preview_empty",
+      "value": "No rules yet. Update the subscription first"
+    },
+    {
+      "name": "ad_block_subs_updated",
+      "value": "Updated %d subscriptions"
+    },
+    {
+      "name": "ad_block_subs_update_failed",
+      "value": "Update failed. Check your network"
+    },
+    {
+      "name": "ad_block_subs_none_enabled",
+      "value": "No enabled subscriptions"
+    },
+    {
+      "name": "ad_block_subs_delete_confirm",
+      "value": "Delete this subscription and its downloaded rules?"
+    },
+    {
+      "name": "time_never",
+      "value": "Never updated"
+    },
+    {
+      "name": "time_just_now",
+      "value": "just now"
+    },
+    {
+      "name": "time_minutes_ago",
+      "value": "%d min ago"
+    },
+    {
+      "name": "time_hours_ago",
+      "value": "%d h ago"
+    },
+    {
+      "name": "time_days_ago",
+      "value": "%d d ago"
+    },
+    {
+      "name": "site_settings",
+      "value": "Site settings"
+    },
+    {
+      "name": "password_manager",
+      "value": "Password manager"
+    },
+    {
+      "name": "night_mode",
+      "value": "Night mode"
+    },
+    {
+      "name": "night_group_appearance",
+      "value": "Appearance"
+    },
+    {
+      "name": "night_group_web",
+      "value": "Web pages"
+    },
+    {
+      "name": "night_theme_mode",
+      "value": "Theme mode"
+    },
+    {
+      "name": "night_theme_follow_system",
+      "value": "Follow system"
+    },
+    {
+      "name": "night_theme_light",
+      "value": "Light"
+    },
+    {
+      "name": "night_theme_dark",
+      "value": "Dark"
+    },
+    {
+      "name": "night_mask_filter",
+      "value": "Web mask filter"
+    },
+    {
+      "name": "night_mask_filter_desc",
+      "value": "Overlay a translucent filter on web pages to dim the screen"
+    },
+    {
+      "name": "night_mask_enable",
+      "value": "Enable filter"
+    },
+    {
+      "name": "night_mask_preview",
+      "value": "Preview"
+    },
+    {
+      "name": "night_mask_opacity",
+      "value": "Filter opacity"
+    },
+    {
+      "name": "night_mask_color",
+      "value": "Filter color"
+    },
+    {
+      "name": "night_mask_color_black",
+      "value": "Black"
+    },
+    {
+      "name": "night_mask_color_amber",
+      "value": "Amber"
+    },
+    {
+      "name": "night_mask_off",
+      "value": "Off"
+    },
+    {
+      "name": "force_dark_web",
+      "value": "Force dark web pages"
+    },
+    {
+      "name": "force_dark_web_desc",
+      "value": "Automatically invert light pages to dark; some pages may show color issues or flicker"
+    },
+    {
+      "name": "read_mode",
+      "value": "Reader mode"
+    },
+    {
+      "name": "read_group_interaction",
+      "value": "Interaction"
+    },
+    {
+      "name": "read_group_appearance",
+      "value": "Appearance"
+    },
+    {
+      "name": "read_group_advanced",
+      "value": "Advanced"
+    },
+    {
+      "name": "read_mode_confirm",
+      "value": "Confirm before entering reader mode"
+    },
+    {
+      "name": "read_mode_confirm_desc",
+      "value": "Show a menu first when tapping the reader icon in the address bar"
+    },
+    {
+      "name": "read_mode_bg_color",
+      "value": "Background color"
+    },
+    {
+      "name": "read_mode_bg_paper",
+      "value": "Paper"
+    },
+    {
+      "name": "read_mode_bg_green",
+      "value": "Sepia green"
+    },
+    {
+      "name": "read_mode_bg_white",
+      "value": "White"
+    },
+    {
+      "name": "read_mode_bg_black",
+      "value": "Night"
+    },
+    {
+      "name": "read_mode_bg_custom",
+      "value": "Custom"
+    },
+    {
+      "name": "read_mode_custom_color_title",
+      "value": "Custom background color"
+    },
+    {
+      "name": "read_mode_invalid_color",
+      "value": "Enter a color in #RRGGBB format"
+    },
+    {
+      "name": "read_mode_font_size",
+      "value": "Font size"
+    },
+    {
+      "name": "read_mode_preview",
+      "value": "Preview"
+    },
+    {
+      "name": "read_mode_preview_title",
+      "value": "Reader mode"
+    },
+    {
+      "name": "read_mode_preview_text",
+      "value": "Strip away distracting page elements and keep only the main content for an immersive reading experience."
+    },
+    {
+      "name": "read_mode_css",
+      "value": "Custom reader mode CSS"
+    },
+    {
+      "name": "read_mode_css_desc",
+      "value": "Appended after the built-in reader styles"
+    },
+    {
+      "name": "read_mode_css_hint",
+      "value": "Example:\np {\n  line-height: 1.8;\n}"
+    },
+    {
+      "name": "read_mode_css_apply_hint",
+      "value": "Applies to reader pages opened after saving"
+    },
+    {
+      "name": "read_mode_css_set",
+      "value": "Customized"
+    },
+    {
+      "name": "read_mode_css_empty",
+      "value": "Not set"
+    },
+    {
+      "name": "toolbar_settings",
+      "value": "Toolbar settings"
+    },
+    {
+      "name": "customize_menu",
+      "value": "Customize menu"
+    },
+    {
+      "name": "customize_long_press_menu",
+      "value": "Customize long-press menu"
+    },
+    {
+      "name": "language",
+      "value": "Language"
+    },
+    {
+      "name": "lang_follow_system",
+      "value": "Follow system"
+    },
+    {
+      "name": "lang_english",
+      "value": "English"
+    },
+    {
+      "name": "lang_chinese",
+      "value": "中文（简体）"
+    },
+    {
+      "name": "home_page",
+      "value": "Homepage"
+    },
+    {
+      "name": "search_settings",
+      "value": "Search settings"
+    },
+    {
+      "name": "ai_settings",
+      "value": "AI settings"
+    },
+    {
+      "name": "screen_orientation",
+      "value": "Screen orientation"
+    },
+    {
+      "name": "orientation_auto",
+      "value": "Auto"
+    },
+    {
+      "name": "orientation_portrait",
+      "value": "Portrait"
+    },
+    {
+      "name": "orientation_landscape",
+      "value": "Landscape"
+    },
+    {
+      "name": "download_dir",
+      "value": "Download folder"
+    },
+    {
+      "name": "download_dir_unsupported",
+      "value": "The download folder cannot be changed yet"
+    },
+    {
+      "name": "video_player",
+      "value": "External video player"
+    },
+    {
+      "name": "vp_none",
+      "value": "None"
+    },
+    {
+      "name": "vp_system",
+      "value": "System player"
+    },
+    {
+      "name": "exit_clear_data",
+      "value": "Clear data on exit"
+    },
+    {
+      "name": "font",
+      "value": "Font"
+    },
+    {
+      "name": "font_available",
+      "value": "Available fonts"
+    },
+    {
+      "name": "font_default",
+      "value": "Default font"
+    },
+    {
+      "name": "font_empty_hint",
+      "value": "No custom fonts yet. Tap the button in the top-right corner to import a .ttf / .otf file"
+    },
+    {
+      "name": "font_added",
+      "value": "Added"
+    },
+    {
+      "name": "font_add_failed",
+      "value": "Failed to add font"
+    },
+    {
+      "name": "font_pick_failed",
+      "value": "Failed to pick file"
+    },
+    {
+      "name": "font_delete_confirm",
+      "value": "Delete this font?"
+    },
+    {
+      "name": "operations_settings",
+      "value": "Operations"
+    },
+    {
+      "name": "import_backup_bookmarks",
+      "value": "Import/backup bookmarks"
+    },
+    {
+      "name": "backup_bookmarks",
+      "value": "Backup bookmarks"
+    },
+    {
+      "name": "import_bookmarks",
+      "value": "Import bookmarks"
+    },
+    {
+      "name": "import_data",
+      "value": "Import data"
+    },
+    {
+      "name": "export_data",
+      "value": "Export data"
+    },
+    {
+      "name": "export",
+      "value": "Export"
+    },
+    {
+      "name": "restore_tabs",
+      "value": "Restore tabs on startup"
+    },
+    {
+      "name": "restore_never",
+      "value": "Never"
+    },
+    {
+      "name": "restore_always",
+      "value": "Always"
+    },
+    {
+      "name": "restore_ask",
+      "value": "Ask first"
+    },
+    {
+      "name": "undo_close_tip",
+      "value": "Show undo-close-tab tip"
+    },
+    {
+      "name": "undo_close_tip_desc",
+      "value": "The tip is not shown in incognito mode"
+    },
+    {
+      "name": "auto_expand_web",
+      "value": "Auto-expand page content"
+    },
+    {
+      "name": "auto_expand_web_desc",
+      "value": "Automatically expand collapsed content when opening pages"
+    },
+    {
+      "name": "set_default_browser",
+      "value": "Set as default browser"
+    },
+    {
+      "name": "set_default_browser_toast",
+      "value": "Set QingHong as the default browser in system default app settings"
+    },
+    {
+      "name": "default_browser_on",
+      "value": "Default browser"
+    },
+    {
+      "name": "default_browser_off",
+      "value": "Not default browser"
+    },
+    {
+      "name": "already_default_browser",
+      "value": "Already the default browser"
+    },
+    {
+      "name": "tab_closed",
+      "value": "Tab closed"
+    },
+    {
+      "name": "undo",
+      "value": "Undo"
+    },
+    {
+      "name": "restore_prompt_title",
+      "value": "Restore session"
+    },
+    {
+      "name": "restore_prompt_message",
+      "value": "Restore the tabs from your last session?"
+    },
+    {
+      "name": "restore_yes",
+      "value": "Restore"
+    },
+    {
+      "name": "restore_no",
+      "value": "Don't restore"
+    },
+    {
+      "name": "general_group_startup",
+      "value": "Startup & system"
+    },
+    {
+      "name": "general_group_appearance",
+      "value": "Appearance & display"
+    },
+    {
+      "name": "general_group_browsing",
+      "value": "Web browsing"
+    },
+    {
+      "name": "general_group_search",
+      "value": "Search & homepage"
+    },
+    {
+      "name": "general_group_data",
+      "value": "Downloads & data"
+    },
+    {
+      "name": "general_group_menu",
+      "value": "Menu & operations"
+    },
+    {
+      "name": "do_not_track",
+      "value": "Do not track"
+    },
+    {
+      "name": "do_not_track_desc",
+      "value": "Ask websites not to track your browsing"
+    },
+    {
+      "name": "disable_webrtc",
+      "value": "Disable WebRTC"
+    },
+    {
+      "name": "disable_webrtc_desc",
+      "value": "Prevent pages from detecting your real IP address via WebRTC"
+    },
+    {
+      "name": "geolocation_access",
+      "value": "Allow pages to access location"
+    },
+    {
+      "name": "geolocation_access_desc",
+      "value": "Ask when a page requests location; always deny when off"
+    },
+    {
+      "name": "geolocation_permission_title",
+      "value": "Location request"
+    },
+    {
+      "name": "geolocation_permission_message",
+      "value": "wants to access your location"
+    },
+    {
+      "name": "allow",
+      "value": "Allow"
+    },
+    {
+      "name": "deny",
+      "value": "Deny"
+    },
+    {
+      "name": "do_not_sell",
+      "value": "Do not sell or share data"
+    },
+    {
+      "name": "do_not_sell_desc",
+      "value": "Never sell or share personal data with third parties"
+    },
+    {
+      "name": "no_image_mode",
+      "value": "No image mode"
+    },
+    {
+      "name": "no_image_mode_desc",
+      "value": "Skip loading online images to save data"
+    },
+    {
+      "name": "show_sniff_button",
+      "value": "Show sniff button automatically"
+    },
+    {
+      "name": "allow_debug_web",
+      "value": "Allow web debugging"
+    },
+    {
+      "name": "disable_safe_browsing",
+      "value": "Disable safe browsing"
+    },
+    {
+      "name": "disable_safe_browsing_desc",
+      "value": "Stops blocking risky sites only; illegal and fraudulent sites are still blocked"
+    },
+    {
+      "name": "ignore_ssl_warning",
+      "value": "Ignore SSL certificate warnings"
+    },
+    {
+      "name": "ignore_ssl_warning_desc",
+      "value": "No more certificate warnings (not recommended)"
+    },
+    {
+      "name": "ssl_warning_dialog_message",
+      "value": "SSL certificates verify a website's identity and encrypt the traffic between you and the site, which is essential for safe browsing.\n\nOnce enabled, the browser will no longer block sites with abnormal certificates. Such sites may not be the ones you intend to visit; the connection could be intercepted or tampered with, and sensitive information such as login credentials or payment details may leak. Use with caution."
+    },
+    {
+      "name": "ssl_warning_ack",
+      "value": "I understand this may make connections insecure"
+    },
+    {
+      "name": "ssl_warning_ack_required",
+      "value": "Check the confirmation box first"
+    },
+    {
+      "name": "clear_form_data",
+      "value": "Form data"
+    },
+    {
+      "name": "clear_closed_tabs",
+      "value": "Closed tabs"
+    },
+    {
+      "name": "clear_web_storage",
+      "value": "Web storage"
+    },
+    {
+      "name": "clear_cookies_login",
+      "value": "Cookies (login state)"
+    },
+    {
+      "name": "clear_app_cache",
+      "value": "App cache"
+    },
+    {
+      "name": "feature_wip",
+      "value": "Work in progress"
+    },
+    {
+      "name": "placeholder_hint",
+      "value": "This feature is under development. Stay tuned"
+    },
+    {
+      "name": "saved",
+      "value": "Saved"
+    },
+    {
+      "name": "add",
+      "value": "Add"
+    },
+    {
+      "name": "site_enable_settings",
+      "value": "Use settings for %1$s"
+    },
+    {
+      "name": "site_all_sites",
+      "value": "All sites"
+    },
+    {
+      "name": "site_group_content",
+      "value": "Content"
+    },
+    {
+      "name": "site_group_basic",
+      "value": "Basic"
+    },
+    {
+      "name": "site_group_permission",
+      "value": "Permissions"
+    },
+    {
+      "name": "site_group_advanced",
+      "value": "Advanced"
+    },
+    {
+      "name": "site_font_size",
+      "value": "Font size"
+    },
+    {
+      "name": "site_font_preview",
+      "value": "Hello World 你好世界"
+    },
+    {
+      "name": "force_enable_zoom",
+      "value": "Force zoom"
+    },
+    {
+      "name": "force_enable_zoom_desc",
+      "value": "Ignore zoom restrictions requested by web pages"
+    },
+    {
+      "name": "site_ua",
+      "value": "User agent"
+    },
+    {
+      "name": "site_desktop",
+      "value": "Request desktop site"
+    },
+    {
+      "name": "site_image",
+      "value": "Show images"
+    },
+    {
+      "name": "site_opt_image_show",
+      "value": "Show images"
+    },
+    {
+      "name": "site_opt_image_none",
+      "value": "No images"
+    },
+    {
+      "name": "site_opt_image_wifi",
+      "value": "Wi-Fi only"
+    },
+    {
+      "name": "site_image_desc",
+      "value": "Default image display for all sites"
+    },
+    {
+      "name": "site_image_disabled_hint",
+      "value": "No-image mode is on. Turn it off in Advanced settings first"
+    },
+    {
+      "name": "site_js",
+      "value": "JavaScript"
+    },
+    {
+      "name": "site_cookies",
+      "value": "Cookies"
+    },
+    {
+      "name": "cookies_desc",
+      "value": "Allow sites to save and read cookie data"
+    },
+    {
+      "name": "cookies_block_third_party",
+      "value": "Block third-party cookies"
+    },
+    {
+      "name": "site_popup",
+      "value": "Pop-ups"
+    },
+    {
+      "name": "site_ad_block",
+      "value": "Ad blocking"
+    },
+    {
+      "name": "site_incognito",
+      "value": "Incognito mode"
+    },
+    {
+      "name": "site_clipboard",
+      "value": "Clipboard"
+    },
+    {
+      "name": "site_location",
+      "value": "Location"
+    },
+    {
+      "name": "site_camera",
+      "value": "Camera"
+    },
+    {
+      "name": "site_microphone",
+      "value": "Microphone"
+    },
+    {
+      "name": "site_redirect",
+      "value": "Website redirects"
+    },
+    {
+      "name": "web_vibration",
+      "value": "Web Vibration"
+    },
+    {
+      "name": "web_vibration_desc",
+      "value": "Allow web pages to trigger device vibration via scripts"
+    },
+    {
+      "name": "web_haptic",
+      "value": "Long-press Selection Haptics"
+    },
+    {
+      "name": "web_haptic_desc",
+      "value": "Keep haptic feedback for long-press text selection when web vibration is off"
+    },
+    {
+      "name": "site_back_no_reload",
+      "value": "Back without reload"
+    },
+    {
+      "name": "site_default",
+      "value": "Default"
+    },
+    {
+      "name": "site_exceptions",
+      "value": "Exceptions"
+    },
+    {
+      "name": "site_exceptions_empty",
+      "value": "No exceptions"
+    },
+    {
+      "name": "site_add_site",
+      "value": "Add site"
+    },
+    {
+      "name": "site_site_hint",
+      "value": "Enter a domain, e.g. example.com"
+    },
+    {
+      "name": "site_site_invalid",
+      "value": "Enter a valid domain"
+    },
+    {
+      "name": "site_site_exists",
+      "value": "Site already exists"
+    },
+    {
+      "name": "site_delete_site_confirm",
+      "value": "Delete all settings for this site?"
+    },
+    {
+      "name": "site_all_sites_empty",
+      "value": "No site settings yet"
+    },
+    {
+      "name": "site_opt_allow",
+      "value": "Allow"
+    },
+    {
+      "name": "site_opt_ask",
+      "value": "Ask"
+    },
+    {
+      "name": "site_opt_block",
+      "value": "Block"
+    },
+    {
+      "name": "site_opt_on",
+      "value": "On"
+    },
+    {
+      "name": "site_opt_off",
+      "value": "Off"
+    },
+    {
+      "name": "site_opt_follow_global",
+      "value": "Follow global"
+    },
+    {
+      "name": "camera_permission_reason",
+      "value": "Used when a web page requests camera access"
+    },
+    {
+      "name": "mic_permission_reason",
+      "value": "Used when a web page requests microphone access"
+    },
+    {
+      "name": "location_permission_reason",
+      "value": "Used when a web page requests your location"
+    },
+    {
+      "name": "pasteboard_permission_reason",
+      "value": "Used when a web page reads clipboard content"
+    },
+    {
+      "name": "clipboard_permission_title",
+      "value": "Clipboard Permission Request"
+    },
+    {
+      "name": "clipboard_read_message",
+      "value": "wants to read your clipboard"
+    },
+    {
+      "name": "clipboard_write_message",
+      "value": "wants to copy content to the clipboard"
+    },
+    {
+      "name": "redirect_permission_title",
+      "value": "Redirect Confirmation"
+    },
+    {
+      "name": "redirect_ask_message",
+      "value": "is trying to redirect to the following address:"
+    },
+    {
+      "name": "site_redirect_blocked",
+      "value": "Redirect blocked"
+    },
+    {
+      "name": "web_permission_title",
+      "value": "Permission request"
+    },
+    {
+      "name": "web_permission_use_camera",
+      "value": "wants to use your camera"
+    },
+    {
+      "name": "web_permission_use_mic",
+      "value": "wants to use your microphone"
+    },
+    {
+      "name": "web_permission_use_both",
+      "value": "wants to use your camera and microphone"
+    },
+    {
+      "name": "popup_ask_desc",
+      "value": "Sites must ask for permission before showing pop-up windows"
+    },
+    {
+      "name": "popup_allowed_desc",
+      "value": "Sites can show pop-up windows directly"
+    },
+    {
+      "name": "popup_permission_title",
+      "value": "Pop-up Windows"
+    },
+    {
+      "name": "popup_ask_message",
+      "value": "wants to show pop-up windows"
+    }
+  ]
+}

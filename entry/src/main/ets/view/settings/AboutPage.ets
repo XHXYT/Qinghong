@@ -51,7 +51,7 @@ struct AboutPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.comp_background_secondary'))
+    .backgroundColor($r('app.color.background_color_accent'))
   }
 
   build() {

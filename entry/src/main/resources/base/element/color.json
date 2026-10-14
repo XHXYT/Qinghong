@@ -3,6 +3,34 @@
     {
       "name": "start_window_background",
       "value": "#FFFFFF"
+    },
+    {
+      "name": "background_color",
+      "value": "#F1F3F5"
+    },
+    {
+      "name": "background_color_accent",
+      "value": "#F9FAFC"
+    },
+    {
+      "name": "night_preview_bg",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "night_preview_accent",
+      "value": "#4A90D9"
+    },
+    {
+      "name": "night_preview_title",
+      "value": "#C4CBD4"
+    },
+    {
+      "name": "night_preview_text",
+      "value": "#D8DDE4"
+    },
+    {
+      "name": "night_preview_block",
+      "value": "#E8EBF0"
     }
   ]
 }

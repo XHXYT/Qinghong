@@ -8,6 +8,8 @@ export interface CustomItemInfoParam {
   iconColor?: ResourceColor;
   title?: ResourceStr;
   subtitle?: ResourceStr;
+  /** 置灰时点击的提示文案（空 = 无提示） */
+  disabledHint?: ResourceStr;
   type: ItemActionType;
   value?: string | boolean | number;
   enabled?: boolean;
@@ -16,6 +18,7 @@ export interface CustomItemInfoParam {
   sliderConfig?: SliderConfig;
   radioConfig?: RadioConfig;
   menuOptions?: Array<MenuOption>;
+  contextMenuItems?: Array<ContextMenuItem>;
   onChange?: (value: string | boolean | number) => void;
   menuDisabled?: (item: MenuOption, index: number) => boolean;
 }
@@ -39,6 +42,7 @@ export class CustomItemInfo {
   @Trace iconColor: ResourceColor = $r('sys.color.icon_emphasize'); // 图标颜色
   @Trace title: ResourceStr = ''; // 主标题
   @Trace subtitle: ResourceStr = ''; // 副标题/描述内容
+  @Trace disabledHint: ResourceStr = ''; // 置灰时点击的提示文案
 
   // 交互状态
   @Trace type: ItemActionType = ItemActionType.NONE; // 操作类型
@@ -51,6 +55,7 @@ export class CustomItemInfo {
   @Trace sliderConfig?: SliderConfig; // 滑块配置
   @Trace radioConfig?: RadioConfig; // 单选框配置
   @Trace menuOptions?: Array<MenuOption>; // 菜单选项列表
+  @Trace contextMenuItems?: Array<ContextMenuItem>; // 长按上下文菜单项
 
   // 回调事件
   // 点击及值变化事件 (用于 Toggle, Slider, Radio 变化)
@@ -70,6 +75,7 @@ export class CustomItemInfo {
       if (init.iconColor !== undefined) this.iconColor = init.iconColor;
       if (init.title !== undefined) this.title = init.title;
       if (init.subtitle !== undefined) this.subtitle = init.subtitle;
+      if (init.disabledHint !== undefined) this.disabledHint = init.disabledHint;
 
       if (init.type !== undefined) this.type = init.type;
       if (init.value !== undefined) this.value = init.value;
@@ -80,6 +86,7 @@ export class CustomItemInfo {
       if (init.sliderConfig !== undefined) this.sliderConfig = init.sliderConfig;
       if (init.radioConfig !== undefined) this.radioConfig = init.radioConfig;
       if (init.menuOptions !== undefined) this.menuOptions = init.menuOptions;
+      if (init.contextMenuItems !== undefined) this.contextMenuItems = init.contextMenuItems;
 
       if (init.onChange !== undefined) this.onChange = init.onChange;
       if (init.menuDisabled !== undefined) this.menuDisabled = init.menuDisabled;
@@ -189,6 +196,30 @@ export class MenuOption {
     this.value = value;
     this.title = title;
     this.symbolIcon = new SymbolGlyphModifier(symbol)
+  }
+}
+
+/**
+ * 长按上下文菜单项（CustomListItem 长按弹出）
+ */
+@ObservedV2
+export class ContextMenuItem {
+  @Trace title: ResourceStr;
+  @Trace symbol?: Resource;
+  /** 危险操作标红 */
+  @Trace isDanger: boolean = false;
+  action: () => void = () => {
+  };
+
+  constructor(title: ResourceStr, action: () => void, symbol?: Resource, isDanger?: boolean) {
+    this.title = title;
+    this.action = action;
+    if (symbol !== undefined) {
+      this.symbol = symbol;
+    }
+    if (isDanger !== undefined) {
+      this.isDanger = isDanger;
+    }
   }
 }
 

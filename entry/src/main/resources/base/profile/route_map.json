@@ -21,13 +21,138 @@
       "buildFunction": "SettingsBuilder"
     },
     {
+      "name": "settings_general",
+      "pageSourceFile": "src/main/ets/view/settings/general/GeneralSettingsPage.ets",
+      "buildFunction": "GeneralSettingsBuilder"
+    },
+    {
+      "name": "settings_custom",
+      "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
+      "buildFunction": "SettingsCustomBuilder"
+    },
+    {
+      "name": "settings_privacy",
+      "pageSourceFile": "src/main/ets/view/settings/PrivacySettingsPage.ets",
+      "buildFunction": "PrivacySettingsBuilder"
+    },
+    {
+      "name": "settings_advanced",
+      "pageSourceFile": "src/main/ets/view/settings/AdvancedSettingsPage.ets",
+      "buildFunction": "AdvancedSettingsBuilder"
+    },
+    {
+      "name": "settings_script",
+      "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
+      "buildFunction": "SettingsScriptBuilder"
+    },
+    {
+      "name": "settings_toolbar",
+      "pageSourceFile": "src/main/ets/view/settings/general/ToolbarSettingsPage.ets",
+      "buildFunction": "ToolbarSettingsBuilder"
+    },
+    {
+      "name": "settings_sync",
+      "pageSourceFile": "src/main/ets/view/settings/general/SyncSettingsPage.ets",
+      "buildFunction": "SyncSettingsBuilder"
+    },
+    {
+      "name": "settings_adblock",
+      "pageSourceFile": "src/main/ets/view/settings/general/adblock/AdblockPage.ets",
+      "buildFunction": "SettingsAdblockBuilder"
+    },
+    {
+      "name": "settings_adblock_custom",
+      "pageSourceFile": "src/main/ets/view/settings/general/adblock/AdblockRulesPage.ets",
+      "buildFunction": "SettingsAdblockRulesBuilder"
+    },
+    {
+      "name": "settings_adblock_subs",
+      "pageSourceFile": "src/main/ets/view/settings/general/adblock/AdblockSubsPage.ets",
+      "buildFunction": "SettingsAdblockSubsBuilder"
+    },
+    {
+      "name": "settings_adblock_sub_preview",
+      "pageSourceFile": "src/main/ets/view/settings/general/adblock/AdblockSubPreviewPage.ets",
+      "buildFunction": "SettingsAdblockSubPreviewBuilder"
+    },
+    {
+      "name": "settings_site",
+      "pageSourceFile": "src/main/ets/view/settings/general/site/SiteSettingsPage.ets",
+      "buildFunction": "SettingsSiteBuilder"
+    },
+    {
+      "name": "settings_site_item",
+      "pageSourceFile": "src/main/ets/view/settings/general/site/SiteItemPage.ets",
+      "buildFunction": "SettingsSiteItemBuilder"
+    },
+    {
+      "name": "settings_site_list",
+      "pageSourceFile": "src/main/ets/view/settings/general/site/SiteListPage.ets",
+      "buildFunction": "SettingsSiteListBuilder"
+    },
+    {
+      "name": "settings_site_detail",
+      "pageSourceFile": "src/main/ets/view/settings/general/site/SiteDetailPage.ets",
+      "buildFunction": "SettingsSiteDetailBuilder"
+    },
+    {
+      "name": "settings_password",
+      "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
+      "buildFunction": "SettingsPasswordBuilder"
+    },
+    {
+      "name": "settings_night_mode",
+      "pageSourceFile": "src/main/ets/view/settings/general/NightModePage.ets",
+      "buildFunction": "SettingsNightModeBuilder"
+    },
+    {
+      "name": "settings_read_mode",
+      "pageSourceFile": "src/main/ets/view/settings/general/ReadModePage.ets",
+      "buildFunction": "SettingsReadModeBuilder"
+    },
+    {
+      "name": "settings_menu_custom",
+      "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
+      "buildFunction": "SettingsMenuCustomBuilder"
+    },
+    {
+      "name": "settings_long_press",
+      "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
+      "buildFunction": "SettingsLongPressBuilder"
+    },
+    {
+      "name": "settings_ai",
+      "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
+      "buildFunction": "SettingsAiBuilder"
+    },
+    {
+      "name": "settings_font",
+      "pageSourceFile": "src/main/ets/view/settings/general/FontPage.ets",
+      "buildFunction": "SettingsFontBuilder"
+    },
+    {
+      "name": "settings_ua",
+      "pageSourceFile": "src/main/ets/view/settings/general/UaPage.ets",
+      "buildFunction": "SettingsUaBuilder"
+    },
+    {
+      "name": "settings_operations",
+      "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
+      "buildFunction": "SettingsOperationsBuilder"
+    },
+    {
+      "name": "settings_import",
+      "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
+      "buildFunction": "SettingsImportBuilder"
+    },
+    {
       "name": "search_engine",
-      "pageSourceFile": "src/main/ets/view/settings/SearchEnginePage.ets",
+      "pageSourceFile": "src/main/ets/view/settings/general/SearchEnginePage.ets",
       "buildFunction": "SearchEngineBuilder"
     },
     {
       "name": "homepage_settings",
-      "pageSourceFile": "src/main/ets/view/settings/HomepageSettingsPage.ets",
+      "pageSourceFile": "src/main/ets/view/settings/general/HomepageSettingsPage.ets",
       "buildFunction": "HomepageSettingsBuilder"
     },
     {

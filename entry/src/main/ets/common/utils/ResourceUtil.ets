@@ -47,6 +47,30 @@ export class _ResourceUtils {
   }
 
   /**
+   * 获取带格式化参数的本地化字符串（最多两个参数，对应 %1$s/%2$s 或 %d/%s）
+   * @param resource 字符串资源
+   * @param args 格式化参数
+   * @returns 格式化后的字符串，失败返回空字符串 ""
+   */
+  getStringWithArgs(resource: Resource, args: Array<string | number>): string {
+    const ctx = this.ensureContext();
+
+    if (!resource.id) return '';
+    try {
+      if (args.length === 0) {
+        return ctx.resourceManager.getStringSync(resource.id);
+      }
+      if (args.length === 1) {
+        return ctx.resourceManager.getStringSync(resource.id, args[0]);
+      }
+      return ctx.resourceManager.getStringSync(resource.id, args[0], args[1]);
+    } catch (error) {
+      console.error(`[ResourceUtils] getStringWithArgs failed, error: ${JSON.stringify(error)}`);
+      return '';
+    }
+  }
+
+  /**
    * 将 ResourceColor 转换为 #AARRGGBB 格式的字符串
    * @param color 颜色资源 (支持 string, number, Resource)
    * @returns #AARRGGBB 格式的颜色字符串，失败返回空字符串 ""

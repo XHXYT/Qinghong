@@ -1,0 +1,656 @@
+import { webview } from '@kit.ArkWeb';
+import { CustomContentDialog } from '@kit.ArkUI';
+import { defaultAppManager, Want } from '@kit.AbilityKit';
+import { BusinessError } from '@kit.BasicServicesKit';
+import { NaviContainer } from '../../../components/NaviContainer';
+import { QhState } from '../../../entryability/AppState';
+import { appSettings } from '../../../common/entity/SettingsModel';
+import { historyVM } from '../../../viewmodel/HistoryViewModel';
+import { searchHistoryVM } from '../../../viewmodel/SearchViewModel';
+import { tabsVM } from '../../../viewmodel/TabsViewModel';
+import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
+import { CustomListItem } from '../../../components/CusItemBuilder';
+import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../../../components/SheetPicker';
+import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
+import { toastUtil } from '../../../common/utils/ToastUtils';
+import { ResourceUtils } from '../../../common/utils/ResourceUtil';
+import { SettingsUtils } from '../../../common/utils/SettingsUtils';
+import { AppConstants } from '../../../common/constants/AppConstants';
+
+const CLEAR_KEYS: string[] = ['cache', 'form', 'history', 'search_history', 'closed_tabs', 'web_storage', 'cookies', 'app_cache'];
+
+function parseExitClear(v: string): boolean[] {
+  const parts: string[] = v ? v.split(',') : [];
+  return CLEAR_KEYS.map((k: string): boolean => parts.includes(k));
+}
+
+function exitClearKeys(selected: boolean[]): string {
+  const picked: string[] = [];
+  for (let i = 0; i < selected.length && i < CLEAR_KEYS.length; i++) {
+    if (selected[i]) {
+      picked.push(CLEAR_KEYS[i]);
+    }
+  }
+  return picked.join(',');
+}
+
+function langLabel(v: string): ResourceStr {
+  if (v === 'en') {
+    return $r('app.string.lang_english');
+  }
+  if (v === 'zh') {
+    return $r('app.string.lang_chinese');
+  }
+  return $r('app.string.lang_follow_system');
+}
+
+function orientationLabel(v: string): ResourceStr {
+  if (v === 'portrait') {
+    return $r('app.string.orientation_portrait');
+  }
+  if (v === 'landscape') {
+    return $r('app.string.orientation_landscape');
+  }
+  return $r('app.string.orientation_auto');
+}
+
+function videoPlayerLabel(v: string): ResourceStr {
+  if (v === 'none') {
+    return $r('app.string.vp_none');
+  }
+  return $r('app.string.vp_system');
+}
+
+function restoreLabel(v: string): ResourceStr {
+  if (v === 'never') {
+    return $r('app.string.restore_never');
+  }
+  if (v === 'ask') {
+    return $r('app.string.restore_ask');
+  }
+  return $r('app.string.restore_always');
+}
+
+@ComponentV2
+struct CheckRow {
+  @Require @Param label: ResourceStr
+  @Param checked: boolean = false
+  @Event onToggle: (v: boolean) => void = () => {
+  };
+
+  build() {
+    Row() {
+      Text(this.label)
+        .fontSize(16)
+        .fontColor($r('sys.color.font_primary'))
+        .layoutWeight(1)
+      Checkbox()
+        .size({ width: 24, height: 24 })
+        .select(this.checked)
+        .hitTestBehavior(HitTestMode.None)
+    }
+    .width('100%')
+    .height(48)
+    .onClick(() => {
+      this.onToggle(!this.checked)
+    })
+  }
+}
+
+@ComponentV2
+struct ActionRow {
+  @Require @Param label: ResourceStr
+  @Event onTap: () => void = () => {
+  };
+
+  build() {
+    Row() {
+      Text(this.label)
+        .fontSize(16)
+        .fontColor($r('sys.color.font_primary'))
+        .layoutWeight(1)
+      SymbolGlyph($r('sys.symbol.chevron_right'))
+        .fontSize(20)
+        .fontColor([$r('sys.color.font_tertiary')])
+    }
+    .width('100%')
+    .height(48)
+    .onClick(() => {
+      this.onTap()
+    })
+  }
+}
+
+/**
+ * 设置分组：组头标题 + 组内条目（分组卡片渲染用）
+ */
+class SettingsGroup {
+  readonly key: string
+  title: ResourceStr
+  items: CustomItemInfo[] = []
+
+  constructor(key: string, title: ResourceStr) {
+    this.key = key
+    this.title = title
+  }
+}
+
+@Builder
+export function GeneralSettingsBuilder() {
+  GeneralSettingsPage()
+}
+
+@ComponentV2
+struct GeneralSettingsPage {
+
+  @Local groups: SettingsGroup[] = []
+  @Local picker: PickerConfig = new PickerConfig()
+  @Local showPicker: boolean = false
+  @Local pickerHeight: number = pickerSheetHeight(3)
+
+  @Local clearSel: boolean[] = [false, false, false, false, false, false, false, false]
+  @Local exitSel: boolean[] = parseExitClear('')
+  @Local exportSel: boolean[] = [false, false, false]
+
+  private clearDataDialog: CustomDialogController | undefined = undefined
+  private exitClearDialog: CustomDialogController | undefined = undefined
+  private bookmarkDialog: CustomDialogController | undefined = undefined
+  private exportDialog: CustomDialogController | undefined = undefined
+
+  aboutToAppear(): void {
+    this.buildItems()
+    this.initDialogs()
+  }
+
+  private routerItem(id: string, title: ResourceStr, route: string): CustomItemInfo {
+    return new CustomItemInfo({
+      id: id,
+      title: title,
+      type: ItemActionType.ROUTER,
+      onChange: (v: string | boolean | number): void => {
+        QhState.pushPage(route, null)
+      }
+    })
+  }
+
+  private textItem(id: string, title: ResourceStr, value: string, onClick: () => void): CustomItemInfo {
+    return new CustomItemInfo({
+      id: id,
+      title: title,
+      type: ItemActionType.TEXT,
+      value: value,
+      onChange: (v: string | boolean | number): void => {
+        onClick()
+      }
+    })
+  }
+
+  private setItemValue(id: string, v: string): void {
+    for (const group of this.groups) {
+      for (const item of group.items) {
+        if (item.id === id) {
+          item.value = v;
+          return;
+        }
+      }
+    }
+  }
+
+  private buildItems(): void {
+    const groups: SettingsGroup[] = []
+    // 启动与系统
+    let g = new SettingsGroup('startup', $r('app.string.general_group_startup'))
+    g.items.push(this.textItem('restore_tabs', $r('app.string.restore_tabs'),
+      ResourceUtils.getString(restoreLabel(appSettings.restore_mode)), (): void => {
+        this.openRestorePicker()
+      }))
+    g.items.push(new CustomItemInfo({
+      id: 'undo_close_tip',
+      title: $r('app.string.undo_close_tip'),
+      subtitle: $r('app.string.undo_close_tip_desc'),
+      type: ItemActionType.TOGGLE,
+      value: appSettings.show_undo_close_tip,
+      onChange: (v: string | boolean | number): void => {
+        appSettings.show_undo_close_tip = v as boolean
+      }
+    }))
+    g.items.push(new CustomItemInfo({
+      id: 'auto_expand_web',
+      title: $r('app.string.auto_expand_web'),
+      subtitle: $r('app.string.auto_expand_web_desc'),
+      type: ItemActionType.TOGGLE,
+      value: appSettings.auto_expand_web,
+      onChange: (v: string | boolean | number): void => {
+        appSettings.auto_expand_web = v as boolean
+      }
+    }))
+    g.items.push(this.textItem('set_default_browser', $r('app.string.set_default_browser'),
+      this.defaultBrowserStatus(), (): void => {
+        this.openDefaultBrowserSetting()
+      }))
+    g.items.push(this.routerItem('sync', $r('app.string.settings_sync'), 'settings_sync'))
+    groups.push(g)
+    // 外观与显示
+    g = new SettingsGroup('appearance', $r('app.string.general_group_appearance'))
+    g.items.push(this.routerItem('night_mode', $r('app.string.night_mode'), 'settings_night_mode'))
+    g.items.push(this.routerItem('read_mode', $r('app.string.read_mode'), 'settings_read_mode'))
+    g.items.push(this.routerItem('font', $r('app.string.font'), 'settings_font'))
+    g.items.push(this.textItem('language', $r('app.string.language'),
+      ResourceUtils.getString(langLabel(appSettings.language)), (): void => {
+        this.openLanguagePicker()
+      }))
+    g.items.push(this.textItem('screen_orientation', $r('app.string.screen_orientation'),
+      ResourceUtils.getString(orientationLabel(appSettings.screen_orientation)), (): void => {
+        this.openOrientationPicker()
+      }))
+    groups.push(g)
+    // 网页浏览
+    g = new SettingsGroup('browsing', $r('app.string.general_group_browsing'))
+    g.items.push(this.routerItem('ua', $r('app.string.settings_ua'), 'settings_ua'))
+    g.items.push(this.routerItem('ad_block', $r('app.string.ad_block'), 'settings_adblock'))
+    g.items.push(this.routerItem('site_settings', $r('app.string.site_settings'), 'settings_site'))
+    g.items.push(this.textItem('video_player', $r('app.string.video_player'),
+      ResourceUtils.getString(videoPlayerLabel(appSettings.video_player)), (): void => {
+        this.openVideoPlayerPicker()
+      }))
+    g.items.push(this.routerItem('password_manager', $r('app.string.password_manager'), 'settings_password'))
+    groups.push(g)
+    // 搜索与主页
+    g = new SettingsGroup('search', $r('app.string.general_group_search'))
+    g.items.push(this.routerItem('home_page', $r('app.string.home_page'), 'homepage_settings'))
+    g.items.push(this.routerItem('search_settings', $r('app.string.search_settings'), 'search_engine'))
+    g.items.push(this.routerItem('ai_settings', $r('app.string.ai_settings'), 'settings_ai'))
+    groups.push(g)
+    // 下载与数据
+    g = new SettingsGroup('data', $r('app.string.general_group_data'))
+    g.items.push(this.textItem('download_dir', $r('app.string.download_dir'), AppConstants.DOWNLOAD_DIR, (): void => {
+      toastUtil.showToast({ message: $r('app.string.download_dir_unsupported') })
+    }))
+    g.items.push(this.routerItem('downloads', $r('app.string.downloads'), 'downloads'))
+    g.items.push(this.textItem('clear_data', $r('app.string.clear_data'), '', (): void => {
+      this.clearDataDialog?.open()
+    }))
+    g.items.push(this.textItem('exit_clear_data', $r('app.string.exit_clear_data'), '', (): void => {
+      this.exitClearDialog?.open()
+    }))
+    g.items.push(this.textItem('import_backup_bookmarks', $r('app.string.import_backup_bookmarks'), '', (): void => {
+      this.bookmarkDialog?.open()
+    }))
+    g.items.push(this.routerItem('import_data', $r('app.string.import_data'), 'settings_import'))
+    g.items.push(this.textItem('export_data', $r('app.string.export_data'), '', (): void => {
+      this.exportDialog?.open()
+    }))
+    groups.push(g)
+    // 菜单与操作
+    g = new SettingsGroup('menu', $r('app.string.general_group_menu'))
+    g.items.push(this.routerItem('toolbar_settings', $r('app.string.toolbar_settings'), 'settings_toolbar'))
+    g.items.push(this.routerItem('customize_menu', $r('app.string.customize_menu'), 'settings_menu_custom'))
+    g.items.push(this.routerItem('customize_long_press_menu', $r('app.string.customize_long_press_menu'), 'settings_long_press'))
+    g.items.push(this.routerItem('operations_settings', $r('app.string.operations_settings'), 'settings_operations'))
+    groups.push(g)
+    this.groups = groups
+  }
+
+  private initDialogs(): void {
+    this.clearDataDialog = new CustomDialogController({
+      builder: CustomContentDialog({
+        primaryTitle: $r('app.string.clear_data'),
+        contentBuilder: (): void => {
+          this.clearDataContent()
+        },
+        buttons: buildDialogButtons([$r('app.string.cancel'), $r('app.string.clear')], true,
+          (index: number): void => {
+            if (index === 1) {
+              this.doClearData()
+            }
+            this.clearDataDialog?.close()
+          }),
+        contentAreaPadding: { top: 8, bottom: 8, left: 24, right: 24 }
+      }),
+      autoCancel: true,
+      alignment: DialogAlignment.Center,
+      cornerRadius: 32,
+      onWillAppear: (): void => {
+        this.clearSel = [false, false, false, false, false, false, false, false]
+      }
+    })
+    this.exitClearDialog = new CustomDialogController({
+      builder: CustomContentDialog({
+        primaryTitle: $r('app.string.exit_clear_data'),
+        contentBuilder: (): void => {
+          this.exitClearContent()
+        },
+        buttons: buildDialogButtons([$r('app.string.cancel'), $r('app.string.save')], false,
+          (index: number): void => {
+            if (index === 1) {
+              this.saveExitClear()
+            }
+            this.exitClearDialog?.close()
+          }),
+        contentAreaPadding: { top: 8, bottom: 8, left: 24, right: 24 }
+      }),
+      autoCancel: true,
+      alignment: DialogAlignment.Center,
+      cornerRadius: 32,
+      onWillAppear: (): void => {
+        this.exitSel = parseExitClear(appSettings.exit_clear_data)
+      }
+    })
+    this.bookmarkDialog = new CustomDialogController({
+      builder: CustomContentDialog({
+        primaryTitle: $r('app.string.import_backup_bookmarks'),
+        contentBuilder: (): void => {
+          this.bookmarkDialogContent()
+        },
+        buttons: buildDialogButtons([$r('app.string.cancel')], false,
+          (index: number): void => {
+            this.bookmarkDialog?.close()
+          }),
+        contentAreaPadding: { top: 8, bottom: 8, left: 24, right: 24 }
+      }),
+      autoCancel: true,
+      alignment: DialogAlignment.Center,
+      cornerRadius: 32
+    })
+    this.exportDialog = new CustomDialogController({
+      builder: CustomContentDialog({
+        primaryTitle: $r('app.string.export_data'),
+        contentBuilder: (): void => {
+          this.exportDataContent()
+        },
+        buttons: buildDialogButtons([$r('app.string.cancel'), $r('app.string.export')], false,
+          (index: number): void => {
+            if (index === 1) {
+              toastUtil.showToast({ message: $r('app.string.feature_wip') })
+            }
+            this.exportDialog?.close()
+          }),
+        contentAreaPadding: { top: 8, bottom: 8, left: 24, right: 24 }
+      }),
+      autoCancel: true,
+      alignment: DialogAlignment.Center,
+      cornerRadius: 32
+    })
+  }
+
+  private openPicker(title: ResourceStr, options: PickerOption[], selected: string,
+    onSelect: (v: string) => void): void {
+    this.picker.title = title
+    this.picker.options = options
+    this.picker.selected = selected
+    this.picker.onSelect = onSelect
+    this.pickerHeight = pickerSheetHeight(options.length)
+    this.showPicker = true
+  }
+
+  private openLanguagePicker(): void {
+    this.openPicker($r('app.string.language'), [
+      new PickerOption('system', $r('app.string.lang_follow_system')),
+      new PickerOption('en', $r('app.string.lang_english')),
+      new PickerOption('zh', $r('app.string.lang_chinese'))
+    ], appSettings.language, (v: string): void => {
+      appSettings.language = v
+      SettingsUtils.applyLanguage()
+      this.setItemValue('language', ResourceUtils.getString(langLabel(v)))
+    })
+  }
+
+  private openOrientationPicker(): void {
+    this.openPicker($r('app.string.screen_orientation'), [
+      new PickerOption('auto', $r('app.string.orientation_auto')),
+      new PickerOption('portrait', $r('app.string.orientation_portrait')),
+      new PickerOption('landscape', $r('app.string.orientation_landscape'))
+    ], appSettings.screen_orientation, (v: string): void => {
+      appSettings.screen_orientation = v
+      SettingsUtils.applyOrientation()
+      this.setItemValue('screen_orientation', ResourceUtils.getString(orientationLabel(v)))
+    })
+  }
+
+  private openVideoPlayerPicker(): void {
+    this.openPicker($r('app.string.video_player'), [
+      new PickerOption('system', $r('app.string.vp_system')),
+      new PickerOption('none', $r('app.string.vp_none'))
+    ], appSettings.video_player, (v: string): void => {
+      appSettings.video_player = v
+      this.setItemValue('video_player', ResourceUtils.getString(videoPlayerLabel(v)))
+    })
+  }
+
+  private openRestorePicker(): void {
+    this.openPicker($r('app.string.restore_tabs'), [
+      new PickerOption('never', $r('app.string.restore_never')),
+      new PickerOption('always', $r('app.string.restore_always')),
+      new PickerOption('ask', $r('app.string.restore_ask'))
+    ], appSettings.restore_mode, (v: string): void => {
+      appSettings.restore_mode = v
+      this.setItemValue('restore_tabs', ResourceUtils.getString(restoreLabel(v)))
+    })
+  }
+
+  private doClearData(): void {
+    if (this.clearSel[0]) {
+      const tab = tabsVM.activeTab
+      if (tab && tab.controller) {
+        try {
+          (tab.controller as webview.WebviewController).removeCache(true)
+        } catch (e) {
+          console.error(`[GeneralSettings] 清除缓存失败: ${e}`)
+        }
+      }
+    }
+    if (this.clearSel[2]) {
+      historyVM.clearAll()
+    }
+    if (this.clearSel[3]) {
+      searchHistoryVM.clearAll()
+    }
+    if (this.clearSel[6]) {
+      webview.WebCookieManager.clearAllCookiesSync()
+    }
+    toastUtil.showToast({ message: $r('app.string.cleared') })
+  }
+
+  private saveExitClear(): void {
+    appSettings.exit_clear_data = exitClearKeys(this.exitSel)
+    toastUtil.showToast({ message: $r('app.string.saved') })
+  }
+
+  /**
+   * 查询本应用是否已是默认浏览器（官方 defaultAppManager，无需权限）
+   */
+  private queryIsDefaultBrowser(): boolean {
+    try {
+      return defaultAppManager.isDefaultApplicationSync(defaultAppManager.ApplicationType.BROWSER)
+    } catch (e) {
+      console.error(`[GeneralSettings] 查询默认浏览器状态失败: ${e}`)
+      return false
+    }
+  }
+
+  private defaultBrowserStatus(): string {
+    return ResourceUtils.getString(this.queryIsDefaultBrowser()
+      ? $r('app.string.default_browser_on')
+      : $r('app.string.default_browser_off'))
+  }
+
+  /**
+   * 跳转系统设置的本应用详情页，由用户手动设为默认浏览器
+   */
+  private openDefaultBrowserSetting(): void {
+    if (this.queryIsDefaultBrowser()) {
+      toastUtil.showToast({ message: $r('app.string.already_default_browser') })
+      return
+    }
+    const context = toastUtil.context
+    if (!context) {
+      toastUtil.showToast({ message: $r('app.string.set_default_browser_toast') })
+      return
+    }
+    const want: Want = {
+      bundleName: 'com.huawei.hmos.settings',
+      abilityName: 'com.huawei.hmos.settings.MainAbility',
+      uri: 'application_info_entry',
+      parameters: {
+        pushParams: 'com.ya.qinghong'
+      }
+    }
+    context.startAbility(want).catch((error: BusinessError) => {
+      console.error(`[GeneralSettings] 跳转系统设置失败: ${error.code} ${error.message}`)
+      toastUtil.showToast({ message: $r('app.string.set_default_browser_toast') })
+    })
+  }
+
+  build() {
+    NaviContainer({
+      title: $r('app.string.settings_general'),
+      content: (): void => {
+        this.pageContent()
+      },
+      onReady: (ctx: NavDestinationContext): void => {
+      },
+      onShown: (): void => {
+        // 从系统设置返回后刷新默认浏览器状态
+        this.setItemValue('set_default_browser', this.defaultBrowserStatus())
+      },
+      onBackPressed: (): boolean => {
+        return false
+      }
+    })
+  }
+
+  @Builder
+  pageContent() {
+    List() {
+      Repeat<SettingsGroup>(this.groups)
+        .each((ri: RepeatItem<SettingsGroup>) => {
+          ListItem() {
+            Column() {
+              Text(ri.item.title)
+                .fontSize(14)
+                .fontColor($r('sys.color.font_secondary'))
+                .margin({ left: 4, bottom: 6, top: ri.index === 0 ? 10 : 18 })
+              Column() {
+                Repeat<CustomItemInfo>(ri.item.items)
+                  .each((ci: RepeatItem<CustomItemInfo>) => {
+                    CustomListItem({
+                      item: ci.item,
+                      itemPadding: { left: 16, right: 16, top: 12, bottom: 12 }
+                    })
+                  })
+                  .key((item: CustomItemInfo) => item.id)
+              }
+              .width('100%')
+              .borderRadius(16)
+              .backgroundColor($r('app.color.background_color'))
+              .clip(true)
+            }
+            .width('100%')
+            .alignItems(HorizontalAlign.Start)
+          }
+          .width('100%')
+        })
+        .key((group: SettingsGroup) => group.key)
+    }
+    .width('100%')
+    .height('100%')
+    .contentEndOffset(56)
+    .align(Alignment.Top)
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring)
+    .padding({ left: 16, right: 16 })
+    .bindSheet(this.showPicker!!, this.pickerBuilder(), {
+      height: this.pickerHeight,
+      dragBar: true,
+      showClose: false,
+      backgroundColor: $r('sys.color.comp_background_primary'),
+      onDisappear: (): void => {
+        this.showPicker = false
+      }
+    })
+  }
+
+  @Builder
+  pickerBuilder() {
+    SheetPicker({
+      config: this.picker,
+      close: (): void => {
+        this.showPicker = false
+      }
+    })
+  }
+
+  @Builder
+  clearDataContent() {
+    Column() {
+      CheckRow({ label: $r('app.string.clear_cache_label'), checked: this.clearSel[0],
+        onToggle: (v: boolean): void => { this.clearSel[0] = v } })
+      CheckRow({ label: $r('app.string.clear_form_data'), checked: this.clearSel[1],
+        onToggle: (v: boolean): void => { this.clearSel[1] = v } })
+      CheckRow({ label: $r('app.string.clear_history_label'), checked: this.clearSel[2],
+        onToggle: (v: boolean): void => { this.clearSel[2] = v } })
+      CheckRow({ label: $r('app.string.clear_search_history_label'), checked: this.clearSel[3],
+        onToggle: (v: boolean): void => { this.clearSel[3] = v } })
+      CheckRow({ label: $r('app.string.clear_closed_tabs'), checked: this.clearSel[4],
+        onToggle: (v: boolean): void => { this.clearSel[4] = v } })
+      CheckRow({ label: $r('app.string.clear_web_storage'), checked: this.clearSel[5],
+        onToggle: (v: boolean): void => { this.clearSel[5] = v } })
+      CheckRow({ label: $r('app.string.clear_cookies_login'), checked: this.clearSel[6],
+        onToggle: (v: boolean): void => { this.clearSel[6] = v } })
+      CheckRow({ label: $r('app.string.clear_app_cache'), checked: this.clearSel[7],
+        onToggle: (v: boolean): void => { this.clearSel[7] = v } })
+    }
+    .width('100%')
+  }
+
+  @Builder
+  exitClearContent() {
+    Column() {
+      CheckRow({ label: $r('app.string.clear_cache_label'), checked: this.exitSel[0],
+        onToggle: (v: boolean): void => { this.exitSel[0] = v } })
+      CheckRow({ label: $r('app.string.clear_form_data'), checked: this.exitSel[1],
+        onToggle: (v: boolean): void => { this.exitSel[1] = v } })
+      CheckRow({ label: $r('app.string.clear_history_label'), checked: this.exitSel[2],
+        onToggle: (v: boolean): void => { this.exitSel[2] = v } })
+      CheckRow({ label: $r('app.string.clear_search_history_label'), checked: this.exitSel[3],
+        onToggle: (v: boolean): void => { this.exitSel[3] = v } })
+      CheckRow({ label: $r('app.string.clear_closed_tabs'), checked: this.exitSel[4],
+        onToggle: (v: boolean): void => { this.exitSel[4] = v } })
+      CheckRow({ label: $r('app.string.clear_web_storage'), checked: this.exitSel[5],
+        onToggle: (v: boolean): void => { this.exitSel[5] = v } })
+      CheckRow({ label: $r('app.string.clear_cookies_login'), checked: this.exitSel[6],
+        onToggle: (v: boolean): void => { this.exitSel[6] = v } })
+      CheckRow({ label: $r('app.string.clear_app_cache'), checked: this.exitSel[7],
+        onToggle: (v: boolean): void => { this.exitSel[7] = v } })
+    }
+    .width('100%')
+  }
+
+  @Builder
+  bookmarkDialogContent() {
+    Column() {
+      ActionRow({ label: $r('app.string.backup_bookmarks'), onTap: (): void => {
+        this.bookmarkDialog?.close()
+        toastUtil.showToast({ message: $r('app.string.feature_wip') })
+      } })
+      ActionRow({ label: $r('app.string.import_bookmarks'), onTap: (): void => {
+        this.bookmarkDialog?.close()
+        toastUtil.showToast({ message: $r('app.string.feature_wip') })
+      } })
+    }
+    .width('100%')
+  }
+
+  @Builder
+  exportDataContent() {
+    Column() {
+      CheckRow({ label: $r('app.string.bookmarks'), checked: this.exportSel[0],
+        onToggle: (v: boolean): void => { this.exportSel[0] = v } })
+      CheckRow({ label: $r('app.string.history'), checked: this.exportSel[1],
+        onToggle: (v: boolean): void => { this.exportSel[1] = v } })
+      CheckRow({ label: $r('app.string.settings'), checked: this.exportSel[2],
+        onToggle: (v: boolean): void => { this.exportSel[2] = v } })
+    }
+    .width('100%')
+  }
+}

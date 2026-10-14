@@ -51,7 +51,7 @@ struct DownloadsPage {
       title: r.fileName,
       message: $r('app.string.delete_confirm'),
       autoCancel: true,
-      alignment: DialogAlignment.Bottom,
+      alignment: DialogAlignment.Center,
       buttons: [
         {
           value: $r('app.string.delete'),
@@ -146,11 +146,15 @@ struct DownloadsPage {
           endMargin: 16
         })
         .scrollBar(BarState.Off)
+        .backgroundColor($r('app.color.background_color'))
+        .borderRadius(16)
+        .clip(true)
+        .margin({ left: 16, right: 16, top: 10 })
       }
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.comp_background_secondary'))
+    .backgroundColor($r('app.color.background_color_accent'))
   }
 
   build() {

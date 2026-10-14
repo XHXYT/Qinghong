@@ -14,6 +14,11 @@ export class _QhState {
   public static UIContext: UIContext
   public static Context: common.UIAbilityContext
   public static window: window.Window;
+
+  /** 外部（http/https 链接）拉起待打开的 URL，冷启动时由 Index 消费 */
+  public pendingOpenUrl: string = ''
+  /** 外部链接处理器（Index 注册，热启动 onNewWant 时消费） */
+  public externalUrlHandler: ((url: string) => void) | null = null
   /** @description 窗口宽度 -px */
   public static windowWidth_px: number;
   /** @description 窗口高度 -px */

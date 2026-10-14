@@ -1,8 +1,8 @@
-import { NaviContainer } from '../../components/NaviContainer';
-import { appSettings } from '../../common/entity/SettingsModel';
-import { bookmarkVM } from '../../viewmodel/BookmarkViewModel';
-import BookmarkInfo from '../../common/entity/BookmarkInfo';
-import { toastUtil } from '../../common/utils/ToastUtils';
+import { NaviContainer } from '../../../components/NaviContainer';
+import { appSettings } from '../../../common/entity/SettingsModel';
+import { bookmarkVM } from '../../../viewmodel/BookmarkViewModel';
+import BookmarkInfo from '../../../common/entity/BookmarkInfo';
+import { toastUtil } from '../../../common/utils/ToastUtils';
 
 @Builder
 export function HomepageSettingsBuilder() {
@@ -44,15 +44,16 @@ struct HomepageSettingsPage {
           .layoutWeight(1)
 
           Toggle({ type: ToggleType.Switch, isOn: appSettings.show_homepage_logo })
-            .onChange((isOn: boolean) => {
-              appSettings.show_homepage_logo = isOn
-            })
+            .hitTestBehavior(HitTestMode.None)
         }
         .width('100%')
         .padding({ left: 16, right: 16, top: 14, bottom: 14 })
         .borderRadius(16)
-        .backgroundColor($r('sys.color.comp_background_primary'))
-        .margin({ left: 12, right: 12, top: 12 })
+        .backgroundColor($r('app.color.background_color'))
+        .margin({ left: 16, right: 16, top: 10 })
+        .onClick(() => {
+          appSettings.show_homepage_logo = !appSettings.show_homepage_logo
+        })
 
         // 快捷图标
         Row() {
@@ -72,8 +73,8 @@ struct HomepageSettingsPage {
           .width('100%')
           .padding(24)
           .borderRadius(16)
-          .backgroundColor($r('sys.color.comp_background_primary'))
-          .margin({ left: 12, right: 12 })
+          .backgroundColor($r('app.color.background_color'))
+          .margin({ left: 16, right: 16 })
         } else {
           Column() {
             ForEach(bookmarkVM.quickLinks, (b: BookmarkInfo, bi: number) => {
@@ -119,8 +120,9 @@ struct HomepageSettingsPage {
           }
           .width('100%')
           .borderRadius(16)
-          .backgroundColor($r('sys.color.comp_background_primary'))
-          .margin({ left: 12, right: 12 })
+          .backgroundColor($r('app.color.background_color'))
+          .clip(true)
+          .margin({ left: 16, right: 16 })
         }
       }
       .width('100%')
@@ -130,6 +132,6 @@ struct HomepageSettingsPage {
     .align(Alignment.Top)
     .scrollBar(BarState.Off)
     .edgeEffect(EdgeEffect.Spring)
-    .backgroundColor($r('sys.color.comp_background_secondary'))
+    .backgroundColor($r('app.color.background_color_accent'))
   }
 }

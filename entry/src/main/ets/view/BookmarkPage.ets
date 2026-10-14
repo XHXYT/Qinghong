@@ -189,6 +189,10 @@ struct BookmarkPage {
           endMargin: 16
         })
         .scrollBar(BarState.Off)
+        .backgroundColor($r('app.color.background_color'))
+        .borderRadius(16)
+        .clip(true)
+        .margin({ left: 16, right: 16, top: 10 })
       }
 
       // 添加书签
@@ -201,17 +205,18 @@ struct BookmarkPage {
           .fontColor(QhState.currentThemeColor)
       }
       .width('100%')
-      .height(52)
+      .height(48)
       .justifyContent(FlexAlign.Center)
-      .backgroundColor($r('sys.color.comp_background_primary'))
-      .borderRadius({ topLeft: 20, topRight: 20 })
+      .backgroundColor($r('app.color.background_color'))
+      .borderRadius(16)
+      .margin({ left: 16, right: 16, top: 8, bottom: 12 })
       .onClick(() => {
         this.addDialog?.open()
       })
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.comp_background_secondary'))
+    .backgroundColor($r('app.color.background_color_accent'))
   }
 
   build() {

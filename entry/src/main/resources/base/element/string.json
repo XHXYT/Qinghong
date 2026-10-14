@@ -303,6 +303,1298 @@
     {
       "name": "show_homepage_logo_desc",
       "value": "在主页显示应用 Logo"
+    },
+    {
+      "name": "settings_general",
+      "value": "通用"
+    },
+    {
+      "name": "settings_custom",
+      "value": "定制"
+    },
+    {
+      "name": "settings_privacy",
+      "value": "隐私"
+    },
+    {
+      "name": "settings_advanced",
+      "value": "高级"
+    },
+    {
+      "name": "settings_script",
+      "value": "脚本"
+    },
+    {
+      "name": "settings_sync",
+      "value": "同步"
+    },
+    {
+      "name": "sync_group_account",
+      "value": "同步账户"
+    },
+    {
+      "name": "sync_group_options",
+      "value": "同步选项"
+    },
+    {
+      "name": "sync_group_manual",
+      "value": "手动同步"
+    },
+    {
+      "name": "webdav_config",
+      "value": "WebDAV 配置"
+    },
+    {
+      "name": "webdav_not_configured",
+      "value": "未配置"
+    },
+    {
+      "name": "webdav_server_address",
+      "value": "服务器地址"
+    },
+    {
+      "name": "webdav_server_placeholder",
+      "value": "https://dav.example.com/dav/"
+    },
+    {
+      "name": "webdav_account",
+      "value": "账号"
+    },
+    {
+      "name": "webdav_password_hint",
+      "value": "密码"
+    },
+    {
+      "name": "webdav_test_connection",
+      "value": "测试连接"
+    },
+    {
+      "name": "webdav_test_success",
+      "value": "连接成功"
+    },
+    {
+      "name": "webdav_save",
+      "value": "保存"
+    },
+    {
+      "name": "webdav_url_required",
+      "value": "请输入服务器地址"
+    },
+    {
+      "name": "webdav_advanced",
+      "value": "高级配置"
+    },
+    {
+      "name": "webdav_folder_path",
+      "value": "文件夹路径"
+    },
+    {
+      "name": "webdav_folder_path_placeholder",
+      "value": "默认 /QingHong"
+    },
+    {
+      "name": "webdav_digest_auth",
+      "value": "使用摘要认证"
+    },
+    {
+      "name": "webdav_digest_auth_desc",
+      "value": "服务器要求 Digest 认证时开启"
+    },
+    {
+      "name": "sync_last_time",
+      "value": "上次同步"
+    },
+    {
+      "name": "sync_never",
+      "value": "从未同步"
+    },
+    {
+      "name": "auto_sync",
+      "value": "自动同步"
+    },
+    {
+      "name": "auto_sync_desc",
+      "value": "应用启动时自动合并本地与云端数据"
+    },
+    {
+      "name": "sync_data_select",
+      "value": "同步数据"
+    },
+    {
+      "name": "sync_data_bookmarks",
+      "value": "书签"
+    },
+    {
+      "name": "sync_data_settings",
+      "value": "设置"
+    },
+    {
+      "name": "sync_none",
+      "value": "未选择"
+    },
+    {
+      "name": "sync_upload",
+      "value": "上传本地数据覆盖云端"
+    },
+    {
+      "name": "sync_upload_desc",
+      "value": "用本机的书签和设置替换云端数据"
+    },
+    {
+      "name": "sync_download",
+      "value": "使用云端数据覆盖本地"
+    },
+    {
+      "name": "sync_download_desc",
+      "value": "用云端的书签和设置替换本机数据"
+    },
+    {
+      "name": "sync_merge",
+      "value": "合并云端和本地的数据"
+    },
+    {
+      "name": "sync_merge_desc",
+      "value": "合并两侧的书签，设置以较新的一侧为准"
+    },
+    {
+      "name": "sync_confirm_upload",
+      "value": "上传后云端数据将被本机数据覆盖，确定继续？"
+    },
+    {
+      "name": "sync_confirm_download",
+      "value": "本机的书签和设置将被云端数据覆盖，确定继续？"
+    },
+    {
+      "name": "sync_confirm_merge",
+      "value": "将合并两侧数据，确定继续？"
+    },
+    {
+      "name": "sync_in_progress",
+      "value": "正在同步..."
+    },
+    {
+      "name": "sync_success",
+      "value": "同步成功"
+    },
+    {
+      "name": "sync_not_configured",
+      "value": "请先配置 WebDAV 账户"
+    },
+    {
+      "name": "sync_no_data_selected",
+      "value": "请至少选择一种同步数据"
+    },
+    {
+      "name": "settings_ua",
+      "value": "浏览器标识"
+    },
+    {
+      "name": "ua_default",
+      "value": "默认"
+    },
+    {
+      "name": "ua_desktop",
+      "value": "桌面版"
+    },
+    {
+      "name": "ua_mobile",
+      "value": "手机版"
+    },
+    {
+      "name": "ua_add_title",
+      "value": "添加浏览器标识"
+    },
+    {
+      "name": "ua_edit_title",
+      "value": "编辑浏览器标识"
+    },
+    {
+      "name": "ua_name_hint",
+      "value": "名称"
+    },
+    {
+      "name": "ua_value_hint",
+      "value": "浏览器标识（User-Agent）"
+    },
+    {
+      "name": "ua_delete_confirm",
+      "value": "删除此浏览器标识？"
+    },
+    {
+      "name": "ua_custom_empty_hint",
+      "value": "暂无自定义标识，点击右上角「+」添加"
+    },
+    {
+      "name": "ua_desktop_mode",
+      "value": "电脑模式下的浏览器标识"
+    },
+    {
+      "name": "ua_simplify",
+      "value": "简化浏览器标识"
+    },
+    {
+      "name": "ua_simplify_desc",
+      "value": "从浏览器标识中移除设备及次要版本信息"
+    },
+    {
+      "name": "ua_custom",
+      "value": "自定义"
+    },
+    {
+      "name": "ua_android_phone",
+      "value": "Android (手机)"
+    },
+    {
+      "name": "ua_android_tablet",
+      "value": "Android (平板)"
+    },
+    {
+      "name": "ua_windows_chrome",
+      "value": "Windows (Chrome)"
+    },
+    {
+      "name": "ua_windows_ie",
+      "value": "Windows (IE 11)"
+    },
+    {
+      "name": "ua_macos",
+      "value": "macOS"
+    },
+    {
+      "name": "ua_iphone",
+      "value": "iPhone"
+    },
+    {
+      "name": "ua_ipad",
+      "value": "iPad"
+    },
+    {
+      "name": "ua_symbian",
+      "value": "塞班 (Symbian)"
+    },
+    {
+      "name": "edit",
+      "value": "编辑"
+    },
+    {
+      "name": "clear_data",
+      "value": "清除数据"
+    },
+    {
+      "name": "ad_block",
+      "value": "广告拦截"
+    },
+    {
+      "name": "ad_block_stats",
+      "value": "已拦截 %1$d 条广告，节省 %2$s 流量"
+    },
+    {
+      "name": "ad_block_builtin",
+      "value": "启用内建规则"
+    },
+    {
+      "name": "ad_block_builtin_desc",
+      "value": "内建规则仅拦截常见广告"
+    },
+    {
+      "name": "ad_block_custom_rules",
+      "value": "自定义规则"
+    },
+    {
+      "name": "ad_block_custom_rules_desc",
+      "value": "包括拦截的规则或标记的广告"
+    },
+    {
+      "name": "ad_block_subscription",
+      "value": "规则订阅"
+    },
+    {
+      "name": "ad_block_subscription_desc",
+      "value": "订阅 Adblock Plus 规则列表"
+    },
+    {
+      "name": "help",
+      "value": "帮助"
+    },
+    {
+      "name": "ad_block_rules_hint",
+      "value": "一个过滤规则一行"
+    },
+    {
+      "name": "ad_block_rules_help",
+      "value": "轻鸿几乎支持所有的 Adblock Plus 过滤规则。\n\n拦截 example.com 的所有请求：\n||example.com^（或 example.com）\n\n也支持通配符，例如：\n||example.com/js/ads_*.js\n\n放行指定的请求（白名单），例如：\n@@||example.com^\n\n隐藏网页元素，规则写法类似：\nexample.com###ad"
+    },
+    {
+      "name": "ad_block_rules_help_view",
+      "value": "规则说明"
+    },
+    {
+      "name": "ad_block_rules_help_close",
+      "value": "关闭"
+    },
+    {
+      "name": "ad_block_subs_auto_update",
+      "value": "自动更新"
+    },
+    {
+      "name": "ad_block_subs_interval_manual",
+      "value": "手动"
+    },
+    {
+      "name": "ad_block_subs_interval_12h",
+      "value": "每 12 小时"
+    },
+    {
+      "name": "ad_block_subs_interval_daily",
+      "value": "每天"
+    },
+    {
+      "name": "ad_block_subs_interval_weekly",
+      "value": "每周"
+    },
+    {
+      "name": "ad_block_subs_interval_monthly",
+      "value": "每月"
+    },
+    {
+      "name": "ad_block_subs_never_auto",
+      "value": "尚未自动更新"
+    },
+    {
+      "name": "ad_block_subs_last_auto",
+      "value": "上次自动更新：%s"
+    },
+    {
+      "name": "ad_block_sub_item_desc",
+      "value": "%1$s · %2$s"
+    },
+    {
+      "name": "ad_block_sub_rules",
+      "value": "%d 条规则"
+    },
+    {
+      "name": "ad_block_subs_empty",
+      "value": "暂无订阅，点击右上角 + 添加"
+    },
+    {
+      "name": "ad_block_subs_add_title",
+      "value": "添加订阅"
+    },
+    {
+      "name": "ad_block_subs_add",
+      "value": "添加"
+    },
+    {
+      "name": "ad_block_subs_url_hint",
+      "value": "规则列表链接"
+    },
+    {
+      "name": "ad_block_subs_url_invalid",
+      "value": "请输入有效的规则列表链接"
+    },
+    {
+      "name": "ad_block_subs_added",
+      "value": "已添加"
+    },
+    {
+      "name": "ad_block_sub_downloading",
+      "value": "下载中…"
+    },
+    {
+      "name": "ad_block_sub_updating",
+      "value": "更新中…"
+    },
+    {
+      "name": "ad_block_subs_exists",
+      "value": "该订阅已存在"
+    },
+    {
+      "name": "ad_block_sub_menu_preview",
+      "value": "预览"
+    },
+    {
+      "name": "ad_block_sub_menu_update",
+      "value": "更新"
+    },
+    {
+      "name": "ad_block_sub_menu_rename",
+      "value": "更新名称"
+    },
+    {
+      "name": "ad_block_sub_rename_failed",
+      "value": "规则中未找到名称"
+    },
+    {
+      "name": "ad_block_sub_menu_copy_link",
+      "value": "复制链接"
+    },
+    {
+      "name": "ad_block_sub_edit_title",
+      "value": "编辑订阅"
+    },
+    {
+      "name": "ad_block_sub_name_hint",
+      "value": "名称"
+    },
+    {
+      "name": "ad_block_sub_updated",
+      "value": "已更新"
+    },
+    {
+      "name": "ad_block_sub_preview_empty",
+      "value": "暂无规则，请先更新订阅"
+    },
+    {
+      "name": "ad_block_subs_updated",
+      "value": "已更新 %d 个订阅"
+    },
+    {
+      "name": "ad_block_subs_update_failed",
+      "value": "更新失败，请检查网络"
+    },
+    {
+      "name": "ad_block_subs_none_enabled",
+      "value": "没有启用的订阅"
+    },
+    {
+      "name": "ad_block_subs_delete_confirm",
+      "value": "删除该订阅及已下载的规则？"
+    },
+    {
+      "name": "time_never",
+      "value": "未更新"
+    },
+    {
+      "name": "time_just_now",
+      "value": "刚刚"
+    },
+    {
+      "name": "time_minutes_ago",
+      "value": "%d 分钟前"
+    },
+    {
+      "name": "time_hours_ago",
+      "value": "%d 小时前"
+    },
+    {
+      "name": "time_days_ago",
+      "value": "%d 天前"
+    },
+    {
+      "name": "site_settings",
+      "value": "网站设定"
+    },
+    {
+      "name": "password_manager",
+      "value": "密码管理器"
+    },
+    {
+      "name": "night_mode",
+      "value": "夜间模式"
+    },
+    {
+      "name": "night_group_appearance",
+      "value": "外观"
+    },
+    {
+      "name": "night_group_web",
+      "value": "网页"
+    },
+    {
+      "name": "night_theme_mode",
+      "value": "主题模式"
+    },
+    {
+      "name": "night_theme_follow_system",
+      "value": "跟随系统"
+    },
+    {
+      "name": "night_theme_light",
+      "value": "浅色"
+    },
+    {
+      "name": "night_theme_dark",
+      "value": "深色"
+    },
+    {
+      "name": "night_mask_filter",
+      "value": "网页蒙版滤镜"
+    },
+    {
+      "name": "night_mask_filter_desc",
+      "value": "在网页上叠加半透明滤镜，降低屏幕亮度"
+    },
+    {
+      "name": "night_mask_enable",
+      "value": "开启滤镜"
+    },
+    {
+      "name": "night_mask_preview",
+      "value": "效果预览"
+    },
+    {
+      "name": "night_mask_opacity",
+      "value": "滤镜不透明度"
+    },
+    {
+      "name": "night_mask_color",
+      "value": "滤镜颜色"
+    },
+    {
+      "name": "night_mask_color_black",
+      "value": "黑色"
+    },
+    {
+      "name": "night_mask_color_amber",
+      "value": "暖色"
+    },
+    {
+      "name": "night_mask_off",
+      "value": "已关闭"
+    },
+    {
+      "name": "force_dark_web",
+      "value": "强制深色网页"
+    },
+    {
+      "name": "force_dark_web_desc",
+      "value": "自动将浅色网页反色为深色；部分网页可能出现颜色异常或闪烁"
+    },
+    {
+      "name": "read_mode",
+      "value": "阅读模式"
+    },
+    {
+      "name": "read_group_interaction",
+      "value": "交互"
+    },
+    {
+      "name": "read_group_appearance",
+      "value": "外观"
+    },
+    {
+      "name": "read_group_advanced",
+      "value": "高级"
+    },
+    {
+      "name": "read_mode_confirm",
+      "value": "开启阅读模式需二次确认"
+    },
+    {
+      "name": "read_mode_confirm_desc",
+      "value": "当点击地址栏阅读模式图标时，先展示菜单"
+    },
+    {
+      "name": "read_mode_bg_color",
+      "value": "背景色"
+    },
+    {
+      "name": "read_mode_bg_paper",
+      "value": "纸黄"
+    },
+    {
+      "name": "read_mode_bg_green",
+      "value": "护眼绿"
+    },
+    {
+      "name": "read_mode_bg_white",
+      "value": "纯白"
+    },
+    {
+      "name": "read_mode_bg_black",
+      "value": "夜间"
+    },
+    {
+      "name": "read_mode_bg_custom",
+      "value": "自定义"
+    },
+    {
+      "name": "read_mode_custom_color_title",
+      "value": "自定义背景色"
+    },
+    {
+      "name": "read_mode_invalid_color",
+      "value": "请输入 #RRGGBB 格式的颜色值"
+    },
+    {
+      "name": "read_mode_font_size",
+      "value": "字体大小"
+    },
+    {
+      "name": "read_mode_preview",
+      "value": "预览"
+    },
+    {
+      "name": "read_mode_preview_title",
+      "value": "阅读模式"
+    },
+    {
+      "name": "read_mode_preview_text",
+      "value": "剔除页面干扰元素，只保留正文内容，带来沉浸的阅读体验。"
+    },
+    {
+      "name": "read_mode_css",
+      "value": "自定义阅读模式 CSS"
+    },
+    {
+      "name": "read_mode_css_desc",
+      "value": "追加在阅读模式内置样式之后"
+    },
+    {
+      "name": "read_mode_css_hint",
+      "value": "例如：\np {\n  line-height: 1.8;\n}"
+    },
+    {
+      "name": "read_mode_css_apply_hint",
+      "value": "保存后对新进入的阅读模式页面生效"
+    },
+    {
+      "name": "read_mode_css_set",
+      "value": "已自定义"
+    },
+    {
+      "name": "read_mode_css_empty",
+      "value": "未设置"
+    },
+    {
+      "name": "toolbar_settings",
+      "value": "工具栏设置"
+    },
+    {
+      "name": "customize_menu",
+      "value": "定制菜单"
+    },
+    {
+      "name": "customize_long_press_menu",
+      "value": "定制长按菜单"
+    },
+    {
+      "name": "language",
+      "value": "语言"
+    },
+    {
+      "name": "lang_follow_system",
+      "value": "跟随系统"
+    },
+    {
+      "name": "lang_english",
+      "value": "English"
+    },
+    {
+      "name": "lang_chinese",
+      "value": "中文（简体）"
+    },
+    {
+      "name": "home_page",
+      "value": "主页"
+    },
+    {
+      "name": "search_settings",
+      "value": "搜索设置"
+    },
+    {
+      "name": "ai_settings",
+      "value": "AI 设置"
+    },
+    {
+      "name": "screen_orientation",
+      "value": "屏幕方向"
+    },
+    {
+      "name": "orientation_auto",
+      "value": "跟随系统"
+    },
+    {
+      "name": "orientation_portrait",
+      "value": "竖屏"
+    },
+    {
+      "name": "orientation_landscape",
+      "value": "横屏"
+    },
+    {
+      "name": "download_dir",
+      "value": "下载目录"
+    },
+    {
+      "name": "download_dir_unsupported",
+      "value": "下载目录暂不支持修改"
+    },
+    {
+      "name": "video_player",
+      "value": "外置视频播放器"
+    },
+    {
+      "name": "vp_none",
+      "value": "不使用"
+    },
+    {
+      "name": "vp_system",
+      "value": "系统播放器"
+    },
+    {
+      "name": "exit_clear_data",
+      "value": "退出时清除数据"
+    },
+    {
+      "name": "font",
+      "value": "字体"
+    },
+    {
+      "name": "font_available",
+      "value": "可用字体"
+    },
+    {
+      "name": "font_default",
+      "value": "默认字体"
+    },
+    {
+      "name": "font_empty_hint",
+      "value": "暂无自定义字体，点击右上角按钮导入 .ttf / .otf 文件"
+    },
+    {
+      "name": "font_added",
+      "value": "添加成功"
+    },
+    {
+      "name": "font_add_failed",
+      "value": "添加字体失败"
+    },
+    {
+      "name": "font_pick_failed",
+      "value": "选择文件失败"
+    },
+    {
+      "name": "font_delete_confirm",
+      "value": "删除该字体？"
+    },
+    {
+      "name": "operations_settings",
+      "value": "操作设定"
+    },
+    {
+      "name": "import_backup_bookmarks",
+      "value": "导入/备份书签"
+    },
+    {
+      "name": "backup_bookmarks",
+      "value": "备份书签"
+    },
+    {
+      "name": "import_bookmarks",
+      "value": "导入书签"
+    },
+    {
+      "name": "import_data",
+      "value": "导入数据"
+    },
+    {
+      "name": "export_data",
+      "value": "导出数据"
+    },
+    {
+      "name": "export",
+      "value": "导出"
+    },
+    {
+      "name": "restore_tabs",
+      "value": "启动时恢复未关闭标签"
+    },
+    {
+      "name": "restore_never",
+      "value": "禁用恢复"
+    },
+    {
+      "name": "restore_always",
+      "value": "总是恢复"
+    },
+    {
+      "name": "restore_ask",
+      "value": "优先询问"
+    },
+    {
+      "name": "undo_close_tip",
+      "value": "显示撤销关闭标签的提示"
+    },
+    {
+      "name": "undo_close_tip_desc",
+      "value": "如果开启了无痕模式，则不会显示提示"
+    },
+    {
+      "name": "auto_expand_web",
+      "value": "自动展开网页全文"
+    },
+    {
+      "name": "auto_expand_web_desc",
+      "value": "打开网页时自动展开网页中折叠的内容"
+    },
+    {
+      "name": "set_default_browser",
+      "value": "设置默认浏览器"
+    },
+    {
+      "name": "set_default_browser_toast",
+      "value": "请前往系统设置的默认应用中将轻鸿设为默认浏览器"
+    },
+    {
+      "name": "default_browser_on",
+      "value": "已设为默认"
+    },
+    {
+      "name": "default_browser_off",
+      "value": "未设为默认"
+    },
+    {
+      "name": "already_default_browser",
+      "value": "当前已是默认浏览器"
+    },
+    {
+      "name": "tab_closed",
+      "value": "已关闭标签"
+    },
+    {
+      "name": "undo",
+      "value": "撤销"
+    },
+    {
+      "name": "restore_prompt_title",
+      "value": "恢复会话"
+    },
+    {
+      "name": "restore_prompt_message",
+      "value": "是否恢复上次未关闭的标签？"
+    },
+    {
+      "name": "restore_yes",
+      "value": "恢复"
+    },
+    {
+      "name": "restore_no",
+      "value": "不恢复"
+    },
+    {
+      "name": "general_group_startup",
+      "value": "启动与系统"
+    },
+    {
+      "name": "general_group_appearance",
+      "value": "外观与显示"
+    },
+    {
+      "name": "general_group_browsing",
+      "value": "网页浏览"
+    },
+    {
+      "name": "general_group_search",
+      "value": "搜索与主页"
+    },
+    {
+      "name": "general_group_data",
+      "value": "下载与数据"
+    },
+    {
+      "name": "general_group_menu",
+      "value": "菜单与操作"
+    },
+    {
+      "name": "do_not_track",
+      "value": "不跟踪"
+    },
+    {
+      "name": "do_not_track_desc",
+      "value": "通知网站不追踪你的浏览行为"
+    },
+    {
+      "name": "disable_webrtc",
+      "value": "禁用 WebRTC"
+    },
+    {
+      "name": "disable_webrtc_desc",
+      "value": "防止网页通过 WebRTC 探测你的真实 IP 地址"
+    },
+    {
+      "name": "geolocation_access",
+      "value": "允许网页获取位置"
+    },
+    {
+      "name": "geolocation_access_desc",
+      "value": "网页请求定位时弹窗询问，关闭后一律拒绝"
+    },
+    {
+      "name": "geolocation_permission_title",
+      "value": "网页定位请求"
+    },
+    {
+      "name": "geolocation_permission_message",
+      "value": "想要获取你的位置信息"
+    },
+    {
+      "name": "allow",
+      "value": "允许"
+    },
+    {
+      "name": "deny",
+      "value": "拒绝"
+    },
+    {
+      "name": "do_not_sell",
+      "value": "不出售或分享数据"
+    },
+    {
+      "name": "do_not_sell_desc",
+      "value": "不向第三方出售或分享个人数据"
+    },
+    {
+      "name": "no_image_mode",
+      "value": "无图模式"
+    },
+    {
+      "name": "no_image_mode_desc",
+      "value": "不加载网页中的在线图片以节省流量"
+    },
+    {
+      "name": "show_sniff_button",
+      "value": "自动展示嗅探按钮"
+    },
+    {
+      "name": "allow_debug_web",
+      "value": "允许调试网页"
+    },
+    {
+      "name": "disable_safe_browsing",
+      "value": "禁用安全浏览"
+    },
+    {
+      "name": "disable_safe_browsing_desc",
+      "value": "关闭后仅停止拦截风险类网站，违法与欺诈类网站仍会强制拦截"
+    },
+    {
+      "name": "ignore_ssl_warning",
+      "value": "忽略 SSL 证书警告"
+    },
+    {
+      "name": "ignore_ssl_warning_desc",
+      "value": "不再提示证书异常（不推荐）"
+    },
+    {
+      "name": "ssl_warning_dialog_message",
+      "value": "SSL 证书用于验证网站身份，并加密你与网站之间的通信，是保障上网安全的重要机制。\n\n开启后，浏览器将不再拦截证书异常的网站。此类网站可能并非你所想访问的站点，连接内容也存在被窃听或篡改的风险，登录、支付等敏感信息可能泄露，请谨慎开启。"
+    },
+    {
+      "name": "ssl_warning_ack",
+      "value": "我已知晓这可能导致连接不安全"
+    },
+    {
+      "name": "ssl_warning_ack_required",
+      "value": "请先勾选确认后再开启"
+    },
+    {
+      "name": "clear_form_data",
+      "value": "表单数据"
+    },
+    {
+      "name": "clear_closed_tabs",
+      "value": "关闭的标签页"
+    },
+    {
+      "name": "clear_web_storage",
+      "value": "网页存储"
+    },
+    {
+      "name": "clear_cookies_login",
+      "value": "Cookies（登录状态）"
+    },
+    {
+      "name": "clear_app_cache",
+      "value": "应用缓存"
+    },
+    {
+      "name": "feature_wip",
+      "value": "功能开发中"
+    },
+    {
+      "name": "placeholder_hint",
+      "value": "该功能正在开发中，敬请期待"
+    },
+    {
+      "name": "saved",
+      "value": "已保存"
+    },
+    {
+      "name": "add",
+      "value": "添加"
+    },
+    {
+      "name": "site_enable_settings",
+      "value": "启用 %1$s 的设定"
+    },
+    {
+      "name": "site_all_sites",
+      "value": "所有网站"
+    },
+    {
+      "name": "site_group_content",
+      "value": "内容"
+    },
+    {
+      "name": "site_group_basic",
+      "value": "基本"
+    },
+    {
+      "name": "site_group_permission",
+      "value": "权限"
+    },
+    {
+      "name": "site_group_advanced",
+      "value": "高级"
+    },
+    {
+      "name": "site_font_size",
+      "value": "字体大小"
+    },
+    {
+      "name": "site_font_preview",
+      "value": "你好世界 Hello World"
+    },
+    {
+      "name": "force_enable_zoom",
+      "value": "强制缩放"
+    },
+    {
+      "name": "force_enable_zoom_desc",
+      "value": "忽略网页对缩放的限制"
+    },
+    {
+      "name": "site_ua",
+      "value": "浏览器标识"
+    },
+    {
+      "name": "site_desktop",
+      "value": "请求桌面版网站"
+    },
+    {
+      "name": "site_image",
+      "value": "显示图片"
+    },
+    {
+      "name": "site_opt_image_show",
+      "value": "有图"
+    },
+    {
+      "name": "site_opt_image_none",
+      "value": "无图"
+    },
+    {
+      "name": "site_opt_image_wifi",
+      "value": "仅WIFI有图"
+    },
+    {
+      "name": "site_image_desc",
+      "value": "所有网站默认的图片显示方式"
+    },
+    {
+      "name": "site_image_disabled_hint",
+      "value": "无图模式开启中，请先在高级设置中关闭"
+    },
+    {
+      "name": "site_js",
+      "value": "JavaScript"
+    },
+    {
+      "name": "site_cookies",
+      "value": "Cookies"
+    },
+    {
+      "name": "cookies_desc",
+      "value": "允许网站保存和读取Cookies数据"
+    },
+    {
+      "name": "cookies_block_third_party",
+      "value": "拦截第三方 Cookies"
+    },
+    {
+      "name": "site_popup",
+      "value": "弹出式窗口"
+    },
+    {
+      "name": "site_ad_block",
+      "value": "广告拦截"
+    },
+    {
+      "name": "site_incognito",
+      "value": "无痕模式"
+    },
+    {
+      "name": "site_clipboard",
+      "value": "剪贴板"
+    },
+    {
+      "name": "site_location",
+      "value": "位置"
+    },
+    {
+      "name": "site_camera",
+      "value": "相机"
+    },
+    {
+      "name": "site_microphone",
+      "value": "麦克风"
+    },
+    {
+      "name": "site_redirect",
+      "value": "网站重定向"
+    },
+    {
+      "name": "web_vibration",
+      "value": "网页振动"
+    },
+    {
+      "name": "web_vibration_desc",
+      "value": "允许网页通过脚本触发设备振动"
+    },
+    {
+      "name": "web_haptic",
+      "value": "长按选择振动"
+    },
+    {
+      "name": "web_haptic_desc",
+      "value": "关闭网页振动时，仍保留文本长按选择的触感反馈"
+    },
+    {
+      "name": "site_back_no_reload",
+      "value": "返回不刷新"
+    },
+    {
+      "name": "site_default",
+      "value": "默认"
+    },
+    {
+      "name": "site_exceptions",
+      "value": "例外网站"
+    },
+    {
+      "name": "site_exceptions_empty",
+      "value": "暂无例外网站"
+    },
+    {
+      "name": "site_add_site",
+      "value": "添加网站"
+    },
+    {
+      "name": "site_site_hint",
+      "value": "输入网站域名，如 example.com"
+    },
+    {
+      "name": "site_site_invalid",
+      "value": "请输入有效的域名"
+    },
+    {
+      "name": "site_site_exists",
+      "value": "该网站已存在"
+    },
+    {
+      "name": "site_delete_site_confirm",
+      "value": "删除该网站的全部设置？"
+    },
+    {
+      "name": "site_all_sites_empty",
+      "value": "暂无网站设置"
+    },
+    {
+      "name": "site_opt_allow",
+      "value": "允许"
+    },
+    {
+      "name": "site_opt_ask",
+      "value": "询问"
+    },
+    {
+      "name": "site_opt_block",
+      "value": "阻止"
+    },
+    {
+      "name": "site_opt_on",
+      "value": "开启"
+    },
+    {
+      "name": "site_opt_off",
+      "value": "关闭"
+    },
+    {
+      "name": "site_opt_follow_global",
+      "value": "跟随全局"
+    },
+    {
+      "name": "camera_permission_reason",
+      "value": "用于网页请求使用摄像头"
+    },
+    {
+      "name": "mic_permission_reason",
+      "value": "用于网页请求使用麦克风"
+    },
+    {
+      "name": "location_permission_reason",
+      "value": "用于网页请求获取位置信息"
+    },
+    {
+      "name": "pasteboard_permission_reason",
+      "value": "用于网页读取剪贴板内容"
+    },
+    {
+      "name": "clipboard_permission_title",
+      "value": "剪贴板权限请求"
+    },
+    {
+      "name": "clipboard_read_message",
+      "value": "想要读取剪贴板内容"
+    },
+    {
+      "name": "clipboard_write_message",
+      "value": "想要复制内容到剪贴板"
+    },
+    {
+      "name": "redirect_permission_title",
+      "value": "重定向确认"
+    },
+    {
+      "name": "redirect_ask_message",
+      "value": "正在尝试跳转到以下地址："
+    },
+    {
+      "name": "site_redirect_blocked",
+      "value": "已阻止网页重定向"
+    },
+    {
+      "name": "web_permission_title",
+      "value": "权限请求"
+    },
+    {
+      "name": "web_permission_use_camera",
+      "value": "想要使用你的摄像头"
+    },
+    {
+      "name": "web_permission_use_mic",
+      "value": "想要使用你的麦克风"
+    },
+    {
+      "name": "web_permission_use_both",
+      "value": "想要使用你的摄像头和麦克风"
+    },
+    {
+      "name": "popup_ask_desc",
+      "value": "网站需先询问并得到许可后才能显示弹出式窗口"
+    },
+    {
+      "name": "popup_allowed_desc",
+      "value": "网站可以直接显示弹出式窗口"
+    },
+    {
+      "name": "popup_permission_title",
+      "value": "弹出式窗口"
+    },
+    {
+      "name": "popup_ask_message",
+      "value": "想要显示弹出式窗口"
     }
   ]
 }
