@@ -2,6 +2,7 @@ import { connection } from '@kit.NetworkKit';
 import { webview } from '@kit.ArkWeb';
 import { abilityAccessCtrl, Permissions, PermissionRequestResult } from '@kit.AbilityKit';
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
+import { CustomContentDialog } from '@kit.ArkUI';
 import { tabsVM, TabInfo } from '../../viewmodel/TabsViewModel';
 import { browserVM } from '../../viewmodel/BrowserViewModel';
 import { downloadVM } from '../../viewmodel/DownloadViewModel';
@@ -13,20 +14,31 @@ import { AdBlockEngine, adBlockEngine } from '../../common/utils/AdBlockEngine';
 import { adBlockStore } from '../../common/utils/AdBlockStore';
 import { WebScripts } from '../../common/utils/WebScripts';
 import { SitePolicy, SiteSettingsViewModel, siteSettingsVM } from '../../viewmodel/SiteSettingsViewModel';
+import { passwordVM, PasswordDecision } from '../../viewmodel/PasswordViewModel';
+import PasswordInfo from '../../common/entity/PasswordInfo';
+import { buildDialogButtons } from '../dialog/AppContentDialog';
 
 /**
- * 剪贴板 JS 代理对象（window.__qhNative）：
- * 网页 navigator.clipboard 文本读写转发原生按站点策略处理
+ * 剪贴板 + 密码 JS 代理对象（window.__qhNative）：
+ * 网页 navigator.clipboard 文本读写转发原生按站点策略处理；
+ * 登录表单凭据捕获上报原生弹保存提示
  */
 class ClipboardBridge {
   private readonly handler: (action: string, cbId: number, text: string) => void
+  private readonly passwordHandler: (username: string, password: string) => void
 
-  constructor(handler: (action: string, cbId: number, text: string) => void) {
+  constructor(handler: (action: string, cbId: number, text: string) => void,
+    passwordHandler: (username: string, password: string) => void) {
     this.handler = handler
+    this.passwordHandler = passwordHandler
   }
 
   clipboardRequest(action: string, cbId: number, text: string): void {
     this.handler(action, cbId, text)
+  }
+
+  passwordSubmit(username: string, password: string): void {
+    this.passwordHandler(username, password)
   }
 }
 
@@ -53,9 +65,23 @@ export struct TabWeb {
   /** 剪贴板 JS 代理（window.__qhNative）：网页剪贴板文本读写转发原生策略处理 */
   private clipboardBridge: ClipboardBridge = new ClipboardBridge((action: string, cbId: number, text: string): void => {
     this.handleClipboardRequest(action, cbId, text)
+  }, (username: string, password: string): void => {
+    this.handlePasswordSubmit(username, password)
   })
 
+  /** 保存密码提示弹窗 */
+  private savePromptDialog: CustomDialogController | undefined = undefined
+  /** 更新密码提示弹窗 */
+  private updatePromptDialog: CustomDialogController | undefined = undefined
+  /** 待提示的凭据（弹窗内容） */
+  @Local promptHost: string = ''
+  @Local promptUsername: string = ''
+  private promptPassword: string = ''
+  /** 已提示过的凭据 key（防重复弹窗） */
+  private passwordPromptKey: string = ''
+
   aboutToAppear(): void {
+    this.initPasswordDialogs()
     this.netConn = connection.createNetConnection()
     this.netConn.on('netAvailable', () => {
       this.updateWifiState()
@@ -135,12 +161,15 @@ export struct TabWeb {
     }
   }
 
-  /** 文档加载前注入脚本：隐私脚本 + 剪贴板接管 + 振动禁用（全局关闭时） */
+  /** 文档加载前注入脚本：隐私脚本 + 剪贴板接管 + 振动禁用（全局关闭时）+ 密码管理器 */
   private documentStartScripts(): Array<ScriptItem> {
     const scripts: Array<ScriptItem> = WebScripts.privacyScripts(this.adBlockOn())
     scripts.push(WebScripts.clipboardScript())
     if (!appSettings.web_vibration_enabled) {
       scripts.push(WebScripts.vibrationBlockScript())
+    }
+    if (!appSettings.system_password_manager) {
+      scripts.push(WebScripts.passwordScript())
     }
     return scripts
   }
@@ -294,7 +323,7 @@ export struct TabWeb {
   /** 以新标签打开弹出式窗口：Web 空 src 绑定新控制器，导航由内核驱动（支持 about:blank + document.write） */
   private openPopupAsTab(event: OnWindowNewEvent): void {
     const before: number = tabsVM.tabs.length
-    const tab: TabInfo | null = tabsVM.newTab('', this.tab.isIncognito, false)
+    const tab: TabInfo | null = tabsVM.newTab('', this.tab.isIncognito, false, true)
     if (tab === null || tabsVM.tabs.length === before) {
       // 标签数已达上限（newTab 返回当前活动标签），不创建新窗口
       this.rejectPopup(event)
@@ -623,6 +652,144 @@ export struct TabWeb {
     }
   }
 
+  /** 初始化保存/更新密码提示弹窗 */
+  private initPasswordDialogs(): void {
+    this.savePromptDialog = new CustomDialogController({
+      builder: CustomContentDialog({
+        primaryTitle: $r('app.string.password_save_title'),
+        contentBuilder: (): void => {
+          this.promptMessageContent()
+        },
+        buttons: buildDialogButtons([$r('app.string.password_later_action'), $r('app.string.password_never_action'),
+          $r('app.string.password_save_action')], false,
+          (index: number): void => {
+            if (index === 1) {
+              passwordVM.addNever(this.promptHost)
+            } else if (index === 2) {
+              passwordVM.upsert(this.promptHost, this.promptUsername, this.promptPassword)
+            }
+            this.savePromptDialog?.close()
+          }),
+        contentAreaPadding: { top: 8, bottom: 8, left: 24, right: 24 }
+      }),
+      autoCancel: true,
+      alignment: DialogAlignment.Center,
+      cornerRadius: 32
+    })
+    this.updatePromptDialog = new CustomDialogController({
+      builder: CustomContentDialog({
+        primaryTitle: $r('app.string.password_update_title'),
+        contentBuilder: (): void => {
+          this.promptMessageContent()
+        },
+        buttons: buildDialogButtons([$r('app.string.password_later_action'), $r('app.string.password_update_action')],
+          false,
+          (index: number): void => {
+            if (index === 1) {
+              passwordVM.upsert(this.promptHost, this.promptUsername, this.promptPassword)
+            }
+            this.updatePromptDialog?.close()
+          }),
+        contentAreaPadding: { top: 8, bottom: 8, left: 24, right: 24 }
+      }),
+      autoCancel: true,
+      alignment: DialogAlignment.Center,
+      cornerRadius: 32
+    })
+  }
+
+  /** 提示弹窗正文：网站 + 用户名 */
+  @Builder
+  promptMessageContent() {
+    Column({ space: 4 }) {
+      Text(this.promptHost)
+        .fontSize(16)
+        .fontWeight(FontWeight.Medium)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      if (this.promptUsername !== '') {
+        Text(ResourceUtils.getStringWithArgs($r('app.string.password_save_user_line'), [this.promptUsername]))
+          .fontSize(14)
+          .fontColor($r('sys.color.font_secondary'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      } else {
+        Text(ResourceUtils.getString($r('app.string.password_save_pass_line')))
+          .fontSize(14)
+          .fontColor($r('sys.color.font_secondary'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  /**
+   * 注入脚本捕获登录凭据上报（__qhNative.passwordSubmit）：
+   * 按设置与去重规则弹「保存/更新密码」提示
+   */
+  private handlePasswordSubmit(username: string, password: string): void {
+    if (!appSettings.password_save_prompt || appSettings.system_password_manager) {
+      return
+    }
+    const host: string = SiteSettingsViewModel.hostOf(this.tab.url)
+    if (host === '' || password === '') {
+      return
+    }
+    const key: string = `${host}\n${username}\n${password}`
+    if (key === this.passwordPromptKey) {
+      return
+    }
+    this.passwordPromptKey = key
+    passwordVM.decideSave(host, username, password)
+      .then((decision: PasswordDecision): void => {
+        if (decision === PasswordDecision.SKIP) {
+          return
+        }
+        this.promptHost = host
+        this.promptUsername = username
+        this.promptPassword = password
+        if (decision === PasswordDecision.SAVE) {
+          this.savePromptDialog?.open()
+        } else {
+          this.updatePromptDialog?.open()
+        }
+      })
+      .catch((error: BusinessError): void => {
+        console.error(`[TabWeb] 密码保存决策失败: ${error.code} ${error.message}`)
+      })
+  }
+
+  /** 页面加载完成后自动填充已保存的密码（托管给系统时由系统接管） */
+  private autofillPassword(): void {
+    if (appSettings.system_password_manager) {
+      return
+    }
+    const host: string = SiteSettingsViewModel.hostOf(this.tab.url)
+    if (host === '') {
+      return
+    }
+    passwordVM.credentialFor(host)
+      .then((info: PasswordInfo | null): void => {
+        if (info === null) {
+          return
+        }
+        try {
+          const controller: webview.WebviewController = tabsVM.ensureController(this.tab)
+          controller.runJavaScript(`window.__qhFillPassword && window.__qhFillPassword(${JSON.stringify(info.username)}, ${JSON.stringify(info.password)})`)
+            .catch((error: BusinessError): void => {
+              console.error(`[TabWeb] 密码自动填充失败: ${error.code} ${error.message}`)
+            })
+        } catch (error) {
+          console.error(`[TabWeb] 密码自动填充异常: ${error}`)
+        }
+      })
+      .catch((error: BusinessError): void => {
+        console.error(`[TabWeb] 查询已保存密码失败: ${error.code} ${error.message}`)
+      })
+  }
+
   build() {
     Stack() {
       Web({ src: this.tab.url, controller: tabsVM.ensureController(this.tab), incognitoMode: this.tab.isIncognito })
@@ -642,11 +809,12 @@ export struct TabWeb {
         .javaScriptProxy({
           object: this.clipboardBridge,
           name: '__qhNative',
-          methodList: ['clipboardRequest'],
+          methodList: ['clipboardRequest', 'passwordSubmit'],
           controller: tabsVM.ensureController(this.tab)
         })
         .copyOptions(this.policy.clipboardMode === 'block' ? CopyOptions.None : CopyOptions.LocalDevice)
         .enableHapticFeedback(appSettings.web_vibration_enabled || appSettings.web_haptic_enabled)
+        .enableAutoFill(appSettings.system_password_manager)
         .multiWindowAccess(true)
         .allowWindowOpenMethod(true)
         .onWindowNew((event: OnWindowNewEvent) => {
@@ -697,6 +865,7 @@ export struct TabWeb {
           this.tab.url = event.url
           this.tab.progress = 100
           this.applyBackForwardCache()
+          this.autofillPassword()
           browserVM.onPageEnded(this.tab, event.url)
           browserVM.updateNavState(this.tab)
         })

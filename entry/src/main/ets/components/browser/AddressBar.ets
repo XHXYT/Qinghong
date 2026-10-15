@@ -2,7 +2,8 @@ import { QhState } from '../../entryability/AppState';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
 import { browserVM } from '../../viewmodel/BrowserViewModel';
 import { searchVM, SuggestItem, SuggestType } from '../../viewmodel/SearchViewModel';
-import { UrlUtils } from '../../common/constants/SearchEngines';
+import { UrlUtils, SearchToolbarEngines, ToolbarEngineEntry } from '../../common/constants/SearchEngines';
+import { appSettings } from '../../common/entity/SettingsModel';
 
 /**
  * 顶部地址栏（网页态显示，点击进入编辑）
@@ -61,6 +62,15 @@ function suggestIcon(type: SuggestType): Resource {
   if (type === SuggestType.NETWORK_SUGGEST) {
     return $r('sys.symbol.magnifyingglass')
   }
+  if (type === SuggestType.BOOKMARK) {
+    return $r('sys.symbol.bookmark')
+  }
+  if (type === SuggestType.FAVORITES) {
+    return $r('sys.symbol.star')
+  }
+  if (type === SuggestType.TAB) {
+    return $r('sys.symbol.square_grid_2x2')
+  }
   return $r('sys.symbol.website')
 }
 
@@ -88,13 +98,42 @@ export struct AddressEditOverlay {
     searchVM.clear()
   }
 
+  @Builder
+  engineMenuBuilder() {
+    Menu() {
+      ForEach(SearchToolbarEngines.enabledEngines(), (e: ToolbarEngineEntry) => {
+        MenuItem({ content: e.name })
+          .contentFontColor($r('sys.color.font_primary'))
+          .onClick(() => {
+            const text = this.inputText.trim()
+            if (text) {
+              browserVM.submitAddressWithEngine(text, e.id)
+            } else {
+              // 未输入时仅切换当前搜索引擎
+              appSettings.search_engine_id = e.id
+            }
+          })
+      }, (e: ToolbarEngineEntry) => e.id)
+    }
+    .backgroundColor($r('app.color.start_window_background'))
+    .borderRadius(16)
+  }
+
   build() {
     Column() {
       // 输入行
       Row({ space: 10 }) {
-        SymbolGlyph($r('sys.symbol.magnifyingglass'))
-          .fontSize(20)
-          .fontColor([$r('sys.color.font_secondary')])
+        if (appSettings.search_toolbar_enabled && SearchToolbarEngines.enabledEngines().length > 0) {
+          // 搜索工具菜单入口（最左侧图标）
+          SymbolGlyph($r('sys.symbol.magnifyingglass'))
+            .fontSize(20)
+            .fontColor([$r('sys.color.font_secondary')])
+            .bindMenu(this.engineMenuBuilder())
+        } else {
+          SymbolGlyph($r('sys.symbol.magnifyingglass'))
+            .fontSize(20)
+            .fontColor([$r('sys.color.font_secondary')])
+        }
         TextInput({ text: this.inputText, placeholder: $r('app.string.search_hint') })
           .layoutWeight(1)
           .height(40)
@@ -149,6 +188,11 @@ export struct AddressEditOverlay {
             .padding({ left: 16, right: 16 })
             .alignItems(VerticalAlign.Center)
             .onClick(() => {
+              if (s.tabId >= 0) {
+                tabsVM.switchTab(s.tabId)
+                this.close()
+                return
+              }
               if (s.url) {
                 browserVM.openUrl(s.url)
               } else {

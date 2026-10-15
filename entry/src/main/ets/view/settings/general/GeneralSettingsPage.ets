@@ -71,6 +71,19 @@ function restoreLabel(v: string): ResourceStr {
   return $r('app.string.restore_always');
 }
 
+function homeModeLabel(v: string): ResourceStr {
+  if (v === 'blank') {
+    return $r('app.string.home_mode_blank');
+  }
+  if (v === 'bookmarks') {
+    return $r('app.string.home_mode_bookmarks');
+  }
+  if (v === 'web') {
+    return $r('app.string.home_mode_web');
+  }
+  return $r('app.string.home_mode_default');
+}
+
 @ComponentV2
 struct CheckRow {
   @Require @Param label: ResourceStr
@@ -151,11 +164,13 @@ struct GeneralSettingsPage {
   @Local clearSel: boolean[] = [false, false, false, false, false, false, false, false]
   @Local exitSel: boolean[] = parseExitClear('')
   @Local exportSel: boolean[] = [false, false, false]
+  @Local inputUrl: string = ''
 
   private clearDataDialog: CustomDialogController | undefined = undefined
   private exitClearDialog: CustomDialogController | undefined = undefined
   private bookmarkDialog: CustomDialogController | undefined = undefined
   private exportDialog: CustomDialogController | undefined = undefined
+  private urlDialog: CustomDialogController | undefined = undefined
 
   aboutToAppear(): void {
     this.buildItems()
@@ -177,7 +192,7 @@ struct GeneralSettingsPage {
     return new CustomItemInfo({
       id: id,
       title: title,
-      type: ItemActionType.TEXT,
+      type: ItemActionType.ROUTER,
       value: value,
       onChange: (v: string | boolean | number): void => {
         onClick()
@@ -249,16 +264,23 @@ struct GeneralSettingsPage {
     g.items.push(this.routerItem('ua', $r('app.string.settings_ua'), 'settings_ua'))
     g.items.push(this.routerItem('ad_block', $r('app.string.ad_block'), 'settings_adblock'))
     g.items.push(this.routerItem('site_settings', $r('app.string.site_settings'), 'settings_site'))
-    g.items.push(this.textItem('video_player', $r('app.string.video_player'),
+    // 外置视频播放器：功能未接线，置灰待后续实现
+    const videoPlayerItem: CustomItemInfo = this.textItem('video_player', $r('app.string.video_player'),
       ResourceUtils.getString(videoPlayerLabel(appSettings.video_player)), (): void => {
         this.openVideoPlayerPicker()
-      }))
+      })
+    videoPlayerItem.enabled = false
+    videoPlayerItem.disabledHint = $r('app.string.feature_not_available')
+    g.items.push(videoPlayerItem)
     g.items.push(this.routerItem('password_manager', $r('app.string.password_manager'), 'settings_password'))
     groups.push(g)
     // 搜索与主页
     g = new SettingsGroup('search', $r('app.string.general_group_search'))
-    g.items.push(this.routerItem('home_page', $r('app.string.home_page'), 'homepage_settings'))
-    g.items.push(this.routerItem('search_settings', $r('app.string.search_settings'), 'search_engine'))
+    g.items.push(this.textItem('home_page', $r('app.string.home_page'),
+      ResourceUtils.getString(homeModeLabel(appSettings.home_page_mode)), (): void => {
+        this.openHomePicker()
+      }))
+    g.items.push(this.routerItem('search_settings', $r('app.string.search_settings'), 'search_settings'))
     g.items.push(this.routerItem('ai_settings', $r('app.string.ai_settings'), 'settings_ai'))
     groups.push(g)
     // 下载与数据
@@ -371,6 +393,28 @@ struct GeneralSettingsPage {
       alignment: DialogAlignment.Center,
       cornerRadius: 32
     })
+    this.urlDialog = new CustomDialogController({
+      builder: CustomContentDialog({
+        primaryTitle: $r('app.string.home_page'),
+        contentBuilder: (): void => {
+          this.urlDialogContent()
+        },
+        buttons: buildDialogButtons([$r('app.string.cancel'), $r('app.string.save')], false,
+          (index: number): void => {
+            if (index === 1) {
+              this.applyWebUrl()
+            }
+            this.urlDialog?.close()
+          }),
+        contentAreaPadding: { top: 8, bottom: 8, left: 24, right: 24 }
+      }),
+      autoCancel: true,
+      alignment: DialogAlignment.Center,
+      cornerRadius: 32,
+      onWillAppear: (): void => {
+        this.inputUrl = appSettings.home_page_url
+      }
+    })
   }
 
   private openPicker(title: ResourceStr, options: PickerOption[], selected: string,
@@ -426,6 +470,37 @@ struct GeneralSettingsPage {
       appSettings.restore_mode = v
       this.setItemValue('restore_tabs', ResourceUtils.getString(restoreLabel(v)))
     })
+  }
+
+  private openHomePicker(): void {
+    this.openPicker($r('app.string.home_page'), [
+      new PickerOption('default', $r('app.string.home_mode_default')),
+      new PickerOption('blank', $r('app.string.home_mode_blank')),
+      new PickerOption('bookmarks', $r('app.string.home_mode_bookmarks')),
+      new PickerOption('web', $r('app.string.home_mode_web'))
+    ], appSettings.home_page_mode, (v: string): void => {
+      if (v === 'web') {
+        // 网页模式：先输入主页网址，取消则保持原模式
+        this.urlDialog?.open()
+        return
+      }
+      appSettings.home_page_mode = v
+      this.setItemValue('home_page', ResourceUtils.getString(homeModeLabel(v)))
+    })
+  }
+
+  private applyWebUrl(): void {
+    let url = this.inputUrl.trim()
+    if (!url) {
+      toastUtil.showToast({ message: $r('app.string.home_page_url_hint') })
+      return
+    }
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = `https://${url}`
+    }
+    appSettings.home_page_url = url
+    appSettings.home_page_mode = 'web'
+    this.setItemValue('home_page', ResourceUtils.getString(homeModeLabel('web')))
   }
 
   private doClearData(): void {
@@ -578,6 +653,17 @@ struct GeneralSettingsPage {
         this.showPicker = false
       }
     })
+  }
+
+  @Builder
+  urlDialogContent() {
+    TextInput({ text: this.inputUrl, placeholder: $r('app.string.home_page_url_hint') })
+      .height(44)
+      .fontSize(15)
+      .type(InputType.URL)
+      .onChange((v: string) => {
+        this.inputUrl = v
+      })
   }
 
   @Builder

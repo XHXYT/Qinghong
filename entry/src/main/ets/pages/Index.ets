@@ -6,6 +6,7 @@ import { searchVM } from '../viewmodel/SearchViewModel';
 import { appSettings, UISettings } from '../common/entity/SettingsModel';
 import { webview } from '@kit.ArkWeb';
 import { HomepageView } from '../components/browser/HomepageView';
+import { HomeBookmarksView } from '../components/browser/HomeBookmarksView';
 import { AddressBar, AddressEditOverlay } from '../components/browser/AddressBar';
 import { BrowserToolbar } from '../components/browser/Toolbar';
 import { TabSwitcher } from '../components/browser/TabSwitcher';
@@ -78,7 +79,16 @@ struct Index {
   @Builder
   tabContent(tab: TabInfo) {
     if (tab.isHome) {
-      HomepageView({ tab: tab })
+      if (appSettings.home_page_mode === 'blank') {
+        // 空白模式：无内容
+        Column()
+          .width('100%')
+          .height('100%')
+      } else if (appSettings.home_page_mode === 'bookmarks') {
+        HomeBookmarksView()
+      } else {
+        HomepageView({ tab: tab })
+      }
     } else {
       TabWeb({ tab: tab })
     }

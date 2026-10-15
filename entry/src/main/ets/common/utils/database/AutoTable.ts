@@ -9,8 +9,9 @@ import { createLogger } from '../Logger';
 const logger = createLogger('AutoTable');
 
 export default abstract class AutoTable<T> extends AbsTable<T> {
-  constructor(context: Context, dbName: string, tableName: string) {
-    super(dbName, tableName, context);
+  constructor(context: Context, dbName: string, tableName: string,
+    securityLevel?: rdb.SecurityLevel, encrypt?: boolean) {
+    super(dbName, tableName, context, securityLevel, encrypt);
     logger.debug(`${this.constructor.name}, constructor dbName=${dbName} tableName=${tableName}`);
 
     this.futureDb.then(db => {

@@ -115,4 +115,88 @@ export class WebScripts {
       scriptRules: ['*']
     }
   }
+
+  /**
+   * 密码管理器脚本（文档加载前注入）：
+   * 1. 挂 window.__qhFillPassword(user,pass) 供原生自动填充（含 SPA 表单延迟重试）；
+   * 2. 监听表单提交与按钮点击，捕获登录凭据经 __qhNative.passwordSubmit 上报原生弹保存提示
+   */
+  static passwordScript(): ScriptItem {
+    return {
+      script: "try{(function(){" +
+        "if(window.__qhPwInit){return;}window.__qhPwInit=1;" +
+        "function pwds(){return Array.prototype.slice.call(document.querySelectorAll('input[type=password]'));}" +
+        "function score(el){" +
+        "var s=0;var ac=(el.getAttribute('autocomplete')||'').toLowerCase();" +
+        "var nm=((el.name||'')+' '+(el.id||'')).toLowerCase();" +
+        "if(ac.indexOf('username')>=0||ac.indexOf('email')>=0){s+=10;}" +
+        "if(nm.indexOf('user')>=0||nm.indexOf('email')>=0||nm.indexOf('account')>=0||nm.indexOf('phone')>=0||nm.indexOf('mobile')>=0){s+=5;}" +
+        "if((el.type||'').toLowerCase()==='email'){s+=3;}" +
+        "return s;" +
+        "}" +
+        "function userOf(p){" +
+        "var scope=p.form||document;" +
+        "var list=scope.querySelectorAll(\"input:not([type=password]):not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button]):not([type=file]):not([type=image])\");" +
+        "var best=null,bestScore=-1;" +
+        "for(var i=0;i<list.length;i++){" +
+        "var el=list[i];var t=(el.type||'').toLowerCase();" +
+        "if(t!=='email'&&t!=='text'&&t!=='tel'){continue;}" +
+        "if(p.form===null&&!(el.compareDocumentPosition(p)&Node.DOCUMENT_POSITION_FOLLOWING)){continue;}" +
+        "var s=score(el);if(s>=bestScore){bestScore=s;best=el;}" +
+        "}" +
+        "return best;" +
+        "}" +
+        "function setV(el,v){" +
+        "try{" +
+        "var proto=(el.tagName==='TEXTAREA')?window.HTMLTextAreaElement.prototype:window.HTMLInputElement.prototype;" +
+        "var d=Object.getOwnPropertyDescriptor(proto,'value');" +
+        "if(d&&d.set){d.set.call(el,v);}else{el.value=v;}" +
+        "el.dispatchEvent(new Event('input',{bubbles:true}));" +
+        "el.dispatchEvent(new Event('change',{bubbles:true}));" +
+        "}catch(e){try{el.value=v;}catch(e2){}}" +
+        "}" +
+        "function tryFill(){" +
+        "try{" +
+        "var c=window.__qhPwCred;if(!c){return;}" +
+        "var list=pwds();if(!list.length){return;}" +
+        "var f=list[0];" +
+        "if(!f.value){setV(f,c.p);}" +
+        "var u=userOf(f);" +
+        "if(u&&c.u&&!u.value){setV(u,c.u);}" +
+        "}catch(e){}" +
+        "}" +
+        "window.__qhFillPassword=function(user,pass){" +
+        "window.__qhPwCred={u:user,p:pass};" +
+        "tryFill();" +
+        "if(!window.__qhPwObs){" +
+        "window.__qhPwObs=1;var n=0;" +
+        "var timer=setInterval(function(){n++;tryFill();if(n>20){clearInterval(timer);}},500);" +
+        "document.addEventListener('DOMContentLoaded',function(){tryFill();});" +
+        "}" +
+        "};" +
+        "function report(){" +
+        "try{" +
+        "var list=pwds();var filled=null;" +
+        "for(var i=list.length-1;i>=0;i--){if(list[i].value){filled=list[i];break;}}" +
+        "if(!filled){return;}" +
+        "var pass=filled.value;if(!pass){return;}" +
+        "var u=userOf(filled);var user=(u&&u.value)||'';" +
+        "var key=user+'\\n'+pass;" +
+        "if(!window.__qhPwSeen){window.__qhPwSeen={};}" +
+        "if(window.__qhPwSeen[key]){return;}" +
+        "window.__qhPwSeen[key]=1;" +
+        "if(window.__qhNative&&__qhNative.passwordSubmit){__qhNative.passwordSubmit(user,pass);}" +
+        "}catch(e){}" +
+        "}" +
+        "document.addEventListener('submit',function(){setTimeout(report,80);},true);" +
+        "document.addEventListener('click',function(e){" +
+        "try{" +
+        "var t=e.target;if(!t||!t.closest){return;}" +
+        "if(t.closest('button,[role=button],input[type=submit],input[type=button],a')){setTimeout(report,600);}" +
+        "}catch(e2){}" +
+        "},true);" +
+        "})()}catch(e){}",
+      scriptRules: ['*']
+    }
+  }
 }

@@ -63,6 +63,8 @@ struct AdvancedSettingsPage {
       title: $r('app.string.show_sniff_button'),
       type: ItemActionType.TOGGLE,
       value: appSettings.show_sniff_button,
+      enabled: false,
+      disabledHint: $r('app.string.feature_not_available'),
       onChange: (v: string | boolean | number): void => {
         appSettings.show_sniff_button = v as boolean
       }

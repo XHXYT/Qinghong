@@ -257,14 +257,6 @@
       "value": "Cleared"
     },
     {
-      "name": "homepage_settings",
-      "value": "Homepage settings"
-    },
-    {
-      "name": "show_homepage_logo",
-      "value": "Show homepage logo"
-    },
-    {
       "name": "quick_links_empty_hint",
       "value": "No home shortcuts yet. Long-press a bookmark and choose \"Add to home shortcuts\""
     },
@@ -287,22 +279,6 @@
     {
       "name": "remove",
       "value": "Remove"
-    },
-    {
-      "name": "removed",
-      "value": "Removed"
-    },
-    {
-      "name": "quick_links",
-      "value": "Home shortcuts"
-    },
-    {
-      "name": "empty_quick_links",
-      "value": "No shortcuts yet"
-    },
-    {
-      "name": "show_homepage_logo_desc",
-      "value": "Show the app logo on the homepage"
     },
     {
       "name": "settings_general",
@@ -1257,6 +1233,10 @@
       "value": "Show sniff button automatically"
     },
     {
+      "name": "feature_not_available",
+      "value": "Coming soon"
+    },
+    {
       "name": "allow_debug_web",
       "value": "Allow web debugging"
     },
@@ -1595,6 +1575,206 @@
     {
       "name": "popup_ask_message",
       "value": "wants to show pop-up windows"
+    },
+    {
+      "name": "copied",
+      "value": "Copied"
+    },
+    {
+      "name": "password_save_prompt",
+      "value": "Offer to Save Passwords"
+    },
+    {
+      "name": "password_save_prompt_desc",
+      "value": "Ask to save passwords when you sign in"
+    },
+    {
+      "name": "system_password_manager",
+      "value": "System Password Manager"
+    },
+    {
+      "name": "system_password_manager_desc",
+      "value": "Save and fill passwords with the system Password Vault"
+    },
+    {
+      "name": "password_system_managed",
+      "value": "Passwords are managed by the system password manager"
+    },
+    {
+      "name": "saved_passwords",
+      "value": "Saved Passwords"
+    },
+    {
+      "name": "saved_passwords_empty",
+      "value": "No saved passwords yet"
+    },
+    {
+      "name": "never_save_passwords",
+      "value": "Never Save Passwords"
+    },
+    {
+      "name": "never_save_passwords_empty",
+      "value": "The list is empty. Once you add a site, you will no longer be asked to save its password"
+    },
+    {
+      "name": "never_save_delete_confirm",
+      "value": "You will be asked to save the password again the next time you sign in to this site"
+    },
+    {
+      "name": "import_passwords",
+      "value": "Import Passwords"
+    },
+    {
+      "name": "import_passwords_desc",
+      "value": "Import passwords from a CSV file"
+    },
+    {
+      "name": "export_passwords",
+      "value": "Export Passwords"
+    },
+    {
+      "name": "export_passwords_desc",
+      "value": "Delete the password file after use to avoid possible data leaks"
+    },
+    {
+      "name": "password_imported_count",
+      "value": "%d passwords imported"
+    },
+    {
+      "name": "password_import_failed",
+      "value": "Failed to import passwords"
+    },
+    {
+      "name": "password_export_success",
+      "value": "Passwords exported"
+    },
+    {
+      "name": "password_export_empty",
+      "value": "No passwords to export"
+    },
+    {
+      "name": "password_export_failed",
+      "value": "Failed to export passwords"
+    },
+    {
+      "name": "password_save_title",
+      "value": "Save password?"
+    },
+    {
+      "name": "password_save_user_line",
+      "value": "The login password for %s will be saved"
+    },
+    {
+      "name": "password_save_pass_line",
+      "value": "The login password for this site will be saved"
+    },
+    {
+      "name": "password_update_title",
+      "value": "Update password?"
+    },
+    {
+      "name": "password_update_message",
+      "value": "The password for this site has changed"
+    },
+    {
+      "name": "password_save_action",
+      "value": "Save"
+    },
+    {
+      "name": "password_never_action",
+      "value": "Never"
+    },
+    {
+      "name": "password_later_action",
+      "value": "Not now"
+    },
+    {
+      "name": "password_update_action",
+      "value": "Update"
+    },
+    {
+      "name": "password_copy_action",
+      "value": "Copy password"
+    },
+    {
+      "name": "label_username",
+      "value": "Username"
+    },
+    {
+      "name": "label_password",
+      "value": "Password"
+    },
+    {
+      "name": "password_delete_confirm",
+      "value": "You will be asked to save the password again the next time you sign in to this site"
+    },
+    {
+      "name": "home_mode_default",
+      "value": "Default"
+    },
+    {
+      "name": "home_mode_blank",
+      "value": "Blank"
+    },
+    {
+      "name": "home_mode_bookmarks",
+      "value": "Bookmarks"
+    },
+    {
+      "name": "home_mode_web",
+      "value": "Web page"
+    },
+    {
+      "name": "home_page_url_hint",
+      "value": "Enter homepage URL"
+    },
+    {
+      "name": "search_suggestions",
+      "value": "Search suggestions"
+    },
+    {
+      "name": "search_suggest_desc",
+      "value": "While typing in the address bar, suggestions are drawn from:"
+    },
+    {
+      "name": "suggest_source_favorites",
+      "value": "Favorites"
+    },
+    {
+      "name": "suggest_source_bookmarks",
+      "value": "Bookmarks"
+    },
+    {
+      "name": "suggest_source_tabs",
+      "value": "Tabs"
+    },
+    {
+      "name": "suggest_source_history",
+      "value": "Browsing history"
+    },
+    {
+      "name": "suggest_source_engine",
+      "value": "Search engine"
+    },
+    {
+      "name": "suggest_source_search_history",
+      "value": "Search history"
+    },
+    {
+      "name": "search_toolbar",
+      "value": "Search toolbar"
+    },
+    {
+      "name": "search_toolbar_desc",
+      "value": "When enabled, the leftmost address bar icon opens the engine menu"
+    },
+    {
+      "name": "search_toolbar_engines_title",
+      "value": "Engines to show"
+    },
+    {
+      "name": "search_toolbar_engines_hint",
+      "value": "Long-press and drag to reorder. Enabled engines appear in the engine menu"
     }
   ]
 }

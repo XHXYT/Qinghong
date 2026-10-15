@@ -184,6 +184,20 @@ export class AppSettings {
   @Trace read_mode_font_size: number = 18
   /** 应用字体 family（空串 = 默认字体） */
   @Trace font_family: string = ''
+  /** 密码管理器：提示保存密码（应用自建密码库） */
+  @Trace password_save_prompt: boolean = true
+  /** 密码管理器：托管给系统密码管理器（Web enableAutoFill） */
+  @Trace system_password_manager: boolean = false
+  /** 主页模式：default 默认 / blank 空白 / bookmarks 书签 / web 网页 */
+  @Trace home_page_mode: string = 'default'
+  /** 主页模式为网页时的主页地址 */
+  @Trace home_page_url: string = ''
+  /** 搜索建议来源（启用项逗号分隔） */
+  @Trace search_suggest_sources: string = 'favorites,bookmarks,tabs,history,engine,search_history'
+  /** 搜索工具栏启用 */
+  @Trace search_toolbar_enabled: boolean = false
+  /** 搜索工具栏引擎列表（'id:1,id:0' 形式，顺序即显示顺序） */
+  @Trace search_toolbar_engines: string = 'baidu:1,google:1,bing:1,sogou:1,so360:1,toutiao:1,shenma:1'
 
   constructor() {
   }
@@ -191,6 +205,11 @@ export class AppSettings {
   /** 蒙版颜色的十六进制值 */
   maskColorHex(): string {
     return this.night_mask_color === 'amber' ? '#FFBD69' : '#000000'
+  }
+
+  /** 搜索建议来源是否启用 */
+  isSuggestSourceOn(key: string): boolean {
+    return this.search_suggest_sources.split(',').includes(key)
   }
 
   /** 阅读模式背景色的十六进制值 */
@@ -269,7 +288,14 @@ export class AppSettings {
       "read_mode_bg_color": this.read_mode_bg_color,
       "read_mode_custom_bg": this.read_mode_custom_bg,
       "read_mode_font_size": this.read_mode_font_size,
-      "font_family": this.font_family
+      "font_family": this.font_family,
+      "password_save_prompt": this.password_save_prompt,
+      "system_password_manager": this.system_password_manager,
+      "home_page_mode": this.home_page_mode,
+      "home_page_url": this.home_page_url,
+      "search_suggest_sources": this.search_suggest_sources,
+      "search_toolbar_enabled": this.search_toolbar_enabled,
+      "search_toolbar_engines": this.search_toolbar_engines
     };
   }
 
@@ -320,6 +346,13 @@ export class AppSettings {
     this.read_mode_custom_bg = (json["read_mode_custom_bg"] as string) ?? this.read_mode_custom_bg;
     this.read_mode_font_size = (json["read_mode_font_size"] as number) ?? this.read_mode_font_size;
     this.font_family = (json["font_family"] as string) ?? this.font_family;
+    this.password_save_prompt = (json["password_save_prompt"] as boolean) ?? this.password_save_prompt;
+    this.system_password_manager = (json["system_password_manager"] as boolean) ?? this.system_password_manager;
+    this.home_page_mode = (json["home_page_mode"] as string) ?? this.home_page_mode;
+    this.home_page_url = (json["home_page_url"] as string) ?? this.home_page_url;
+    this.search_suggest_sources = (json["search_suggest_sources"] as string) ?? this.search_suggest_sources;
+    this.search_toolbar_enabled = (json["search_toolbar_enabled"] as boolean) ?? this.search_toolbar_enabled;
+    this.search_toolbar_engines = (json["search_toolbar_engines"] as string) ?? this.search_toolbar_engines;
 
     const rawUas = json["custom_uas"] as Object[];
     if (rawUas) {
@@ -354,7 +387,9 @@ export class AppSettings {
     'do_not_track', 'disable_webrtc', 'do_not_sell', 'geolocation_access', 'language', 'screen_orientation', 'ua_mode', 'ua_desktop', 'ua_simplify', 'custom_uas', 'video_player',
     'exit_clear_data', 'no_image_mode', 'show_sniff_button', 'allow_debug_web', 'disable_safe_browsing',
     'ignore_ssl_warning', 'web_vibration_enabled', 'web_haptic_enabled', 'show_undo_close_tip', 'auto_expand_web', 'force_enable_zoom', 'cookies_enabled', 'cookies_block_third_party', 'popup_allowed', 'site_defaults', 'ad_block_enabled', 'ad_block_builtin', 'night_mask_enabled', 'night_mask_opacity', 'night_mask_color', 'force_dark_web',
-    'read_mode_confirm', 'read_mode_bg_color', 'read_mode_custom_bg', 'read_mode_font_size', 'font_family')
+    'read_mode_confirm', 'read_mode_bg_color', 'read_mode_custom_bg', 'read_mode_font_size', 'font_family',
+    'password_save_prompt', 'system_password_manager', 'home_page_mode', 'home_page_url',
+    'search_suggest_sources', 'search_toolbar_enabled', 'search_toolbar_engines')
   public async save(): Promise<void> {
     try {
       const jsonStr: string = JSON.stringify(this.toSyncData());
@@ -407,6 +442,13 @@ export class AppSettings {
     this.read_mode_custom_bg = '#F2E8D5';
     this.read_mode_font_size = 18;
     this.font_family = '';
+    this.password_save_prompt = true;
+    this.system_password_manager = false;
+    this.home_page_mode = 'default';
+    this.home_page_url = '';
+    this.search_suggest_sources = 'favorites,bookmarks,tabs,history,engine,search_history';
+    this.search_toolbar_enabled = false;
+    this.search_toolbar_engines = 'baidu:1,google:1,bing:1,sogou:1,so360:1,toutiao:1,shenma:1';
     this.save();
   }
 }

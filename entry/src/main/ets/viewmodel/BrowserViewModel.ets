@@ -53,6 +53,25 @@ export class BrowserViewModel {
   }
 
   /**
+   * 以指定引擎提交地址栏（搜索工具菜单）
+   */
+  submitAddressWithEngine(input: string, engineId: string): void {
+    const text = input.trim()
+    if (!text) return
+    const tab = tabsVM.activeTab
+    if (!tab) return
+    let target: string
+    if (UrlUtils.isLikelyUrl(text)) {
+      target = UrlUtils.normalizeUrl(text)
+    } else {
+      target = SearchEngines.buildSearchUrl(SearchEngines.getEngine(engineId), text)
+      searchVM.saveSearch(text, tab.isIncognito)
+    }
+    this.isEditingAddress = false
+    tabsVM.navigate(tab, target)
+  }
+
+  /**
    * 打开指定地址（联想条目点击）
    */
   openUrl(url: string): void {
@@ -109,6 +128,10 @@ export class BrowserViewModel {
       } catch (e) {
         logger.error('goBack', `${e}`)
       }
+    }
+    // 网页模式主页：已在主页网页上，返回交给系统（退出应用）
+    if (tabsVM.isWebHome(tab)) {
+      return false
     }
     tabsVM.goHome(tab)
     return true

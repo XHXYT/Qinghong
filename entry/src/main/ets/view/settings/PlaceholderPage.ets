@@ -42,11 +42,6 @@ export function SettingsScriptBuilder() {
 }
 
 @Builder
-export function SettingsPasswordBuilder() {
-  PlaceholderPage({ title: $r('app.string.password_manager') })
-}
-
-@Builder
 export function SettingsMenuCustomBuilder() {
   PlaceholderPage({ title: $r('app.string.customize_menu') })
 }

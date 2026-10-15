@@ -97,8 +97,18 @@
     },
     {
       "name": "settings_password",
-      "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
+      "pageSourceFile": "src/main/ets/view/settings/general/PasswordManagerPage.ets",
       "buildFunction": "SettingsPasswordBuilder"
+    },
+    {
+      "name": "settings_password_saved",
+      "pageSourceFile": "src/main/ets/view/settings/general/password/SavedPasswordsPage.ets",
+      "buildFunction": "SettingsPasswordSavedBuilder"
+    },
+    {
+      "name": "settings_password_never",
+      "pageSourceFile": "src/main/ets/view/settings/general/password/NeverSavePage.ets",
+      "buildFunction": "SettingsPasswordNeverBuilder"
     },
     {
       "name": "settings_night_mode",
@@ -151,9 +161,14 @@
       "buildFunction": "SearchEngineBuilder"
     },
     {
-      "name": "homepage_settings",
-      "pageSourceFile": "src/main/ets/view/settings/general/HomepageSettingsPage.ets",
-      "buildFunction": "HomepageSettingsBuilder"
+      "name": "search_settings",
+      "pageSourceFile": "src/main/ets/view/settings/general/SearchSettingsPage.ets",
+      "buildFunction": "SearchSettingsBuilder"
+    },
+    {
+      "name": "search_toolbar",
+      "pageSourceFile": "src/main/ets/view/settings/general/SearchToolbarPage.ets",
+      "buildFunction": "SearchToolbarBuilder"
     },
     {
       "name": "about",

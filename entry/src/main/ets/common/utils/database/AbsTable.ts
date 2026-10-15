@@ -19,15 +19,20 @@ const logger = createLogger('AbsTable');
 export default abstract class AbsTable<T> implements ITable {
   protected readonly tableName;
   private readonly dbName;
+  private readonly securityLevel: rdb.SecurityLevel;
+  private readonly encrypt: boolean;
   protected futureDb: Promise<rdb.RdbStore>
 
-  constructor(dbName: string, tableName: string, context: Context) {
+  constructor(dbName: string, tableName: string, context: Context,
+    securityLevel: rdb.SecurityLevel = rdb.SecurityLevel.S1, encrypt: boolean = false) {
     if (!dbName.toLowerCase().endsWith('.db')) {
       dbName = dbName + '.db';
       logger.debug(`Auto append .db suffix: ${dbName}`);
     }
     this.dbName = dbName
     this.tableName = tableName
+    this.securityLevel = securityLevel
+    this.encrypt = encrypt
     this.futureDb = this.initDb(context)
   }
 
@@ -38,7 +43,8 @@ export default abstract class AbsTable<T> implements ITable {
     logger.debug('initDb dbName=' + this.dbName + ' tableName=' + this.tableName)
     let db = await rdb.getRdbStore(context, {
       name: this.dbName,
-      securityLevel: rdb.SecurityLevel.S1
+      securityLevel: this.securityLevel,
+      encrypt: this.encrypt
     })
     logger.debug('initDb db=' + db)
     await this.init(db)

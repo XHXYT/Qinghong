@@ -31,7 +31,7 @@ export class AppConstants {
   static readonly MAX_TABS: number = 32
 
   /** 默认搜索引擎 */
-  static readonly DEFAULT_ENGINE_ID: string = 'bing'
+  static readonly DEFAULT_ENGINE_ID: string = 'baidu'
 
   /** 会话保存防抖间隔(ms) */
   static readonly SESSION_SAVE_DEBOUNCE: number = 500

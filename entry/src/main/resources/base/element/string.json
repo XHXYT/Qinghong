@@ -257,14 +257,6 @@
       "value": "已清除"
     },
     {
-      "name": "homepage_settings",
-      "value": "主页设置"
-    },
-    {
-      "name": "show_homepage_logo",
-      "value": "显示主页 Logo"
-    },
-    {
       "name": "quick_links_empty_hint",
       "value": "暂无主页快捷图标，长按书签并选择“设为主页快捷”即可添加"
     },
@@ -287,22 +279,6 @@
     {
       "name": "remove",
       "value": "移除"
-    },
-    {
-      "name": "removed",
-      "value": "已移除"
-    },
-    {
-      "name": "quick_links",
-      "value": "主页快捷图标"
-    },
-    {
-      "name": "empty_quick_links",
-      "value": "暂无快捷图标"
-    },
-    {
-      "name": "show_homepage_logo_desc",
-      "value": "在主页显示应用 Logo"
     },
     {
       "name": "settings_general",
@@ -1257,6 +1233,10 @@
       "value": "自动展示嗅探按钮"
     },
     {
+      "name": "feature_not_available",
+      "value": "功能暂未开放，敬请期待"
+    },
+    {
       "name": "allow_debug_web",
       "value": "允许调试网页"
     },
@@ -1595,6 +1575,206 @@
     {
       "name": "popup_ask_message",
       "value": "想要显示弹出式窗口"
+    },
+    {
+      "name": "copied",
+      "value": "已复制"
+    },
+    {
+      "name": "password_save_prompt",
+      "value": "提示保存密码"
+    },
+    {
+      "name": "password_save_prompt_desc",
+      "value": "登录时询问是否保存密码"
+    },
+    {
+      "name": "system_password_manager",
+      "value": "系统密码管理器"
+    },
+    {
+      "name": "system_password_manager_desc",
+      "value": "使用系统密码保险箱保存和填充密码"
+    },
+    {
+      "name": "password_system_managed",
+      "value": "密码已由系统密码管理器托管"
+    },
+    {
+      "name": "saved_passwords",
+      "value": "保存的密码"
+    },
+    {
+      "name": "saved_passwords_empty",
+      "value": "暂无保存的密码"
+    },
+    {
+      "name": "never_save_passwords",
+      "value": "不保存密码的网站"
+    },
+    {
+      "name": "never_save_passwords_empty",
+      "value": "列表为空。添加网站后，将不再提示保存该网站的密码"
+    },
+    {
+      "name": "never_save_delete_confirm",
+      "value": "删除后，再次登录该网站时会重新提示保存密码"
+    },
+    {
+      "name": "import_passwords",
+      "value": "导入密码"
+    },
+    {
+      "name": "import_passwords_desc",
+      "value": "从 CSV 文件中导入密码"
+    },
+    {
+      "name": "export_passwords",
+      "value": "导出密码"
+    },
+    {
+      "name": "export_passwords_desc",
+      "value": "使用完密码文件后，请将其删除以避免可能的数据泄露"
+    },
+    {
+      "name": "password_imported_count",
+      "value": "已导入 %d 条密码"
+    },
+    {
+      "name": "password_import_failed",
+      "value": "导入密码失败"
+    },
+    {
+      "name": "password_export_success",
+      "value": "密码已导出"
+    },
+    {
+      "name": "password_export_empty",
+      "value": "暂无密码可导出"
+    },
+    {
+      "name": "password_export_failed",
+      "value": "导出密码失败"
+    },
+    {
+      "name": "password_save_title",
+      "value": "保存密码？"
+    },
+    {
+      "name": "password_save_user_line",
+      "value": "将保存 %s 的登录密码"
+    },
+    {
+      "name": "password_save_pass_line",
+      "value": "将保存该网站的登录密码"
+    },
+    {
+      "name": "password_update_title",
+      "value": "更新密码？"
+    },
+    {
+      "name": "password_update_message",
+      "value": "该网站的密码已更改"
+    },
+    {
+      "name": "password_save_action",
+      "value": "保存"
+    },
+    {
+      "name": "password_never_action",
+      "value": "永不"
+    },
+    {
+      "name": "password_later_action",
+      "value": "暂不"
+    },
+    {
+      "name": "password_update_action",
+      "value": "更新"
+    },
+    {
+      "name": "password_copy_action",
+      "value": "复制密码"
+    },
+    {
+      "name": "label_username",
+      "value": "用户名"
+    },
+    {
+      "name": "label_password",
+      "value": "密码"
+    },
+    {
+      "name": "password_delete_confirm",
+      "value": "删除后，再次登录该网站时会重新提示保存密码"
+    },
+    {
+      "name": "home_mode_default",
+      "value": "默认"
+    },
+    {
+      "name": "home_mode_blank",
+      "value": "空白"
+    },
+    {
+      "name": "home_mode_bookmarks",
+      "value": "书签"
+    },
+    {
+      "name": "home_mode_web",
+      "value": "网页"
+    },
+    {
+      "name": "home_page_url_hint",
+      "value": "输入主页网址"
+    },
+    {
+      "name": "search_suggestions",
+      "value": "搜索建议"
+    },
+    {
+      "name": "search_suggest_desc",
+      "value": "在地址栏输入时，将从下列内容获取搜索建议："
+    },
+    {
+      "name": "suggest_source_favorites",
+      "value": "收藏"
+    },
+    {
+      "name": "suggest_source_bookmarks",
+      "value": "书签"
+    },
+    {
+      "name": "suggest_source_tabs",
+      "value": "标签页"
+    },
+    {
+      "name": "suggest_source_history",
+      "value": "历史浏览"
+    },
+    {
+      "name": "suggest_source_engine",
+      "value": "搜索引擎"
+    },
+    {
+      "name": "suggest_source_search_history",
+      "value": "搜索历史"
+    },
+    {
+      "name": "search_toolbar",
+      "value": "搜索工具栏"
+    },
+    {
+      "name": "search_toolbar_desc",
+      "value": "启用后，地址栏最左侧图标可打开引擎菜单"
+    },
+    {
+      "name": "search_toolbar_engines_title",
+      "value": "待显示引擎"
+    },
+    {
+      "name": "search_toolbar_engines_hint",
+      "value": "长按拖动调整顺序，开启的引擎显示在引擎菜单"
     }
   ]
 }

@@ -155,6 +155,15 @@ export class TabsViewModel {
     const activeId = session.activeTabId
     const activeExists = restored.some((t: TabInfo) => t.id === activeId)
     this.activeTabId = activeExists ? activeId : restored[0].id
+    // 网页模式：主页态标签转为加载配置的主页网页
+    const home = this.homeWebUrl()
+    if (home !== '') {
+      for (const t of restored) {
+        if (t.isHome) {
+          this.navigate(t, home)
+        }
+      }
+    }
     logger.info('restoreSession', `恢复会话成功，标签数: ${restored.length}`)
   }
 
@@ -218,9 +227,10 @@ export class TabsViewModel {
 
   /**
    * 新建标签
+   * @param skipHomeNav 跳过网页模式主页导航（弹窗转标签场景由内核自行加载）
    */
   newTab(url: string = '', incognito: boolean | null = null,
-    toastOnLimit: boolean = true): TabInfo | null {
+    toastOnLimit: boolean = true, skipHomeNav: boolean = false): TabInfo | null {
     if (this.tabs.length >= AppConstants.MAX_TABS) {
       if (toastOnLimit) {
         toastUtil.showToast({ message: $r('app.string.tab_limit_reached') })
@@ -233,7 +243,12 @@ export class TabsViewModel {
     if (url) {
       this.navigate(tab, url)
     } else {
-      this.saveSessionDebounced()
+      const home = this.homeWebUrl()
+      if (!skipHomeNav && home !== '') {
+        this.navigate(tab, home)
+      } else {
+        this.saveSessionDebounced()
+      }
     }
     return tab
   }
@@ -275,6 +290,24 @@ export class TabsViewModel {
     setTimeout(() => {
       this.navigate(tab, url, false)
     }, 50)
+  }
+
+  /**
+   * 网页模式主页地址（未启用/未配置返回空串）
+   */
+  homeWebUrl(): string {
+    if (appSettings.home_page_mode !== 'web') {
+      return ''
+    }
+    return appSettings.home_page_url.trim()
+  }
+
+  /**
+   * 当前标签是否停在网页模式主页上（返回到底交给系统退出）
+   */
+  isWebHome(tab: TabInfo): boolean {
+    const home = this.homeWebUrl()
+    return home !== '' && !tab.isHome && tab.url === home
   }
 
   /**
@@ -333,9 +366,17 @@ export class TabsViewModel {
   }
 
   /**
-   * 回到主页态（释放 Web 实例）
+   * 回到主页态（释放 Web 实例）；网页模式下主页即配置网页
    */
   goHome(tab: TabInfo): void {
+    const home = this.homeWebUrl()
+    if (home !== '') {
+      if (!tab.isHome && tab.url === home) {
+        return
+      }
+      this.navigate(tab, home)
+      return
+    }
     if (!tab.isHome) {
       // 记录离开主页前的页面，主页态"前进"可返回该页
       tab.lastWebUrl = tab.url

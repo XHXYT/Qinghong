@@ -2,10 +2,12 @@ import { NaviContainer } from '../../../components/NaviContainer';
 import { CustomContentDialog } from '@kit.ArkUI';
 import { appSettings, CustomSearchEngine } from '../../../common/entity/SettingsModel';
 import { SearchEngines, SearchEngine } from '../../../common/constants/SearchEngines';
+import { AppConstants } from '../../../common/constants/AppConstants';
 import { CustomItemInfo, ItemActionType, RadioConfig } from '../../../common/entity/CusItemInfo';
 import { CustomListItem } from '../../../components/CusItemBuilder';
 import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
 import { toastUtil } from '../../../common/utils/ToastUtils';
+import { QhState } from '../../../entryability/AppState';
 
 @Builder
 export function SearchEngineBuilder() {
@@ -47,8 +49,13 @@ struct SearchEnginePage {
   }
 
   private rebuildItems(): void {
-    const items: CustomItemInfo[] = []
     const engines = SearchEngines.getAllEngines()
+    // 自愈：持久化的引擎 id 已不在当前引擎列表（如旧版本引擎被删），回退默认引擎
+    const current = appSettings.search_engine_id
+    if (!engines.some((e: SearchEngine): boolean => e.id === current)) {
+      appSettings.search_engine_id = AppConstants.DEFAULT_ENGINE_ID
+    }
+    const items: CustomItemInfo[] = []
     for (const e of engines) {
       const isCustom = appSettings.custom_engines.some((ce: CustomSearchEngine): boolean => ce.id === e.id)
       items.push(new CustomItemInfo({
@@ -103,7 +110,7 @@ struct SearchEnginePage {
             appSettings.custom_engines = rest
             appSettings.save()
             if (appSettings.search_engine_id === engine.id) {
-              appSettings.search_engine_id = 'bing'
+              appSettings.search_engine_id = 'baidu'
             }
             this.rebuildItems()
           }
@@ -139,61 +146,60 @@ struct SearchEnginePage {
 
   @Builder
   pageContent() {
-    Column() {
-      List() {
-        ForEach(this.items, (item: CustomItemInfo) => {
-          ListItem() {
-            CustomListItem({
-              item: item,
-              itemPadding: { left: 16, right: 16, top: 14, bottom: 14 }
+    List() {
+      ForEach(this.items, (item: CustomItemInfo, idx: number) => {
+        ListItem() {
+          CustomListItem({
+            item: item,
+            itemPadding: { left: 16, right: 16, top: 14, bottom: 14 }
+          })
+        }
+        .width('100%')
+        .backgroundColor($r('app.color.background_color'))
+        .borderRadius(16)
+        .clip(true)
+        .margin({ top: idx === 0 ? 10 : 12 })
+        .gesture(
+          LongPressGesture({ repeat: false, duration: 400 })
+            .onAction(() => {
+              // 仅自定义引擎可删除
+              const isCustom = appSettings.custom_engines.some(
+                (ce: CustomSearchEngine): boolean => ce.id === item.id)
+              if (isCustom) {
+                this.confirmDeleteEngine(SearchEngines.getEngine(item.id))
+              }
             })
-            .gesture(
-              LongPressGesture({ repeat: false, duration: 400 })
-                .onAction(() => {
-                  // 仅自定义引擎可删除
-                  const isCustom = appSettings.custom_engines.some(
-                    (ce: CustomSearchEngine): boolean => ce.id === item.id)
-                  if (isCustom) {
-                    this.confirmDeleteEngine(SearchEngines.getEngine(item.id))
-                  }
-                })
-            )
-          }
-        }, (item: CustomItemInfo) => `${item.id}_${appSettings.search_engine_id}_${appSettings.custom_engines.length}`)
+        )
+      }, (item: CustomItemInfo) => `${item.id}_${appSettings.search_engine_id}_${appSettings.custom_engines.length}`)
+
+      // 添加搜索引擎
+      ListItem() {
+        Row({ space: 8 }) {
+          SymbolGlyph($r('sys.symbol.plus'))
+            .fontSize(18)
+          Text($r('app.string.add_engine'))
+            .fontSize(15)
+        }
+        .width('100%')
+        .height(48)
+        .justifyContent(FlexAlign.Center)
       }
-      .layoutWeight(1)
-      .scrollBar(BarState.Off)
-      .divider({
-        strokeWidth: 0.5,
-        color: $r('sys.color.comp_divider'),
-        startMargin: 56,
-        endMargin: 16
-      })
+      .width('100%')
       .backgroundColor($r('app.color.background_color'))
       .borderRadius(16)
       .clip(true)
-      .margin({ left: 16, right: 16, top: 10 })
-
-      // 添加搜索引擎
-      Row({ space: 8 }) {
-        SymbolGlyph($r('sys.symbol.plus'))
-          .fontSize(18)
-        Text($r('app.string.add_engine'))
-          .fontSize(15)
-      }
-      .width('100%')
-      .height(48)
-      .justifyContent(FlexAlign.Center)
-      .backgroundColor($r('app.color.background_color'))
-      .borderRadius(16)
-      .margin({ left: 16, right: 16, top: 8, bottom: 12 })
+      .margin({ top: 12 })
       .onClick(() => {
         this.addDialog?.open()
       })
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('app.color.background_color_accent'))
+    .contentEndOffset(QhState.bottomRectHeight)
+    .align(Alignment.Top)
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring)
+    .padding({ left: 16, right: 16 })
   }
 
   build() {
