@@ -1069,6 +1069,46 @@
       "value": "Export data"
     },
     {
+      "name": "bookmarks_export_empty",
+      "value": "No bookmarks to export"
+    },
+    {
+      "name": "bookmarks_export_success",
+      "value": "Bookmarks exported"
+    },
+    {
+      "name": "bookmarks_export_failed",
+      "value": "Failed to export bookmarks"
+    },
+    {
+      "name": "bookmarks_imported_count",
+      "value": "Imported %d bookmarks"
+    },
+    {
+      "name": "bookmarks_import_failed",
+      "value": "Failed to import bookmarks. Please select a valid bookmarks file"
+    },
+    {
+      "name": "data_export_none_selected",
+      "value": "Select at least one item"
+    },
+    {
+      "name": "data_export_success",
+      "value": "Data exported"
+    },
+    {
+      "name": "data_export_failed",
+      "value": "Failed to export data"
+    },
+    {
+      "name": "data_import_success",
+      "value": "Data imported"
+    },
+    {
+      "name": "data_import_failed",
+      "value": "Failed to import data. Please select a valid backup file"
+    },
+    {
       "name": "export",
       "value": "Export"
     },
@@ -1287,10 +1327,6 @@
     {
       "name": "clear_app_cache",
       "value": "App cache"
-    },
-    {
-      "name": "feature_wip",
-      "value": "Work in progress"
     },
     {
       "name": "placeholder_hint",
@@ -1775,6 +1811,14 @@
     {
       "name": "search_toolbar_engines_hint",
       "value": "Long-press and drag to reorder. Enabled engines appear in the engine menu"
+    },
+    {
+      "name": "search_toolbar_on",
+      "value": "On"
+    },
+    {
+      "name": "search_toolbar_off",
+      "value": "Off"
     }
   ]
 }

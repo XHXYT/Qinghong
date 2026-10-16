@@ -148,16 +148,6 @@ export class PasswordViewModel {
     return lines.join('\n')
   }
 
-  /** 将文本写入文件选择器返回的保存位置 URI */
-  async writeTextToUri(uri: string, text: string): Promise<void> {
-    const file: fileIo.File = fileIo.openSync(uri, fileIo.OpenMode.READ_WRITE)
-    try {
-      fileIo.writeSync(file.fd, text)
-    } finally {
-      fileIo.closeSync(file)
-    }
-  }
-
   private static async readTextFromUri(uri: string): Promise<string> {
     const file: fileIo.File = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY)
     try {

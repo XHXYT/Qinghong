@@ -6,6 +6,7 @@ import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemIn
 import { CustomListItem } from '../../../components/CusItemBuilder';
 import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
 import { toastUtil } from '../../../common/utils/ToastUtils';
+import { ResourceUtils } from '../../../common/utils/ResourceUtil';
 import { QhState } from '../../../entryability/AppState';
 
 const SUGGEST_SOURCES: string[] = ['favorites', 'bookmarks', 'tabs', 'history', 'engine', 'search_history']
@@ -105,6 +106,9 @@ struct SearchSettingsPage {
     }
     // 引擎名走 @Trace 直改，避免 ForEach key 竞态导致返回不刷新
     this.items[0].value = SearchEngines.getCurrentEngine().name
+    // 工具栏启用状态指示
+    this.items[2].value = ResourceUtils.getString(
+      appSettings.search_toolbar_enabled ? $r('app.string.search_toolbar_on') : $r('app.string.search_toolbar_off'))
   }
 
   private saveSuggestSources(): void {

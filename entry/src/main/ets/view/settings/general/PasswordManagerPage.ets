@@ -8,6 +8,7 @@ import { CustomListItem } from '../../../components/CusItemBuilder';
 import { toastUtil } from '../../../common/utils/ToastUtils';
 import { ResourceUtils } from '../../../common/utils/ResourceUtil';
 import { passwordVM } from '../../../viewmodel/PasswordViewModel';
+import { DataBackupViewModel } from '../../../viewmodel/DataBackupViewModel';
 
 @Builder
 export function SettingsPasswordBuilder() {
@@ -130,29 +131,17 @@ struct PasswordManagerPage {
     })
   }
 
-  /** 导出密码为 Chrome CSV 格式 */
+  /** 导出密码为 Chrome CSV 格式，写入 Download/<包名>/backup */
   private exportPasswords(): void {
     passwordVM.exportToCsv().then((csv: string): void => {
       if (csv === '') {
         toastUtil.showToast({ message: $r('app.string.password_export_empty') })
         return
       }
-      const docPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker()
-      const options: picker.DocumentSaveOptions = {
-        newFileNames: ['qinghong_passwords.csv']
-      }
-      docPicker.save(options).then((uris: string[]): void => {
-        if (uris.length === 0) {
-          return
-        }
-        passwordVM.writeTextToUri(uris[0], csv).then((): void => {
-          toastUtil.showToast({ message: $r('app.string.password_export_success') })
-        }).catch((error: BusinessError): void => {
-          console.error(`[PasswordManager] 写出密码文件失败: ${error.code} ${error.message}`)
-          toastUtil.showToast({ message: $r('app.string.password_export_failed') })
-        })
+      DataBackupViewModel.writeBackupFile('qinghong_passwords.csv', csv).then((): void => {
+        toastUtil.showToast({ message: $r('app.string.password_export_success') })
       }).catch((error: BusinessError): void => {
-        console.error(`[PasswordManager] 选择保存位置失败: ${error.code} ${error.message}`)
+        console.error(`[PasswordManager] 写出密码文件失败: ${error.code} ${error.message}`)
         toastUtil.showToast({ message: $r('app.string.password_export_failed') })
       })
     }).catch((error: BusinessError): void => {

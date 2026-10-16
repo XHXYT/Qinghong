@@ -1069,6 +1069,46 @@
       "value": "导出数据"
     },
     {
+      "name": "bookmarks_export_empty",
+      "value": "没有可导出的书签"
+    },
+    {
+      "name": "bookmarks_export_success",
+      "value": "书签已导出"
+    },
+    {
+      "name": "bookmarks_export_failed",
+      "value": "导出书签失败"
+    },
+    {
+      "name": "bookmarks_imported_count",
+      "value": "已导入 %d 条书签"
+    },
+    {
+      "name": "bookmarks_import_failed",
+      "value": "导入书签失败，请选择有效的书签文件"
+    },
+    {
+      "name": "data_export_none_selected",
+      "value": "请至少选择一项"
+    },
+    {
+      "name": "data_export_success",
+      "value": "数据已导出"
+    },
+    {
+      "name": "data_export_failed",
+      "value": "导出数据失败"
+    },
+    {
+      "name": "data_import_success",
+      "value": "数据已导入"
+    },
+    {
+      "name": "data_import_failed",
+      "value": "导入数据失败，请选择有效的备份文件"
+    },
+    {
       "name": "export",
       "value": "导出"
     },
@@ -1287,10 +1327,6 @@
     {
       "name": "clear_app_cache",
       "value": "应用缓存"
-    },
-    {
-      "name": "feature_wip",
-      "value": "功能开发中"
     },
     {
       "name": "placeholder_hint",
@@ -1775,6 +1811,14 @@
     {
       "name": "search_toolbar_engines_hint",
       "value": "长按拖动调整顺序，开启的引擎显示在引擎菜单"
+    },
+    {
+      "name": "search_toolbar_on",
+      "value": "已开启"
+    },
+    {
+      "name": "search_toolbar_off",
+      "value": "已关闭"
     }
   ]
 }

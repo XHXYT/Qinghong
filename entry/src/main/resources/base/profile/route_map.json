@@ -151,11 +151,6 @@
       "buildFunction": "SettingsOperationsBuilder"
     },
     {
-      "name": "settings_import",
-      "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
-      "buildFunction": "SettingsImportBuilder"
-    },
-    {
       "name": "search_engine",
       "pageSourceFile": "src/main/ets/view/settings/general/SearchEnginePage.ets",
       "buildFunction": "SearchEngineBuilder"

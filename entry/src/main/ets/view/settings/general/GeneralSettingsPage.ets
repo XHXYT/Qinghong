@@ -1,5 +1,6 @@
 import { webview } from '@kit.ArkWeb';
 import { CustomContentDialog } from '@kit.ArkUI';
+import { picker } from '@kit.CoreFileKit';
 import { defaultAppManager, Want } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { NaviContainer } from '../../../components/NaviContainer';
@@ -8,6 +9,8 @@ import { appSettings } from '../../../common/entity/SettingsModel';
 import { historyVM } from '../../../viewmodel/HistoryViewModel';
 import { searchHistoryVM } from '../../../viewmodel/SearchViewModel';
 import { tabsVM } from '../../../viewmodel/TabsViewModel';
+import { bookmarkVM } from '../../../viewmodel/BookmarkViewModel';
+import { dataBackupVM, DataBackupViewModel } from '../../../viewmodel/DataBackupViewModel';
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
 import { CustomListItem } from '../../../components/CusItemBuilder';
 import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../../../components/SheetPicker';
@@ -298,7 +301,9 @@ struct GeneralSettingsPage {
     g.items.push(this.textItem('import_backup_bookmarks', $r('app.string.import_backup_bookmarks'), '', (): void => {
       this.bookmarkDialog?.open()
     }))
-    g.items.push(this.routerItem('import_data', $r('app.string.import_data'), 'settings_import'))
+    g.items.push(this.textItem('import_data', $r('app.string.import_data'), '', (): void => {
+      this.importDataFromPicker()
+    }))
     g.items.push(this.textItem('export_data', $r('app.string.export_data'), '', (): void => {
       this.exportDialog?.open()
     }))
@@ -333,7 +338,8 @@ struct GeneralSettingsPage {
       alignment: DialogAlignment.Center,
       cornerRadius: 32,
       onWillAppear: (): void => {
-        this.clearSel = [false, false, false, false, false, false, false, false]
+        // 默认勾选：缓存/表单数据/历史记录/网页存储
+        this.clearSel = [true, true, true, false, false, true, false, false]
       }
     })
     this.exitClearDialog = new CustomDialogController({
@@ -383,7 +389,7 @@ struct GeneralSettingsPage {
         buttons: buildDialogButtons([$r('app.string.cancel'), $r('app.string.export')], false,
           (index: number): void => {
             if (index === 1) {
-              toastUtil.showToast({ message: $r('app.string.feature_wip') })
+              this.doExportData()
             }
             this.exportDialog?.close()
           }),
@@ -529,6 +535,102 @@ struct GeneralSettingsPage {
   private saveExitClear(): void {
     appSettings.exit_clear_data = exitClearKeys(this.exitSel)
     toastUtil.showToast({ message: $r('app.string.saved') })
+  }
+
+  /** 备份书签：导出为 Netscape HTML 书签文件，写入 Download/<包名>/backup */
+  private backupBookmarks(): void {
+    dataBackupVM.exportBookmarksHtml().then((html: string): void => {
+      if (html === '') {
+        toastUtil.showToast({ message: $r('app.string.bookmarks_export_empty') })
+        return
+      }
+      DataBackupViewModel.writeBackupFile('qinghong_bookmarks.html', html).then((): void => {
+        toastUtil.showToast({ message: $r('app.string.bookmarks_export_success') })
+      }).catch((error: BusinessError): void => {
+        console.error(`[GeneralSettings] 写出书签文件失败: ${error.code} ${error.message}`)
+        toastUtil.showToast({ message: $r('app.string.bookmarks_export_failed') })
+      })
+    }).catch((error: BusinessError): void => {
+      console.error(`[GeneralSettings] 导出书签失败: ${error.code} ${error.message}`)
+      toastUtil.showToast({ message: $r('app.string.bookmarks_export_failed') })
+    })
+  }
+
+  /** 导入书签：选择 Netscape HTML 书签文件（Chrome/Firefox 通用格式） */
+  private importBookmarks(): void {
+    const docPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker()
+    const options: picker.DocumentSelectOptions = {
+      maxSelectNumber: 1,
+      fileSuffixFilters: ['html', 'htm']
+    }
+    docPicker.select(options).then((uris: string[]): void => {
+      if (uris.length === 0) {
+        return
+      }
+      dataBackupVM.importBookmarksFromUri(uris[0]).then((count: number): void => {
+        if (count > 0) {
+          toastUtil.showToast({
+            message: ResourceUtils.getStringWithArgs($r('app.string.bookmarks_imported_count'), [count])
+          })
+          bookmarkVM.loadAll()
+        } else {
+          toastUtil.showToast({ message: $r('app.string.bookmarks_import_failed') })
+        }
+      }).catch((error: BusinessError): void => {
+        console.error(`[GeneralSettings] 导入书签失败: ${error.code} ${error.message}`)
+        toastUtil.showToast({ message: $r('app.string.bookmarks_import_failed') })
+      })
+    }).catch((error: BusinessError): void => {
+      console.error(`[GeneralSettings] 选择书签文件失败: ${error.code} ${error.message}`)
+    })
+  }
+
+  /** 导入数据：直接打开文件选择器，选择此前导出的 JSON 备份 */
+  private importDataFromPicker(): void {
+    const docPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker()
+    const options: picker.DocumentSelectOptions = {
+      maxSelectNumber: 1,
+      fileSuffixFilters: ['json']
+    }
+    docPicker.select(options).then((uris: string[]): void => {
+      if (uris.length === 0) {
+        return
+      }
+      dataBackupVM.importDataFromUri(uris[0]).then((ok: boolean): void => {
+        if (ok) {
+          toastUtil.showToast({ message: $r('app.string.data_import_success') })
+          bookmarkVM.loadAll()
+          historyVM.loadAll()
+        } else {
+          toastUtil.showToast({ message: $r('app.string.data_import_failed') })
+        }
+      }).catch((error: BusinessError): void => {
+        console.error(`[GeneralSettings] 导入数据失败: ${error.code} ${error.message}`)
+        toastUtil.showToast({ message: $r('app.string.data_import_failed') })
+      })
+    }).catch((error: BusinessError): void => {
+      console.error(`[GeneralSettings] 选择备份文件失败: ${error.code} ${error.message}`)
+    })
+  }
+
+  /** 导出数据：书签/历史/设置勾选项 → JSON 备份，写入 Download/<包名>/backup */
+  private doExportData(): void {
+    if (!this.exportSel[0] && !this.exportSel[1] && !this.exportSel[2]) {
+      toastUtil.showToast({ message: $r('app.string.data_export_none_selected') })
+      return
+    }
+    dataBackupVM.exportDataJson(this.exportSel[0], this.exportSel[1], this.exportSel[2])
+      .then((json: string): void => {
+        DataBackupViewModel.writeBackupFile('qinghong_backup.json', json).then((): void => {
+          toastUtil.showToast({ message: $r('app.string.data_export_success') })
+        }).catch((error: BusinessError): void => {
+          console.error(`[GeneralSettings] 写出备份文件失败: ${error.code} ${error.message}`)
+          toastUtil.showToast({ message: $r('app.string.data_export_failed') })
+        })
+      }).catch((error: BusinessError): void => {
+        console.error(`[GeneralSettings] 导出数据失败: ${error.code} ${error.message}`)
+        toastUtil.showToast({ message: $r('app.string.data_export_failed') })
+      })
   }
 
   /**
@@ -717,11 +819,11 @@ struct GeneralSettingsPage {
     Column() {
       ActionRow({ label: $r('app.string.backup_bookmarks'), onTap: (): void => {
         this.bookmarkDialog?.close()
-        toastUtil.showToast({ message: $r('app.string.feature_wip') })
+        this.backupBookmarks()
       } })
       ActionRow({ label: $r('app.string.import_bookmarks'), onTap: (): void => {
         this.bookmarkDialog?.close()
-        toastUtil.showToast({ message: $r('app.string.feature_wip') })
+        this.importBookmarks()
       } })
     }
     .width('100%')

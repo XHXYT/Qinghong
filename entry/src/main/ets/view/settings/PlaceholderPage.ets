@@ -60,8 +60,3 @@ export function SettingsAiBuilder() {
 export function SettingsOperationsBuilder() {
   PlaceholderPage({ title: $r('app.string.operations_settings') })
 }
-
-@Builder
-export function SettingsImportBuilder() {
-  PlaceholderPage({ title: $r('app.string.import_data') })
-}
