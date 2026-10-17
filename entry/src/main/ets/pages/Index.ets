@@ -12,6 +12,7 @@ import { BrowserToolbar } from '../components/browser/Toolbar';
 import { TabSwitcher } from '../components/browser/TabSwitcher';
 import { FindInPageBar } from '../components/browser/FindInPageBar';
 import { TabWeb } from '../components/browser/TabWeb';
+import { ReaderView } from '../components/browser/ReaderView';
 
 @Entry
 @ComponentV2
@@ -47,7 +48,11 @@ struct Index {
   /**
    * 系统返回：覆盖层 > 网页回退(到底回主页) > 默认退出
    */
-  onBackPressed(): boolean {
+  onBackPress(): boolean {
+    if (browserVM.showReader) {
+      browserVM.closeReader()
+      return true
+    }
     if (browserVM.showTabSwitcher) {
       browserVM.showTabSwitcher = false
       return true
@@ -76,6 +81,11 @@ struct Index {
     syncVM.autoSyncIfNeeded()
   }
 
+  /** 当前标签是否处于阅读模式（阅读时隐藏地址栏与工具栏，沉浸阅读） */
+  private readerActive(): boolean {
+    return browserVM.showReader && tabsVM.activeTabId === browserVM.readerArticle.tabId
+  }
+
   @Builder
   tabContent(tab: TabInfo) {
     if (tab.isHome) {
@@ -97,73 +107,89 @@ struct Index {
   build() {
     Navigation(QhState.pageStack) {
       Stack({ alignContent: Alignment.Top }) {
-        // 主内容：地址栏 + 标签内容 + 工具栏（地址栏流式布局，网页内容自然下推）
-        Column() {
-          AddressBar()
+        // 原主内容（避让状态栏）：地址栏 + 标签内容 + 工具栏
+        Stack({ alignContent: Alignment.Top }) {
+          Column() {
+            if (!this.readerActive()) {
+              AddressBar()
+            }
 
-          if (UISettings.toolbar_position === 'top') {
-            BrowserToolbar()
-          }
+            if (UISettings.toolbar_position === 'top' && !this.readerActive()) {
+              BrowserToolbar()
+            }
 
-          Stack({ alignContent: Alignment.Bottom }) {
-            ForEach(tabsVM.tabs, (tab: TabInfo) => {
-              this.tabContent(tab)
-            }, (tab: TabInfo) => tab.id.toString())
+            Stack({ alignContent: Alignment.Bottom }) {
+              ForEach(tabsVM.tabs, (tab: TabInfo) => {
+                this.tabContent(tab)
+              }, (tab: TabInfo) => tab.id.toString())
 
-            // 撤销关闭提示条
-            if (tabsVM.showUndoTip) {
-              Row({ space: 16 }) {
-                Text($r('app.string.tab_closed'))
-                  .fontSize(14)
-                  .fontColor($r('sys.color.font_primary'))
-                  .layoutWeight(1)
-                Text($r('app.string.undo'))
-                  .fontSize(14)
-                  .fontWeight(FontWeight.Medium)
-                  .fontColor(QhState.currentThemeColor)
-                  .onClick(() => {
-                    tabsVM.undoClose()
-                  })
+              // 撤销关闭提示条
+              if (tabsVM.showUndoTip) {
+                Row({ space: 16 }) {
+                  Text($r('app.string.tab_closed'))
+                    .fontSize(14)
+                    .fontColor($r('sys.color.font_primary'))
+                    .layoutWeight(1)
+                  Text($r('app.string.undo'))
+                    .fontSize(14)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(QhState.currentThemeColor)
+                    .onClick(() => {
+                      tabsVM.undoClose()
+                    })
+                }
+                .width('100%')
+                .constraintSize({ maxWidth: 480 })
+                .padding({ left: 20, right: 20, top: 12, bottom: 12 })
+                .backgroundColor($r('sys.color.comp_background_tertiary'))
+                .borderRadius(24)
+                .shadow({ radius: 16, color: 'rgba(0,0,0,0.15)', offsetY: 4 })
+                .margin({ left: 16, right: 16, bottom: 12 })
               }
-              .width('100%')
-              .constraintSize({ maxWidth: 480 })
-              .padding({ left: 20, right: 20, top: 12, bottom: 12 })
-              .backgroundColor($r('sys.color.comp_background_tertiary'))
-              .borderRadius(24)
-              .shadow({ radius: 16, color: 'rgba(0,0,0,0.15)', offsetY: 4 })
-              .margin({ left: 16, right: 16, bottom: 12 })
+            }
+            .layoutWeight(1)
+            // 工具栏在顶部时，由内容区避让底部小白条区域
+            .padding({ bottom: UISettings.toolbar_position === 'top' ? QhState.bottomRectHeight : 0 })
+
+            if (browserVM.showFindBar) {
+              FindInPageBar()
+            }
+
+            if (UISettings.toolbar_position !== 'top' && !this.readerActive()) {
+              BrowserToolbar()
             }
           }
-          .layoutWeight(1)
-          // 工具栏在顶部时，由内容区避让底部小白条区域
-          .padding({ bottom: UISettings.toolbar_position === 'top' ? QhState.bottomRectHeight : 0 })
+          .width('100%')
+          .height('100%')
 
-          if (browserVM.showFindBar) {
-            FindInPageBar()
+          // 标签管理
+          if (browserVM.showTabSwitcher) {
+            TabSwitcher()
           }
 
-          if (UISettings.toolbar_position !== 'top') {
-            BrowserToolbar()
+          // 地址编辑覆盖层
+          if (browserVM.isEditingAddress) {
+            AddressEditOverlay()
           }
         }
         .width('100%')
         .height('100%')
+        .padding({
+          top: QhState.topRectHeight
+        })
 
-        // 标签管理
-        if (browserVM.showTabSwitcher) {
-          TabSwitcher()
-        }
-
-        // 地址编辑覆盖层
-        if (browserVM.isEditingAddress) {
-          AddressEditOverlay()
+        // 阅读模式覆盖层：全屏沉浸，不避让状态栏（正文滚动延伸至状态栏下）
+        if (this.readerActive()) {
+          ReaderView({
+            article: browserVM.readerArticle,
+            onClose: (): void => {
+              browserVM.closeReader()
+            }
+          })
         }
       }
       .width('100%')
       .height('100%')
-      .padding({
-        top: QhState.topRectHeight
-      })
     }
     .mode(NavigationMode.Stack)
     .hideTitleBar(true)

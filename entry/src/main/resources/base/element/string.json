@@ -853,12 +853,20 @@
       "value": "高级"
     },
     {
+      "name": "read_mode_address_button",
+      "value": "地址栏阅读按钮"
+    },
+    {
+      "name": "read_mode_address_button_desc",
+      "value": "检测到适合阅读的页面时，在地址栏右侧显示阅读模式按钮"
+    },
+    {
       "name": "read_mode_confirm",
-      "value": "开启阅读模式需二次确认"
+      "value": "阅读按钮二次确认"
     },
     {
       "name": "read_mode_confirm_desc",
-      "value": "当点击地址栏阅读模式图标时，先展示菜单"
+      "value": "点击地址栏阅读按钮时先确认再进入"
     },
     {
       "name": "read_mode_bg_color",
@@ -895,6 +903,30 @@
     {
       "name": "read_mode_font_size",
       "value": "字体大小"
+    },
+    {
+      "name": "read_mode_serif",
+      "value": "衬线字体"
+    },
+    {
+      "name": "read_mode_typography",
+      "value": "排版"
+    },
+    {
+      "name": "read_mode_settings_entry",
+      "value": "阅读模式设置"
+    },
+    {
+      "name": "reader_not_supported",
+      "value": "当前页面不支持阅读模式"
+    },
+    {
+      "name": "reader_confirm_message",
+      "value": "以阅读模式重新排版当前网页？"
+    },
+    {
+      "name": "reader_enter",
+      "value": "进入"
     },
     {
       "name": "read_mode_preview",
@@ -939,6 +971,134 @@
     {
       "name": "customize_menu",
       "value": "定制菜单"
+    },
+    {
+      "name": "menu_reorder_hint",
+      "value": "按住并拖动即可重新排列条目"
+    },
+    {
+      "name": "menu_add_hint",
+      "value": "按住并拖动或点击来添加条目"
+    },
+    {
+      "name": "reset",
+      "value": "重置"
+    },
+    {
+      "name": "incognito",
+      "value": "隐身"
+    },
+    {
+      "name": "share",
+      "value": "分享"
+    },
+    {
+      "name": "mark_ad",
+      "value": "标记广告"
+    },
+    {
+      "name": "desktop_mode",
+      "value": "电脑模式"
+    },
+    {
+      "name": "toolbox",
+      "value": "工具箱"
+    },
+    {
+      "name": "offline_page",
+      "value": "离线页面"
+    },
+    {
+      "name": "translate",
+      "value": "翻译"
+    },
+    {
+      "name": "view_source",
+      "value": "源码"
+    },
+    {
+      "name": "fullscreen",
+      "value": "全屏"
+    },
+    {
+      "name": "resource_sniff",
+      "value": "资源嗅探"
+    },
+    {
+      "name": "browser_id",
+      "value": "浏览器标识"
+    },
+    {
+      "name": "network_log",
+      "value": "网络日志"
+    },
+    {
+      "name": "script",
+      "value": "脚本"
+    },
+    {
+      "name": "image_mode",
+      "value": "有图模式"
+    },
+    {
+      "name": "refresh_page",
+      "value": "刷新网页"
+    },
+    {
+      "name": "scan_qr",
+      "value": "扫描二维码"
+    },
+    {
+      "name": "font_size",
+      "value": "字体大小"
+    },
+    {
+      "name": "print_pdf",
+      "value": "打印/PDF"
+    },
+    {
+      "name": "read_aloud",
+      "value": "朗读网页"
+    },
+    {
+      "name": "add_to_home",
+      "value": "添加到桌面"
+    },
+    {
+      "name": "open_with",
+      "value": "其它应用打开"
+    },
+    {
+      "name": "game_mode",
+      "value": "游戏模式"
+    },
+    {
+      "name": "ai",
+      "value": "AI"
+    },
+    {
+      "name": "add_home_favorite",
+      "value": "添加主页收藏"
+    },
+    {
+      "name": "report_site",
+      "value": "举报网站"
+    },
+    {
+      "name": "menu_item_wip",
+      "value": "功能开发中，敬请期待"
+    },
+    {
+      "name": "menu_change_toast",
+      "value": "%s：%s"
+    },
+    {
+      "name": "toast_state_on",
+      "value": "已开启"
+    },
+    {
+      "name": "toast_state_off",
+      "value": "已关闭"
     },
     {
       "name": "customize_long_press_menu",
@@ -1219,6 +1379,14 @@
     {
       "name": "do_not_track_desc",
       "value": "通知网站不追踪你的浏览行为"
+    },
+    {
+      "name": "intelligent_tracking_prevention",
+      "value": "智能防跟踪"
+    },
+    {
+      "name": "intelligent_tracking_prevention_desc",
+      "value": "跨站跟踪型网站的请求不携带 Cookie"
     },
     {
       "name": "disable_webrtc",

@@ -1,12 +1,55 @@
 import { webview } from '@kit.ArkWeb';
-import { pasteboard } from '@kit.BasicServicesKit';
+import { pasteboard, BusinessError } from '@kit.BasicServicesKit';
 import { TabInfo, tabsVM } from './TabsViewModel';
 import { historyVM } from './HistoryViewModel';
 import { searchVM } from './SearchViewModel';
 import { SearchEngines, UrlUtils } from '../common/constants/SearchEngines';
 import { createLogger } from '../common/utils/Logger';
+import { ReaderScripts } from '../common/utils/ReaderScripts';
+import { appSettings } from '../common/entity/SettingsModel';
+import { toastUtil } from '../common/utils/ToastUtils';
+import { ResourceUtils } from '../common/utils/ResourceUtil';
 
 const logger = createLogger('BrowserViewModel')
+
+/** runJavaScript 回参解包：string 结果经 JSON 编码（带引号），按需反序列化一次 */
+function unwrapJsString(raw: string): string {
+  if (raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')) {
+    try {
+      return JSON.parse(raw) as string
+    } catch (e) {
+      return raw
+    }
+  }
+  return raw
+}
+
+/** 开关播报：「阅读模式：已开启/已关闭」 */
+function announceToggle(item: ResourceStr, on: boolean): void {
+  const label: string = typeof item === 'string' ? item : ResourceUtils.getString(item as Resource)
+  const state: string =
+    ResourceUtils.getString(on ? $r('app.string.toast_state_on') : $r('app.string.toast_state_off'))
+  toastUtil.showToast({
+    message: ResourceUtils.getStringWithArgs($r('app.string.menu_change_toast'), [label, state])
+  })
+}
+
+/**
+ * 阅读模式文章数据（Readability 提取结果）
+ */
+export class ReaderArticle {
+  title: string = ''
+  byline: string = ''
+  dir: string = 'ltr'
+  lang: string = ''
+  siteName: string = ''
+  publishedTime: string = ''
+  content: string = ''
+  excerpt: string = ''
+  url: string = ''
+  tabId: number = -1
+  isIncognito: boolean = false
+}
 
 /**
  * 浏览器外壳交互状态与动作
@@ -25,12 +68,97 @@ export class BrowserViewModel {
   @Trace findTotal: number = 0
   /** 查找关键词 */
   @Trace findKeyword: string = ''
+  /** 阅读模式覆盖层是否展示 */
+  @Trace showReader: boolean = false
+  /** 阅读模式文章（关闭时为空对象） */
+  @Trace readerArticle: ReaderArticle = new ReaderArticle()
 
   constructor() {
   }
 
   get activeTab(): TabInfo | null {
     return tabsVM.activeTab
+  }
+
+  /** 打开阅读模式覆盖层 */
+  openReader(article: ReaderArticle): void {
+    this.readerArticle = article
+    this.showReader = true
+  }
+
+  /** 关闭阅读模式覆盖层 */
+  closeReader(): void {
+    this.showReader = false
+    this.readerArticle = new ReaderArticle()
+  }
+
+  /** 指定标签当前是否处于阅读模式 */
+  isReaderActive(tabId: number): boolean {
+    return this.showReader && this.readerArticle.tabId === tabId
+  }
+
+  /**
+   * 进入阅读模式：Readability 提取正文并打开覆盖层。
+   * 地址栏阅读按钮与菜单「阅读模式」共用入口，提取成功直接进入（无确认弹窗）
+   */
+  enterReader(): void {
+    const tab = tabsVM.activeTab
+    if (!tab || tab.isHome) {
+      return
+    }
+    const c = tab.controller
+    if (c === null || this.isReaderActive(tab.id)) {
+      return
+    }
+    c.runJavaScript(`${ReaderScripts.readabilityProbeJs()};JSON.stringify(window.__qhParseArticle())`)
+      .then((raw: string) => {
+        logger.info(`阅读提取返回 rawLen=${raw.length} url=${tab.url}`)
+        const article = ReaderScripts.parseArticle(unwrapJsString(raw), tab)
+        if (article === null) {
+          logger.error(`Readability 解析失败 rawLen=${raw.length} url=${tab.url}`)
+          toastUtil.showToast({ message: $r('app.string.reader_not_supported') })
+          return
+        }
+        logger.info(`Readability 解析成功 title=${article.title} contentLen=${article.content.length}`)
+        this.openReader(article)
+        announceToggle($r('app.string.read_mode'), true)
+      })
+      .catch((error: BusinessError): void => {
+        logger.error(`阅读模式提取失败: ${error.code} ${error.message} url=${tab.url}`)
+        toastUtil.showToast({ message: $r('app.string.reader_not_supported') })
+      })
+  }
+
+  /** 地址栏阅读按钮入口：read_mode_confirm 开启时先二次确认（菜单入口不确认，直接 enterReader） */
+  enterReaderWithConfirm(): void {
+    const tab = tabsVM.activeTab
+    if (!tab || tab.isHome || this.isReaderActive(tab.id)) {
+      return
+    }
+    if (!appSettings.read_mode_confirm) {
+      this.enterReader()
+      return
+    }
+    toastUtil.showAlertDialog({
+      title: $r('app.string.read_mode'),
+      message: ResourceUtils.getString($r('app.string.reader_confirm_message')),
+      autoCancel: true,
+      alignment: DialogAlignment.Center,
+      buttons: [
+        {
+          value: $r('app.string.cancel'),
+          style: DialogButtonStyle.DEFAULT,
+          action: (): void => {
+          }
+        },
+        {
+          value: $r('app.string.reader_enter'),
+          action: (): void => {
+            this.enterReader()
+          }
+        }
+      ]
+    }, 'readerConfirm')
   }
 
   /**
@@ -41,6 +169,7 @@ export class BrowserViewModel {
     if (!text) return
     const tab = tabsVM.activeTab
     if (!tab) return
+    this.closeReader()
     let target: string
     if (UrlUtils.isLikelyUrl(text)) {
       target = UrlUtils.normalizeUrl(text)
@@ -60,6 +189,7 @@ export class BrowserViewModel {
     if (!text) return
     const tab = tabsVM.activeTab
     if (!tab) return
+    this.closeReader()
     let target: string
     if (UrlUtils.isLikelyUrl(text)) {
       target = UrlUtils.normalizeUrl(text)
@@ -77,6 +207,7 @@ export class BrowserViewModel {
   openUrl(url: string): void {
     const tab = tabsVM.activeTab
     if (!tab || !url) return
+    this.closeReader()
     this.isEditingAddress = false
     tabsVM.navigate(tab, url)
   }
@@ -115,6 +246,11 @@ export class BrowserViewModel {
   goBack(): boolean {
     const tab = tabsVM.activeTab
     if (!tab) return false
+    // 阅读模式打开时优先退出阅读模式
+    if (this.isReaderActive(tab.id)) {
+      this.closeReader()
+      return true
+    }
     if (tab.isHome) return false
     if (tab.controller) {
       try {

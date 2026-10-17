@@ -14,24 +14,42 @@ export struct AddressBar {
   build() {
     Column() {
       if (tabsVM.activeTab && !tabsVM.activeTab.isHome) {
-        Row({ space: 8 }) {
-          SymbolGlyph(tabSecureIcon(tabsVM.activeTab.url))
-            .fontSize(16)
-            .fontColor([$r('sys.color.font_secondary')])
-          Text(UrlUtils.hostOf(tabsVM.activeTab.url))
-            .fontSize(15)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .fontColor($r('sys.color.font_primary'))
-            .layoutWeight(1)
+        Row() {
+          // 可点击进入编辑的域名区
+          Row({ space: 8 }) {
+            SymbolGlyph(tabSecureIcon(tabsVM.activeTab.url))
+              .fontSize(16)
+              .fontColor([$r('sys.color.font_secondary')])
+            Text(UrlUtils.hostOf(tabsVM.activeTab.url))
+              .fontSize(15)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .fontColor($r('sys.color.font_primary'))
+              .layoutWeight(1)
+          }
+          .layoutWeight(1)
+          .height(44)
+          .padding({ left: 16 })
+          .alignItems(VerticalAlign.Center)
+          .onClick(() => {
+            browserVM.isEditingAddress = true
+          })
+
+          // 阅读模式按钮：页面检测为适合阅读时自动出现，点击二次确认后进入
+          if (appSettings.read_mode_address_button && tabsVM.activeTab.readerable
+            && !browserVM.isReaderActive(tabsVM.activeTab.id)) {
+            SymbolGlyph($r('sys.symbol.doc_plaintext'))
+              .fontSize(20)
+              .fontColor([$r('sys.color.font_secondary')])
+              .margin({ right: 14 })
+              .onClick(() => {
+                browserVM.enterReaderWithConfirm()
+              })
+          }
         }
         .width('100%')
         .height(44)
-        .padding({ left: 16, right: 16 })
         .alignItems(VerticalAlign.Center)
-        .onClick(() => {
-          browserVM.isEditingAddress = true
-        })
 
         // 进度条
         if (tabsVM.activeTab.progress < 100) {

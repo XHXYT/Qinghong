@@ -139,7 +139,7 @@ struct AdblockSubsPage {
       value: sub.enabled,
       onChange: (v: string | boolean | number): void => {
         adBlockSubsStore.toggle(sub, v as boolean)
-        adBlockEngine.reloadSubscriptions()
+        adBlockEngine.syncToWebEngine()
       },
       contextMenuItems: [
         new ContextMenuItem($r('app.string.ad_block_sub_menu_preview'), (): void => {
@@ -292,7 +292,7 @@ struct AdblockSubsPage {
           fontColor: Color.Red,
           action: (): void => {
             adBlockSubsStore.remove(sub)
-            adBlockEngine.reloadSubscriptions()
+            adBlockEngine.syncToWebEngine()
           }
         },
         {

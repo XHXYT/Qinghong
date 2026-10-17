@@ -42,11 +42,6 @@ export function SettingsScriptBuilder() {
 }
 
 @Builder
-export function SettingsMenuCustomBuilder() {
-  PlaceholderPage({ title: $r('app.string.customize_menu') })
-}
-
-@Builder
 export function SettingsLongPressBuilder() {
   PlaceholderPage({ title: $r('app.string.customize_long_press_menu') })
 }
@@ -59,4 +54,9 @@ export function SettingsAiBuilder() {
 @Builder
 export function SettingsOperationsBuilder() {
   PlaceholderPage({ title: $r('app.string.operations_settings') })
+}
+
+@Builder
+export function OfflinePageBuilder() {
+  PlaceholderPage({ title: $r('app.string.offline_page') })
 }

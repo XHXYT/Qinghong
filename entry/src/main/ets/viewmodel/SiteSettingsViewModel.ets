@@ -51,13 +51,14 @@ export class SiteGroup {
  * 站点运行时策略（TabWeb 应用到 Web 属性）：
  * 站点覆盖 > 全局默认（显式设置） > 应用设置
  */
+@ObservedV2
 export class SitePolicy {
   /** 匹配的页面 host */
   host: string = ''
-  /** 字体缩放（%，应用级默认 100） */
-  fontZoom: number = 100
-  /** 图片：'app' 跟随应用 | 'allow' 有图 | 'block' 无图 | 'wifi' 仅WIFI有图 */
-  imageMode: string = 'app'
+  /** 字体缩放（%，应用级默认 100；@Trace 供菜单滑动条实时生效） */
+  @Trace fontZoom: number = 100
+  /** 图片：'app' 跟随应用 | 'allow' 有图 | 'block' 无图 | 'wifi' 仅WIFI有图；@Trace 供菜单切换后实时生效 */
+  @Trace imageMode: string = 'app'
   /** 是否执行 JavaScript */
   jsEnabled: boolean = true
   /** 广告拦截：'app' 跟随应用 | 'on' 强制开启 | 'off' 强制关闭 */
@@ -158,7 +159,7 @@ export class SiteSettingsViewModel {
       ]),
       new SiteGroup('permission', $r('app.string.site_group_permission'), [
         new SiteItemConfig('site_clipboard', $r('app.string.site_clipboard'), P(), 'allow'),
-        new SiteItemConfig('site_location', $r('app.string.site_location'), P(), 'block'),
+        new SiteItemConfig('site_location', $r('app.string.site_location'), P(), 'ask'),
         new SiteItemConfig('site_camera', $r('app.string.site_camera'), P(), 'ask'),
         new SiteItemConfig('site_microphone', $r('app.string.site_microphone'), P(), 'ask'),
         new SiteItemConfig('site_redirect', $r('app.string.site_redirect'), P(), 'allow'),
@@ -259,6 +260,21 @@ export class SiteSettingsViewModel {
   private static policyCache: Map<string, SitePolicy> = new Map()
   /** 缓存建立时的全局默认签名（site_defaults 变化即失效，含同步写入场景） */
   private static policyDefaultsSig: string = ''
+  /** TabWeb 当前持有的策略实例（host → policy；不清空，供菜单实时修改字号/图片模式） */
+  private static livePolicies: Map<string, SitePolicy> = new Map()
+
+  /** 注册 TabWeb 正在使用的策略实例 */
+  registerLive(host: string, policy: SitePolicy): void {
+    if (host !== '') {
+      SiteSettingsViewModel.livePolicies.set(host, policy)
+    }
+  }
+
+  /** 获取 TabWeb 正在使用的策略实例（可能已被缓存清理淘汰，但 TabWeb 仍持有） */
+  livePolicyOf(host: string): SitePolicy | null {
+    const p: SitePolicy | undefined = SiteSettingsViewModel.livePolicies.get(host)
+    return p !== undefined ? p : null
+  }
 
   /** 同步获取已缓存的站点策略（onLoadIntercept 提前应用 UA 用） */
   cachedPolicy(host: string): SitePolicy | null {

@@ -853,12 +853,20 @@
       "value": "Advanced"
     },
     {
+      "name": "read_mode_address_button",
+      "value": "Address bar reader button"
+    },
+    {
+      "name": "read_mode_address_button_desc",
+      "value": "Show a reader mode button on the right of the address bar when the page is readable"
+    },
+    {
       "name": "read_mode_confirm",
-      "value": "Confirm before entering reader mode"
+      "value": "Confirm before entering from the button"
     },
     {
       "name": "read_mode_confirm_desc",
-      "value": "Show a menu first when tapping the reader icon in the address bar"
+      "value": "Ask for confirmation when tapping the address bar reader button"
     },
     {
       "name": "read_mode_bg_color",
@@ -895,6 +903,30 @@
     {
       "name": "read_mode_font_size",
       "value": "Font size"
+    },
+    {
+      "name": "read_mode_serif",
+      "value": "Serif font"
+    },
+    {
+      "name": "read_mode_typography",
+      "value": "Typography"
+    },
+    {
+      "name": "read_mode_settings_entry",
+      "value": "Reader mode settings"
+    },
+    {
+      "name": "reader_not_supported",
+      "value": "This page isn't available in reader mode"
+    },
+    {
+      "name": "reader_confirm_message",
+      "value": "Reformat this page for reading?"
+    },
+    {
+      "name": "reader_enter",
+      "value": "Enter"
     },
     {
       "name": "read_mode_preview",
@@ -939,6 +971,134 @@
     {
       "name": "customize_menu",
       "value": "Customize menu"
+    },
+    {
+      "name": "menu_reorder_hint",
+      "value": "Hold and drag to reorder entries"
+    },
+    {
+      "name": "menu_add_hint",
+      "value": "Hold and drag, or tap to add an entry"
+    },
+    {
+      "name": "reset",
+      "value": "Reset"
+    },
+    {
+      "name": "incognito",
+      "value": "Incognito"
+    },
+    {
+      "name": "share",
+      "value": "Share"
+    },
+    {
+      "name": "mark_ad",
+      "value": "Mark ad"
+    },
+    {
+      "name": "desktop_mode",
+      "value": "Desktop mode"
+    },
+    {
+      "name": "toolbox",
+      "value": "Toolbox"
+    },
+    {
+      "name": "offline_page",
+      "value": "Offline page"
+    },
+    {
+      "name": "translate",
+      "value": "Translate"
+    },
+    {
+      "name": "view_source",
+      "value": "View source"
+    },
+    {
+      "name": "fullscreen",
+      "value": "Fullscreen"
+    },
+    {
+      "name": "resource_sniff",
+      "value": "Resource sniffing"
+    },
+    {
+      "name": "browser_id",
+      "value": "Browser ID"
+    },
+    {
+      "name": "network_log",
+      "value": "Network log"
+    },
+    {
+      "name": "script",
+      "value": "Scripts"
+    },
+    {
+      "name": "image_mode",
+      "value": "Image mode"
+    },
+    {
+      "name": "refresh_page",
+      "value": "Refresh page"
+    },
+    {
+      "name": "scan_qr",
+      "value": "Scan QR code"
+    },
+    {
+      "name": "font_size",
+      "value": "Font size"
+    },
+    {
+      "name": "print_pdf",
+      "value": "Print/PDF"
+    },
+    {
+      "name": "read_aloud",
+      "value": "Read aloud"
+    },
+    {
+      "name": "add_to_home",
+      "value": "Add to home"
+    },
+    {
+      "name": "open_with",
+      "value": "Open with other apps"
+    },
+    {
+      "name": "game_mode",
+      "value": "Game mode"
+    },
+    {
+      "name": "ai",
+      "value": "AI"
+    },
+    {
+      "name": "add_home_favorite",
+      "value": "Add home favorite"
+    },
+    {
+      "name": "report_site",
+      "value": "Report site"
+    },
+    {
+      "name": "menu_item_wip",
+      "value": "Coming soon"
+    },
+    {
+      "name": "menu_change_toast",
+      "value": "%s: %s"
+    },
+    {
+      "name": "toast_state_on",
+      "value": "On"
+    },
+    {
+      "name": "toast_state_off",
+      "value": "Off"
     },
     {
       "name": "customize_long_press_menu",
@@ -1219,6 +1379,14 @@
     {
       "name": "do_not_track_desc",
       "value": "Ask websites not to track your browsing"
+    },
+    {
+      "name": "intelligent_tracking_prevention",
+      "value": "Intelligent tracking prevention"
+    },
+    {
+      "name": "intelligent_tracking_prevention_desc",
+      "value": "Block cookies on cross-site tracking requests"
     },
     {
       "name": "disable_webrtc",

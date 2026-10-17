@@ -47,6 +47,8 @@ export class TabInfo {
   @Trace canForward: boolean = false
   /** 离开主页前的网页地址（主页态点"前进"返回该页） */
   @Trace lastWebUrl: string = ''
+  /** 页面加载完成后检测为适合阅读模式（地址栏阅读按钮显隐依据） */
+  @Trace readerable: boolean = false
   /** 应用主动导航标记（返回/前进，重定向拦截用；首次主框架请求消费） */
   programmaticNav: boolean = false
   /** 弹出式窗口转开的标签（window.close 时可整标签关闭） */

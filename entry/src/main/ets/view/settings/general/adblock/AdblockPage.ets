@@ -1,6 +1,7 @@
 import { NaviContainer } from '../../../../components/NaviContainer';
 import { appSettings } from '../../../../common/entity/SettingsModel';
 import { AdBlockStore, adBlockStore } from '../../../../common/utils/AdBlockStore';
+import { AdBlockEngine, adBlockEngine } from '../../../../common/utils/AdBlockEngine';
 import { CustomItemInfo, ItemActionType } from '../../../../common/entity/CusItemInfo';
 import { CustomListItem } from '../../../../components/CusItemBuilder';
 import { QhState } from '../../../../entryability/AppState';
@@ -19,6 +20,13 @@ struct AdBlockPage {
   @Local subscriptionItem: CustomItemInfo = new CustomItemInfo({ id: 'ad_block_subscription', type: ItemActionType.ROUTER })
 
   aboutToAppear(): void {
+    // 总开关关闭时，下方规则相关条目整体置灰
+    const syncEnabled = (): void => {
+      const on: boolean = appSettings.ad_block_enabled
+      this.builtinItem.enabled = on
+      this.customRulesItem.enabled = on
+      this.subscriptionItem.enabled = on
+    }
     // 广告拦截总开关（副标题为拦截统计）
     this.blockItem.title = $r('app.string.ad_block')
     this.blockItem.subtitle = $r('app.string.ad_block_stats', adBlockStore.count,
@@ -26,8 +34,11 @@ struct AdBlockPage {
     this.blockItem.value = appSettings.ad_block_enabled
     this.blockItem.onChange = (v: string | boolean | number): void => {
       appSettings.ad_block_enabled = v as boolean
-      appSettings.save()
+      syncEnabled()
+      // 全局开关变化：向所有已创建 Web 实例重新应用原生 AdsBlock 开关
+      AdBlockEngine.applyEnableToAll()
     }
+    syncEnabled()
     adBlockStore.load().then((): void => {
       this.blockItem.subtitle = $r('app.string.ad_block_stats', adBlockStore.count,
         AdBlockStore.formatBytes(adBlockStore.bytes))
@@ -40,6 +51,8 @@ struct AdBlockPage {
     this.builtinItem.onChange = (v: string | boolean | number): void => {
       appSettings.ad_block_builtin = v as boolean
       appSettings.save()
+      // 内建规则开关变化：重建规则文件并同步到原生 AdsBlock 引擎
+      adBlockEngine.syncToWebEngine()
     }
 
     // 自定义规则（编辑页）

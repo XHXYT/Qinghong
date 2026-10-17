@@ -122,7 +122,7 @@
     },
     {
       "name": "settings_menu_custom",
-      "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
+      "pageSourceFile": "src/main/ets/view/settings/general/MenuCustomizePage.ets",
       "buildFunction": "SettingsMenuCustomBuilder"
     },
     {
@@ -149,6 +149,11 @@
       "name": "settings_operations",
       "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
       "buildFunction": "SettingsOperationsBuilder"
+    },
+    {
+      "name": "offline_page",
+      "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
+      "buildFunction": "OfflinePageBuilder"
     },
     {
       "name": "search_engine",

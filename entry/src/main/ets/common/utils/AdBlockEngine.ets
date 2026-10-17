@@ -1,55 +1,22 @@
 import { fileIo } from '@kit.CoreFileKit';
-import { taskpool } from '@kit.ArkTS';
+import { webview } from '@kit.ArkWeb';
 import { _QhState } from '../../entryability/AppState';
 import { appSettings } from '../entity/SettingsModel';
 import { adBlockSubsStore } from './AdBlockSubs';
 import { createLogger } from './Logger';
-import { abpRuleToRegexSrc } from './AbpRuleParse';
-import { parseSubRulesTask, SubParseRaw } from './SubsParseTask';
+import { tabsVM } from '../../viewmodel/TabsViewModel';
+import { SitePolicy, siteSettingsVM, SiteSettingsViewModel } from '../../viewmodel/SiteSettingsViewModel';
 
 const logger = createLogger('AdBlockEngine')
 
 /**
- * 网络过滤规则（编译为正则）
+ * 广告拦截（ArkWeb 原生 AdsBlock 引擎托管）：
+ * - 规则源（内建 + 自定义 + 订阅，easylist 格式）合并写入沙箱文件，经
+ *   webview.AdsBlockManager.setAdsBlockRules 交内核解析拦截；
+ *   网络拦截与 ## 元素隐藏均由内核原生完成，不走 onInterceptRequest
+ * - 内容哈希守卫：规则未变化不重复设置，利用内核持久化避免冷启动重复编译
+ * - Web 实例级开关由 TabWeb 调 controller.enableAdsBlock 控制（站点策略）
  */
-class NetworkRule {
-  readonly regex: RegExp
-
-  constructor(regex: RegExp) {
-    this.regex = regex
-  }
-}
-
-/**
- * 元素隐藏规则（domains 为逗号分隔域名，空串表示全部域名）
- */
-class ElementRule {
-  readonly domains: string
-  readonly selector: string
-
-  constructor(domains: string, selector: string) {
-    this.domains = domains
-    this.selector = selector
-  }
-}
-
-interface ParsedNetwork {
-  blocks: NetworkRule[]
-  exceptions: NetworkRule[]
-}
-
-interface ParsedElements {
-  rules: ElementRule[]
-  exceptions: ElementRule[]
-}
-
-/**
- * Adblock Plus 过滤引擎：
- * - 网络规则：onInterceptRequest 中按 URL 匹配拦截（支持 ||、|、^、*、@@ 例外、/正则/、$选项忽略）
- * - 元素规则：生成文档开始注入脚本隐藏元素（支持 domain##selector、domain#@#selector 例外、~域名排除）
- * - 内建规则随引擎编译；自定义规则存沙箱 filesDir/adblock/custom_rules.txt
- */
-@ObservedV2
 export class AdBlockEngine {
 
   /** 每条被拦截请求的预估节省流量（无法得知实际响应大小，按 URL 特征差异化估算） */
@@ -95,7 +62,7 @@ export class AdBlockEngine {
     return AdBlockEngine.ESTIMATED_BYTES_PER_AD
   }
 
-  /** 内建网络规则（常见广告/统计域名） */
+  /** 内建规则（常见广告/统计域名） */
   private static readonly BUILTIN_RULES: string[] = [
     // 国际广告网络
     '||doubleclick.net^',
@@ -149,341 +116,161 @@ export class AdBlockEngine {
     '||miaozhen.com^'
   ]
 
-  /** 自定义规则版本号（重载后自增，触发注入脚本重建） */
-  @Trace customVersion: number = 0
-
-  private builtinBlocks: NetworkRule[] = []
-  private builtinExceptions: NetworkRule[] = []
-  private customBlocks: NetworkRule[] = []
-  private customExceptions: NetworkRule[] = []
-  private customElements: ElementRule[] = []
-  private customElementExceptions: ElementRule[] = []
-  private subBlocks: NetworkRule[] = []
-  private subExceptions: NetworkRule[] = []
-  private subElements: ElementRule[] = []
-  private subElementExceptions: ElementRule[] = []
-  /** 订阅规则解析中（分块解析防重入） */
-  private reloading: boolean = false
-  private reloadQueued: boolean = false
+  /** 同步中标记（防重入，期间触发的同步排队执行） */
+  private syncing: boolean = false
+  private syncQueued: boolean = false
 
   /** 自定义规则沙箱文件 */
   static customRulesFile(): string {
     return `${_QhState.Context.filesDir}/adblock/custom_rules.txt`
   }
 
-  /** 启动时初始化：编译内建规则并加载自定义规则 */
+  /** 合并规则文件（传给 AdsBlockManager 的 easylist 规则文件） */
+  static webRulesFile(): string {
+    return `${_QhState.Context.filesDir}/adblock/web_rules.txt`
+  }
+
+  /** 最近一次已应用的规则内容哈希标记文件 */
+  private static webRulesHashFile(): string {
+    return `${_QhState.Context.filesDir}/adblock/web_rules.hash`
+  }
+
+  /** 启动时初始化：装载规则到内核（订阅加载完成经回调再次同步） */
   init(): void {
-    const parsed: ParsedNetwork = AdBlockEngine.parseNetwork(AdBlockEngine.BUILTIN_RULES.join('\n'))
-    this.builtinBlocks = parsed.blocks
-    this.builtinExceptions = parsed.exceptions
-    this.reloadCustom()
-    // 订阅规则下载/更新成功后自动重载
+    this.syncToWebEngine()
+    // 订阅规则下载/更新成功后自动同步到内核
     adBlockSubsStore.onRulesChanged = (): void => {
-      this.reloadSubscriptions()
+      this.syncToWebEngine()
     }
   }
 
   /** 读取自定义规则文件内容（编辑页回显用） */
   loadCustomRulesSync(): string {
-    try {
-      const path: string = AdBlockEngine.customRulesFile()
-      if (fileIo.accessSync(path)) {
-        return fileIo.readTextSync(path)
-      }
-    } catch (e) {
-      logger.error(`loadCustomRulesSync 失败: ${e}`)
-    }
-    return ''
+    return this.readTextFile(AdBlockEngine.customRulesFile())
   }
 
-  /** 保存自定义规则并重新编译 */
+  /** 保存自定义规则并同步到内核 */
   async saveCustomRules(text: string): Promise<void> {
     try {
-      const path: string = AdBlockEngine.customRulesFile()
-      const dir: string = `${_QhState.Context.filesDir}/adblock`
-      if (!fileIo.accessSync(dir)) {
-        fileIo.mkdirSync(dir, true)
-      }
-      const file: fileIo.File = fileIo.openSync(path,
-        fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-      try {
-        fileIo.writeSync(file.fd, text)
-      } finally {
-        fileIo.closeSync(file)
-      }
-      await this.reloadCustom()
+      this.writeTextFile(AdBlockEngine.customRulesFile(), text)
+      await this.syncToWebEngine()
     } catch (e) {
       logger.error(`saveCustomRules 失败: ${e}`)
     }
   }
 
-  /** 重新加载自定义规则文件 */
-  async reloadCustom(): Promise<void> {
-    try {
-      const text: string = this.loadCustomRulesSync()
-      const net: ParsedNetwork = AdBlockEngine.parseNetwork(text)
-      const els: ParsedElements = AdBlockEngine.parseElements(text)
-      this.customBlocks = net.blocks
-      this.customExceptions = net.exceptions
-      this.customElements = els.rules
-      this.customElementExceptions = els.exceptions
-      this.customVersion++
-    } catch (e) {
-      logger.error(`reloadCustom 失败: ${e}`)
-    }
-  }
-
   /**
-   * 重新加载订阅规则文件（订阅增删改/开关/更新后调用）
-   * 文件读取与逐行解析在 taskpool 子线程执行（RegExp 不可跨线程，主线程按源码构造，分块让出）
+   * 合并全部规则源写入沙箱文件并交给 ArkWeb 原生 AdsBlock 引擎：
+   * 内容哈希与上次一致时跳过（内核持久化配置，冷启动无需重复设置）
    */
-  async reloadSubscriptions(): Promise<void> {
-    if (this.reloading) {
-      this.reloadQueued = true
+  async syncToWebEngine(): Promise<void> {
+    if (this.syncing) {
+      this.syncQueued = true
       return
     }
-    this.reloading = true
+    this.syncing = true
     try {
       const t0: number = Date.now()
-      this.subBlocks = []
-      this.subExceptions = []
-      this.subElements = []
-      this.subElementExceptions = []
+      const parts: string[] = []
+      if (appSettings.ad_block_builtin) {
+        parts.push(AdBlockEngine.BUILTIN_RULES.join('\n'))
+      }
+      parts.push(this.loadCustomRulesSync())
       for (const sub of adBlockSubsStore.subs) {
         if (!sub.enabled) {
           continue
         }
-        const subT0: number = Date.now()
-        // 子线程读取并解析规则文件（几万条规则的解析不占主线程）
-        const task: taskpool.Task = new taskpool.Task(parseSubRulesTask, adBlockSubsStore.rulesPath(sub))
-        const raw: SubParseRaw = await taskpool.execute(task) as SubParseRaw
-        // 主线程根据源码构造 RegExp（分块让出，避免长任务阻塞 UI）
-        for (let i = 0; i < raw.blockSrcs.length; i++) {
-          const regex: RegExp | null = AdBlockEngine.regexFromSrc(raw.blockSrcs[i])
-          if (regex !== null) {
-            this.subBlocks.push(new NetworkRule(regex))
-          }
-          if ((i & 1023) === 1023) {
-            await AdBlockEngine.yieldToUI()
-          }
-        }
-        for (let i = 0; i < raw.exceptionSrcs.length; i++) {
-          const regex: RegExp | null = AdBlockEngine.regexFromSrc(raw.exceptionSrcs[i])
-          if (regex !== null) {
-            this.subExceptions.push(new NetworkRule(regex))
-          }
-          if ((i & 1023) === 1023) {
-            await AdBlockEngine.yieldToUI()
-          }
-        }
-        for (let i = 0; i < raw.hideSelectors.length; i++) {
-          this.subElements.push(new ElementRule(raw.hideDomains[i], raw.hideSelectors[i]))
-        }
-        for (let i = 0; i < raw.hideExcSelectors.length; i++) {
-          this.subElementExceptions.push(new ElementRule(raw.hideExcDomains[i], raw.hideExcSelectors[i]))
-        }
-        logger.info(`reloadSubscriptions 订阅 ${sub.name} 解析完成: ` +
-          `拦截 ${raw.blockSrcs.length} / 例外 ${raw.exceptionSrcs.length} / 元素 ${raw.hideSelectors.length} 条, ` +
-          `耗时 ${Date.now() - subT0}ms`)
+        parts.push(this.readTextFile(adBlockSubsStore.rulesPath(sub)))
+        await AdBlockEngine.yieldToUI()
       }
-      this.customVersion++
-      logger.info(`reloadSubscriptions 全部完成, 总耗时 ${Date.now() - t0}ms`)
+      const content: string = parts.join('\n')
+      const hash: string = `${AdBlockEngine.hashStr(content)}`
+      if (hash === this.readTextFile(AdBlockEngine.webRulesHashFile()).trim()) {
+        logger.info(`syncToWebEngine 规则未变化，跳过（长度 ${content.length}）`)
+        return
+      }
+      this.writeTextFile(AdBlockEngine.webRulesFile(), content)
+      webview.AdsBlockManager.setAdsBlockRules(AdBlockEngine.webRulesFile(), true)
+      this.writeTextFile(AdBlockEngine.webRulesHashFile(), hash)
+      logger.info(`syncToWebEngine 规则已更新: 哈希 ${hash} 长度 ${content.length} 耗时 ${Date.now() - t0}ms`)
     } catch (e) {
-      logger.error(`reloadSubscriptions 失败: ${e}`)
+      logger.error(`syncToWebEngine 失败: ${e}`)
     } finally {
-      this.reloading = false
-      if (this.reloadQueued) {
-        this.reloadQueued = false
-        this.reloadSubscriptions()
+      this.syncing = false
+      if (this.syncQueued) {
+        this.syncQueued = false
+        this.syncToWebEngine()
       }
     }
   }
 
-  /** 由正则源码构造 RegExp（空串或非法源码返回 null） */
-  private static regexFromSrc(src: string): RegExp | null {
-    if (src === '') {
-      return null
-    }
-    try {
-      return new RegExp(src, 'i')
-    } catch (e) {
-      return null
+  /** 站点策略 → 该 Web 实例广告拦截开关 */
+  static policyOn(p: SitePolicy): boolean {
+    return p.adBlock === 'app' ? appSettings.ad_block_enabled : p.adBlock === 'on'
+  }
+
+  /** 全局开关变化后，向所有已创建 Web 实例重新应用 enableAdsBlock */
+  static async applyEnableToAll(): Promise<void> {
+    for (const tab of tabsVM.tabs) {
+      const host: string = SiteSettingsViewModel.hostOf(tab.url)
+      if (host === '') {
+        continue
+      }
+      try {
+        const p: SitePolicy = await siteSettingsVM.resolvePolicy(host)
+        const c = tab.controller
+        if (c !== null && c !== undefined) {
+          c.enableAdsBlock(AdBlockEngine.policyOn(p))
+        }
+      } catch (e) {
+        logger.error(`applyEnableToAll 失败: ${e}`)
+      }
     }
   }
 
-  /** 让出主线程一拍（分块解析间隙给渲染任务插队） */
+  /** 读文本文件（不存在或失败返回空串） */
+  private readTextFile(path: string): string {
+    try {
+      if (fileIo.accessSync(path)) {
+        return fileIo.readTextSync(path)
+      }
+    } catch (e) {
+      logger.error(`readTextFile 失败: ${e}`)
+    }
+    return ''
+  }
+
+  /** 写文本文件（目录不存在时自动创建） */
+  private writeTextFile(path: string, text: string): void {
+    const dir: string = path.substring(0, path.lastIndexOf('/'))
+    if (!fileIo.accessSync(dir)) {
+      fileIo.mkdirSync(dir, true)
+    }
+    const file: fileIo.File = fileIo.openSync(path,
+      fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+    try {
+      fileIo.writeSync(file.fd, text)
+    } finally {
+      fileIo.closeSync(file)
+    }
+  }
+
+  /** 32 位滚动哈希（规则变化检测用，非加密） */
+  private static hashStr(s: string): number {
+    let h: number = 5381
+    for (let i = 0; i < s.length; i++) {
+      h = ((h << 5) + h + s.charCodeAt(i)) | 0
+    }
+    return h >>> 0
+  }
+
+  /** 让出主线程一拍（合并大订阅文件间隙给渲染任务插队） */
   private static yieldToUI(): Promise<void> {
     return new Promise<void>((resolve: (v: void) => void) => {
       setTimeout((): void => {
         resolve()
       }, 0)
     })
-  }
-
-  /**
-   * 判断请求 URL 是否应被拦截（主框架请求由调用方放行）
-   * @param enabled 调用方（含站点级覆盖）广告拦截是否生效
-   */
-  shouldBlock(url: string, enabled: boolean = true): boolean {
-    if (!enabled) {
-      return false
-    }
-    const useBuiltin: boolean = appSettings.ad_block_builtin
-    // 例外规则优先
-    if (useBuiltin) {
-      for (const rule of this.builtinExceptions) {
-        if (rule.regex.test(url)) {
-          return false
-        }
-      }
-    }
-    for (const rule of this.subExceptions) {
-      if (rule.regex.test(url)) {
-        return false
-      }
-    }
-    for (const rule of this.customExceptions) {
-      if (rule.regex.test(url)) {
-        return false
-      }
-    }
-    if (useBuiltin) {
-      for (const rule of this.builtinBlocks) {
-        if (rule.regex.test(url)) {
-          return true
-        }
-      }
-    }
-    for (const rule of this.subBlocks) {
-      if (rule.regex.test(url)) {
-        return true
-      }
-    }
-    for (const rule of this.customBlocks) {
-      if (rule.regex.test(url)) {
-        return true
-      }
-    }
-    return false
-  }
-
-  /**
-   * 生成元素隐藏注入脚本（无规则或未启用返回空串）
-   */
-  hideScript(): string {
-    if (!appSettings.ad_block_enabled) {
-      return ''
-    }
-    // 读取版本号以建立渲染依赖（规则重载后脚本重建）
-    if (this.customVersion < 0) {
-      return ''
-    }
-    if (this.subElements.length === 0 && this.subElementExceptions.length === 0
-      && this.customElements.length === 0 && this.customElementExceptions.length === 0) {
-      return ''
-    }
-    const rulesArr: string[][] = []
-    for (const r of this.subElements.concat(this.customElements)) {
-      rulesArr.push([r.domains, r.selector])
-    }
-    const excArr: string[][] = []
-    for (const r of this.subElementExceptions.concat(this.customElementExceptions)) {
-      excArr.push([r.domains, r.selector])
-    }
-    return '(function(){try{' +
-      `var R=${JSON.stringify(rulesArr)},X=${JSON.stringify(excArr)};` +
-      'var h=location.hostname,css=\'\';' +
-      'function m(list){var s=list.split(\',\');for(var j=0;j<s.length;j++){var d=s[j];if(!d)continue;' +
-      'if(d[0]==\'~\'){if(h==d.slice(1)||h.endsWith(\'.\'+d.slice(1)))return false;}' +
-      'else if(h==d||h.endsWith(\'.\'+d))return true;}return false;}' +
-      'var ex=\'\';for(var i=0;i<X.length;i++){if(m(X[i][0]))ex+=X[i][1]+\'\\n\';}' +
-      'for(var i2=0;i2<R.length;i2++){var sel=R[i2][1];' +
-      'if(ex.indexOf(sel+\'\\n\')>=0)continue;' +
-      'if(!R[i2][0]||m(R[i2][0]))css+=sel+\'{display:none !important;}\';}' +
-      'if(css){var s2=document.createElement(\'style\');s2.textContent=css;' +
-      '(document.head||document.documentElement).appendChild(s2);}}catch(e){}})()'
-  }
-
-  /**
-   * 解析文本中的网络规则
-   */
-  private static parseNetwork(text: string): ParsedNetwork {
-    const result: ParsedNetwork = { blocks: [], exceptions: [] }
-    const lines: string[] = text.split('\n')
-    for (let line of lines) {
-      line = line.trim()
-      if (line.length === 0) {
-        continue
-      }
-      const first: string = line[0]
-      if (first === '!' || first === '[') {
-        continue
-      }
-      // 元素隐藏规则不参与网络匹配
-      if (line.includes('##') || line.includes('#@#')) {
-        continue
-      }
-      let isException: boolean = false
-      if (line.startsWith('@@')) {
-        isException = true
-        line = line.substring(2).trim()
-      }
-      const regex: RegExp | null = AdBlockEngine.compileNetworkRule(line)
-      if (regex !== null) {
-        if (isException) {
-          result.exceptions.push(new NetworkRule(regex))
-        } else {
-          result.blocks.push(new NetworkRule(regex))
-        }
-      }
-    }
-    return result
-  }
-
-  /**
-   * 解析文本中的元素隐藏规则
-   */
-  private static parseElements(text: string): ParsedElements {
-    const result: ParsedElements = { rules: [], exceptions: [] }
-    const lines: string[] = text.split('\n')
-    for (let line of lines) {
-      line = line.trim()
-      if (line.length === 0) {
-        continue
-      }
-      const first: string = line[0]
-      if (first === '!' || first === '[') {
-        continue
-      }
-      let sepIndex: number = line.indexOf('#@#')
-      let isException: boolean = true
-      if (sepIndex < 0) {
-        sepIndex = line.indexOf('##')
-        isException = false
-      }
-      if (sepIndex < 0) {
-        continue
-      }
-      const domains: string = line.substring(0, sepIndex).trim()
-      const selector: string = line.substring(sepIndex + (isException ? 3 : 2)).trim()
-      if (selector.length === 0) {
-        continue
-      }
-      const rule: ElementRule = new ElementRule(domains, selector)
-      if (isException) {
-        result.exceptions.push(rule)
-      } else {
-        result.rules.push(rule)
-      }
-    }
-    return result
-  }
-
-  /**
-   * 编译单条网络规则为正则（源码生成逻辑见 AbpRuleParse，主/子线程共用）
-   */
-  private static compileNetworkRule(rule: string): RegExp | null {
-    return AdBlockEngine.regexFromSrc(abpRuleToRegexSrc(rule))
   }
 }
 

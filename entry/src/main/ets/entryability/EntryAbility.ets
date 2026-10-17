@@ -83,16 +83,16 @@ export default class EntryAbility extends UIAbility {
         toastUtil.initContext(_QhState.UIContext, this.context)
         // 注册沙箱内自定义字体（依赖 UIContext）
         FontStore.registerAll()
-      // 初始化广告拦截引擎与统计
+      // 初始化广告拦截引擎与统计（规则装载到 ArkWeb 原生 AdsBlock 引擎）
       adBlockEngine.init()
       adBlockStore.load()
-      // 订阅规则文件较大（几万条规则的正则编译耗时），
-      // 延迟到主页首帧渲染后再解析，且引擎内部分块解析让出主线程
+      // 订阅规则文件较大，延迟到主页首帧渲染后再合并装载；
+      // 规则内容哈希未变化时跳过，利用内核持久化避免重复编译解析
       setTimeout((): void => {
         adBlockSubsStore.load().then((): void => {
-          adBlockEngine.reloadSubscriptions()
+          adBlockEngine.syncToWebEngine()
           if (adBlockSubsStore.isAutoUpdateDue()) {
-            // 更新成功后引擎经 onRulesChanged 回调自动重载
+            // 更新成功后引擎经 onRulesChanged 回调自动重新装载
             adBlockSubsStore.updateAll(true)
           }
         })

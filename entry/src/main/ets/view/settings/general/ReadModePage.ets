@@ -70,12 +70,19 @@ export function SettingsReadModeBuilder() {
 @ComponentV2
 struct ReadModePage {
 
+  @Local buttonItem: CustomItemInfo = new CustomItemInfo({
+    id: 'read_mode_address_button',
+    title: $r('app.string.read_mode_address_button'),
+    subtitle: $r('app.string.read_mode_address_button_desc'),
+    type: ItemActionType.TOGGLE,
+    value: true
+  })
   @Local confirmItem: CustomItemInfo = new CustomItemInfo({
     id: 'read_mode_confirm',
     title: $r('app.string.read_mode_confirm'),
     subtitle: $r('app.string.read_mode_confirm_desc'),
     type: ItemActionType.TOGGLE,
-    value: false
+    value: true
   })
   @Local cssItem: CustomItemInfo = new CustomItemInfo({
     id: 'read_mode_css',
@@ -91,6 +98,16 @@ struct ReadModePage {
   private customColorDialog: CustomDialogController | undefined = undefined
 
   aboutToAppear(): void {
+    this.buttonItem = new CustomItemInfo({
+      id: 'read_mode_address_button',
+      title: $r('app.string.read_mode_address_button'),
+      subtitle: $r('app.string.read_mode_address_button_desc'),
+      type: ItemActionType.TOGGLE,
+      value: appSettings.read_mode_address_button,
+      onChange: (v: string | boolean | number): void => {
+        appSettings.read_mode_address_button = v as boolean
+      }
+    })
     this.confirmItem = new CustomItemInfo({
       id: 'read_mode_confirm',
       title: $r('app.string.read_mode_confirm'),
@@ -172,6 +189,10 @@ struct ReadModePage {
             .fontColor($r('sys.color.font_secondary'))
             .margin({ left: 4, bottom: 6, top: 10 })
           Column() {
+            CustomListItem({
+              item: this.buttonItem,
+              itemPadding: { left: 16, right: 16, top: 12, bottom: 12 }
+            })
             CustomListItem({
               item: this.confirmItem,
               itemPadding: { left: 16, right: 16, top: 12, bottom: 12 }
@@ -256,7 +277,7 @@ struct ReadModePage {
       // 背景色
       Column({ space: 12 }) {
         Text($r('app.string.read_mode_bg_color'))
-          .fontSize(15)
+          .fontSize(16)
           .fontColor($r('sys.color.font_primary'))
         Row({ space: 16 }) {
           ForEach(BG_PRESETS, (preset: BgPreset) => {
@@ -273,11 +294,11 @@ struct ReadModePage {
       Column({ space: 8 }) {
         Row() {
           Text($r('app.string.read_mode_font_size'))
-            .fontSize(15)
+            .fontSize(16)
             .fontColor($r('sys.color.font_primary'))
             .layoutWeight(1)
           Text(`${appSettings.read_mode_font_size}`)
-            .fontSize(14)
+            .fontSize(15)
             .fontColor($r('sys.color.font_secondary'))
         }
         .width('100%')
@@ -296,6 +317,20 @@ struct ReadModePage {
           })
       }
       .width('100%')
+
+      // 衬线字体（整行点击切换）
+      Row() {
+        Text($r('app.string.read_mode_serif'))
+          .fontSize(16)
+          .fontColor($r('sys.color.font_primary'))
+          .layoutWeight(1)
+        Toggle({ type: ToggleType.Switch, isOn: appSettings.read_mode_serif })
+          .hitTestBehavior(HitTestMode.None)
+      }
+      .width('100%')
+      .onClick(() => {
+        appSettings.read_mode_serif = !appSettings.read_mode_serif
+      })
 
       // 预览
       Column({ space: 8 }) {

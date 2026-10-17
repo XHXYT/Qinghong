@@ -116,6 +116,8 @@ export class AppSettings {
   @Trace disable_webrtc: boolean = false
   /** 隐私：不出售或分享数据 */
   @Trace do_not_sell: boolean = false
+  /** 隐私：智能防跟踪（跨站跟踪型网站请求不携带 Cookie，ArkWeb 内核执行） */
+  @Trace intelligent_tracking_prevention: boolean = true
   /** 广告拦截总开关 */
   @Trace ad_block_enabled: boolean = true
   /** 广告拦截：启用内建规则 */
@@ -130,6 +132,8 @@ export class AppSettings {
   @Trace ua_mode: string = 'default'
   /** 电脑模式下的浏览器标识：'windows_chrome' | 'windows_ie' | 'macos' | 'custom' */
   @Trace ua_desktop: string = 'windows_chrome'
+  /** 电脑模式：请求桌面版网站（UA 改用「电脑模式标识」） */
+  @Trace desktop_mode: boolean = false
   /** 简化浏览器标识：从 UA 中移除设备及次要版本信息 */
   @Trace ua_simplify: boolean = false
   /** 自定义浏览器标识列表 */
@@ -174,14 +178,19 @@ export class AppSettings {
   @Trace night_mask_color: string = 'black'
   /** 夜间模式：强制深色网页 */
   @Trace force_dark_web: boolean = false
-  /** 阅读模式：开启需二次确认（点击地址栏图标时先展示菜单） */
-  @Trace read_mode_confirm: boolean = false
+  /** 阅读模式：地址栏阅读按钮（页面检测为适合阅读时自动出现，点击直接进入） */
+  @Trace read_mode_address_button: boolean = true
+  /** 阅读模式：点击地址栏阅读按钮时先二次确认再进入（菜单入口不受影响） */
+  @Trace read_mode_confirm: boolean = true
+
   /** 阅读模式：背景色 'paper' | 'green' | 'white' | 'black' | 'custom' */
   @Trace read_mode_bg_color: string = 'paper'
   /** 阅读模式：自定义背景色（#RRGGBB） */
   @Trace read_mode_custom_bg: string = '#F2E8D5'
   /** 阅读模式：正文字号 */
   @Trace read_mode_font_size: number = 18
+  /** 阅读模式：衬线字体 */
+  @Trace read_mode_serif: boolean = false
   /** 应用字体 family（空串 = 默认字体） */
   @Trace font_family: string = ''
   /** 密码管理器：提示保存密码（应用自建密码库） */
@@ -198,6 +207,8 @@ export class AppSettings {
   @Trace search_toolbar_enabled: boolean = false
   /** 搜索工具栏引擎列表（'id:1,id:0' 形式，顺序即显示顺序） */
   @Trace search_toolbar_engines: string = 'baidu:1,google:1,bing:1,sogou:1,so360:1,toutiao:1,shenma:1'
+  /** 主菜单条目布局（逗号分隔 id，顺序即显示顺序；空 = 默认布局） */
+  @Trace menu_layout: string = ''
 
   constructor() {
   }
@@ -255,6 +266,7 @@ export class AppSettings {
       "do_not_track": this.do_not_track,
       "disable_webrtc": this.disable_webrtc,
       "do_not_sell": this.do_not_sell,
+      "intelligent_tracking_prevention": this.intelligent_tracking_prevention,
       "ad_block_enabled": this.ad_block_enabled,
       "ad_block_builtin": this.ad_block_builtin,
       "geolocation_access": this.geolocation_access,
@@ -262,6 +274,7 @@ export class AppSettings {
       "screen_orientation": this.screen_orientation,
       "ua_mode": this.ua_mode,
       "ua_desktop": this.ua_desktop,
+      "desktop_mode": this.desktop_mode,
       "ua_simplify": this.ua_simplify,
       "custom_uas": this.custom_uas,
       "video_player": this.video_player,
@@ -284,10 +297,12 @@ export class AppSettings {
       "night_mask_opacity": this.night_mask_opacity,
       "night_mask_color": this.night_mask_color,
       "force_dark_web": this.force_dark_web,
+      "read_mode_address_button": this.read_mode_address_button,
       "read_mode_confirm": this.read_mode_confirm,
       "read_mode_bg_color": this.read_mode_bg_color,
       "read_mode_custom_bg": this.read_mode_custom_bg,
       "read_mode_font_size": this.read_mode_font_size,
+      "read_mode_serif": this.read_mode_serif,
       "font_family": this.font_family,
       "password_save_prompt": this.password_save_prompt,
       "system_password_manager": this.system_password_manager,
@@ -295,7 +310,8 @@ export class AppSettings {
       "home_page_url": this.home_page_url,
       "search_suggest_sources": this.search_suggest_sources,
       "search_toolbar_enabled": this.search_toolbar_enabled,
-      "search_toolbar_engines": this.search_toolbar_engines
+      "search_toolbar_engines": this.search_toolbar_engines,
+      "menu_layout": this.menu_layout
     };
   }
 
@@ -313,6 +329,8 @@ export class AppSettings {
     this.do_not_track = (json["do_not_track"] as boolean) ?? this.do_not_track;
     this.disable_webrtc = (json["disable_webrtc"] as boolean) ?? this.disable_webrtc;
     this.do_not_sell = (json["do_not_sell"] as boolean) ?? this.do_not_sell;
+    this.intelligent_tracking_prevention =
+      (json["intelligent_tracking_prevention"] as boolean) ?? this.intelligent_tracking_prevention;
     this.ad_block_enabled = (json["ad_block_enabled"] as boolean) ?? this.ad_block_enabled;
     this.ad_block_builtin = (json["ad_block_builtin"] as boolean) ?? this.ad_block_builtin;
     this.geolocation_access = (json["geolocation_access"] as boolean) ?? this.geolocation_access;
@@ -320,6 +338,7 @@ export class AppSettings {
     this.screen_orientation = (json["screen_orientation"] as string) ?? this.screen_orientation;
     this.ua_mode = (json["ua_mode"] as string) ?? this.ua_mode;
     this.ua_desktop = (json["ua_desktop"] as string) ?? this.ua_desktop;
+    this.desktop_mode = (json["desktop_mode"] as boolean) ?? this.desktop_mode;
     this.ua_simplify = (json["ua_simplify"] as boolean) ?? this.ua_simplify;
     this.video_player = (json["video_player"] as string) ?? this.video_player;
     this.exit_clear_data = (json["exit_clear_data"] as string) ?? this.exit_clear_data;
@@ -341,10 +360,12 @@ export class AppSettings {
     this.night_mask_opacity = (json["night_mask_opacity"] as number) ?? this.night_mask_opacity;
     this.night_mask_color = (json["night_mask_color"] as string) ?? this.night_mask_color;
     this.force_dark_web = (json["force_dark_web"] as boolean) ?? this.force_dark_web;
+    this.read_mode_address_button = (json["read_mode_address_button"] as boolean) ?? this.read_mode_address_button;
     this.read_mode_confirm = (json["read_mode_confirm"] as boolean) ?? this.read_mode_confirm;
     this.read_mode_bg_color = (json["read_mode_bg_color"] as string) ?? this.read_mode_bg_color;
     this.read_mode_custom_bg = (json["read_mode_custom_bg"] as string) ?? this.read_mode_custom_bg;
     this.read_mode_font_size = (json["read_mode_font_size"] as number) ?? this.read_mode_font_size;
+    this.read_mode_serif = (json["read_mode_serif"] as boolean) ?? this.read_mode_serif;
     this.font_family = (json["font_family"] as string) ?? this.font_family;
     this.password_save_prompt = (json["password_save_prompt"] as boolean) ?? this.password_save_prompt;
     this.system_password_manager = (json["system_password_manager"] as boolean) ?? this.system_password_manager;
@@ -353,6 +374,7 @@ export class AppSettings {
     this.search_suggest_sources = (json["search_suggest_sources"] as string) ?? this.search_suggest_sources;
     this.search_toolbar_enabled = (json["search_toolbar_enabled"] as boolean) ?? this.search_toolbar_enabled;
     this.search_toolbar_engines = (json["search_toolbar_engines"] as string) ?? this.search_toolbar_engines;
+    this.menu_layout = (json["menu_layout"] as string) ?? this.menu_layout;
 
     const rawUas = json["custom_uas"] as Object[];
     if (rawUas) {
@@ -384,12 +406,12 @@ export class AppSettings {
   }
 
   @Monitor('search_engine_id', 'custom_engines', 'show_homepage_logo', 'restore_mode', 'default_incognito',
-    'do_not_track', 'disable_webrtc', 'do_not_sell', 'geolocation_access', 'language', 'screen_orientation', 'ua_mode', 'ua_desktop', 'ua_simplify', 'custom_uas', 'video_player',
+    'do_not_track', 'disable_webrtc', 'do_not_sell', 'intelligent_tracking_prevention', 'geolocation_access', 'language', 'screen_orientation', 'ua_mode', 'ua_desktop', 'desktop_mode', 'ua_simplify', 'custom_uas', 'video_player',
     'exit_clear_data', 'no_image_mode', 'show_sniff_button', 'allow_debug_web', 'disable_safe_browsing',
     'ignore_ssl_warning', 'web_vibration_enabled', 'web_haptic_enabled', 'show_undo_close_tip', 'auto_expand_web', 'force_enable_zoom', 'cookies_enabled', 'cookies_block_third_party', 'popup_allowed', 'site_defaults', 'ad_block_enabled', 'ad_block_builtin', 'night_mask_enabled', 'night_mask_opacity', 'night_mask_color', 'force_dark_web',
-    'read_mode_confirm', 'read_mode_bg_color', 'read_mode_custom_bg', 'read_mode_font_size', 'font_family',
+    'read_mode_address_button', 'read_mode_confirm', 'read_mode_bg_color', 'read_mode_custom_bg', 'read_mode_font_size', 'read_mode_serif', 'font_family',
     'password_save_prompt', 'system_password_manager', 'home_page_mode', 'home_page_url',
-    'search_suggest_sources', 'search_toolbar_enabled', 'search_toolbar_engines')
+    'search_suggest_sources', 'search_toolbar_enabled', 'search_toolbar_engines', 'menu_layout')
   public async save(): Promise<void> {
     try {
       const jsonStr: string = JSON.stringify(this.toSyncData());
@@ -408,6 +430,7 @@ export class AppSettings {
     this.do_not_track = true;
     this.disable_webrtc = false;
     this.do_not_sell = false;
+    this.intelligent_tracking_prevention = true;
     this.ad_block_enabled = true;
     this.ad_block_builtin = true;
     this.geolocation_access = true;
@@ -415,6 +438,7 @@ export class AppSettings {
     this.screen_orientation = 'auto';
     this.ua_mode = 'default';
     this.ua_desktop = 'windows_chrome';
+    this.desktop_mode = false;
     this.ua_simplify = false;
     this.custom_uas = [];
     this.video_player = 'system';
@@ -437,10 +461,12 @@ export class AppSettings {
     this.night_mask_opacity = 40;
     this.night_mask_color = 'black';
     this.force_dark_web = false;
-    this.read_mode_confirm = false;
+    this.read_mode_address_button = true;
+    this.read_mode_confirm = true;
     this.read_mode_bg_color = 'paper';
     this.read_mode_custom_bg = '#F2E8D5';
     this.read_mode_font_size = 18;
+    this.read_mode_serif = false;
     this.font_family = '';
     this.password_save_prompt = true;
     this.system_password_manager = false;
@@ -449,6 +475,7 @@ export class AppSettings {
     this.search_suggest_sources = 'favorites,bookmarks,tabs,history,engine,search_history';
     this.search_toolbar_enabled = false;
     this.search_toolbar_engines = 'baidu:1,google:1,bing:1,sogou:1,so360:1,toutiao:1,shenma:1';
+    this.menu_layout = '';
     this.save();
   }
 }

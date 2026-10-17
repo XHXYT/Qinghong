@@ -10,13 +10,15 @@ import { appSettings } from '../../common/entity/SettingsModel';
 import { toastUtil } from '../../common/utils/ToastUtils';
 import { ResourceUtils } from '../../common/utils/ResourceUtil';
 import { UaUtils } from '../../common/utils/UaUtils';
-import { AdBlockEngine, adBlockEngine } from '../../common/utils/AdBlockEngine';
+import { AdBlockEngine } from '../../common/utils/AdBlockEngine';
 import { adBlockStore } from '../../common/utils/AdBlockStore';
 import { WebScripts } from '../../common/utils/WebScripts';
+import { ReaderScripts } from '../../common/utils/ReaderScripts';
 import { SitePolicy, SiteSettingsViewModel, siteSettingsVM } from '../../viewmodel/SiteSettingsViewModel';
 import { passwordVM, PasswordDecision } from '../../viewmodel/PasswordViewModel';
 import PasswordInfo from '../../common/entity/PasswordInfo';
 import { buildDialogButtons } from '../dialog/AppContentDialog';
+import { _QhState } from '../../entryability/AppState';
 
 /**
  * 剪贴板 + 密码 JS 代理对象（window.__qhNative）：
@@ -56,10 +58,15 @@ export struct TabWeb {
   /** 已应用的 UA 覆盖（'' = 跟随应用） */
   private appliedUa: string | null = null
 
+  /** 广告拦截开关已应用状态（null=未应用；避免重复 enableAdsBlock） */
+  private appliedAdsBlockOn: boolean | null = null
+
   /** BFCache 开关已应用状态（null=未应用；避免重复 setBackForwardCacheOptions） */
   private appliedBfcOn: boolean | null = null
   /** 重定向询问放行后的重导航地址（避免二次询问） */
   private pendingRedirectUrl: string = ''
+  /** 阅读可用性检测序号（页面开始导航时 +1，使旧延迟检测作废） */
+  private detectSeq: number = 0
   /** 网络状态监听（WIFI 切换时刷新图片开关） */
   private netConn: connection.NetConnection | null = null
   /** 剪贴板 JS 代理（window.__qhNative）：网页剪贴板文本读写转发原生策略处理 */
@@ -128,7 +135,23 @@ export struct TabWeb {
 
   /** 当前站点广告拦截是否生效 */
   private adBlockOn(): boolean {
-    return this.policy.adBlock === 'app' ? appSettings.ad_block_enabled : this.policy.adBlock === 'on'
+    return AdBlockEngine.policyOn(this.policy)
+  }
+
+  /**
+   * 广告拦截开关应用到当前 Web 实例（ArkWeb 原生 AdsBlock，站点级开关）
+   */
+  private applyAdsBlockEnable(): void {
+    const on: boolean = this.adBlockOn()
+    if (this.appliedAdsBlockOn === on) {
+      return
+    }
+    try {
+      tabsVM.ensureController(this.tab).enableAdsBlock(on)
+      this.appliedAdsBlockOn = on
+    } catch (e) {
+      console.error(`[TabWeb] enableAdsBlock 失败: ${e}`)
+    }
   }
 
   /**
@@ -163,7 +186,7 @@ export struct TabWeb {
 
   /** 文档加载前注入脚本：隐私脚本 + 剪贴板接管 + 振动禁用（全局关闭时）+ 密码管理器 */
   private documentStartScripts(): Array<ScriptItem> {
-    const scripts: Array<ScriptItem> = WebScripts.privacyScripts(this.adBlockOn())
+    const scripts: Array<ScriptItem> = WebScripts.privacyScripts()
     scripts.push(WebScripts.clipboardScript())
     if (!appSettings.web_vibration_enabled) {
       scripts.push(WebScripts.vibrationBlockScript())
@@ -188,6 +211,8 @@ export struct TabWeb {
   private applyPolicy(p: SitePolicy): void {
     this.policy = p
     this.applyUa(p)
+    this.applyAdsBlockEnable()
+    siteSettingsVM.registerLive(p.host, p)
   }
 
   /** 应用 UA（'' 跟随应用走 UaUtils，覆盖值直接 setCustomUserAgent） */
@@ -348,30 +373,14 @@ export struct TabWeb {
   }
 
   /**
-   * 广告拦截：命中规则返回空响应并累计统计，否则放行（null = 默认加载）
+   * 智能防跟踪应用到当前 Web 实例（ArkWeb 内核拦截跨站跟踪请求携带 Cookie）
    */
-  private interceptRequest(event: OnInterceptRequestEvent): WebResourceResponse | null {
+  private applyIntelligentTrackingPrevention(): void {
     try {
-      // 主框架请求放行（拦截会导致页面无法打开）
-      if (event.request.isMainFrame()) {
-        return null
-      }
-      const url: string = event.request.getRequestUrl()
-      if (!adBlockEngine.shouldBlock(url, this.adBlockOn())) {
-        return null
-      }
-      // 命中拦截规则：返回空响应并累计统计（按资源类型预估流量）
-      adBlockStore.add(1, AdBlockEngine.estimateBytes(url))
-      const response: WebResourceResponse = new WebResourceResponse()
-      response.setResponseData('')
-      response.setResponseEncoding('utf-8')
-      response.setResponseMimeType('text/plain')
-      response.setResponseCode(200)
-      response.setReasonMessage('OK')
-      return response
+      tabsVM.ensureController(this.tab)
+        .enableIntelligentTrackingPrevention(appSettings.intelligent_tracking_prevention)
     } catch (e) {
-      console.error(`[TabWeb] onInterceptRequest 失败: ${e}`)
-      return null
+      console.error(`[TabWeb] enableIntelligentTrackingPrevention 失败: ${e}`)
     }
   }
 
@@ -409,6 +418,9 @@ export struct TabWeb {
         {
           value: $r('app.string.allow'),
           action: (): void => {
+            // 记录决策到站点设置，后续访问不再重复询问
+            this.policy.locationMode = 'allow'
+            this.rememberPermission(event.origin, 'site_location', 'allow')
             this.grantWebLocation(event)
           }
         },
@@ -416,11 +428,23 @@ export struct TabWeb {
           value: $r('app.string.deny'),
           style: DialogButtonStyle.DEFAULT,
           action: (): void => {
+            this.policy.locationMode = 'block'
+            this.rememberPermission(event.origin, 'site_location', 'block')
             event.geolocation.invoke(event.origin, false, false)
           }
         }
       ]
     }, 'geoPermission')
+  }
+
+  /** 持久化网页权限弹窗决策（允许/阻止）到站点设置 */
+  private rememberPermission(origin: string, key: string, mode: string): void {
+    const host: string = SiteSettingsViewModel.hostOf(origin)
+    if (host === '') {
+      return
+    }
+    siteSettingsVM.setOverride(host, key, mode).catch((): void => {
+    })
   }
 
   /**
@@ -429,7 +453,7 @@ export struct TabWeb {
   private grantWebLocation(event: OnGeolocationShowEvent): void {
     const atManager = abilityAccessCtrl.createAtManager()
     const perms: Array<Permissions> = ['ohos.permission.LOCATION', 'ohos.permission.APPROXIMATELY_LOCATION']
-    atManager.requestPermissionsFromUser(getContext(this), perms)
+    atManager.requestPermissionsFromUser(_QhState.Context, perms)
       .then((result: PermissionRequestResult): void => {
         let granted: boolean = false
         for (const r of result.authResults) {
@@ -486,6 +510,7 @@ export struct TabWeb {
         {
           value: $r('app.string.allow'),
           action: (): void => {
+            this.rememberResourceDecision(req.getOrigin(), askList, 'allow')
             for (const r of askList) {
               allowed.push(r)
             }
@@ -496,6 +521,7 @@ export struct TabWeb {
           value: $r('app.string.deny'),
           style: DialogButtonStyle.DEFAULT,
           action: (): void => {
+            this.rememberResourceDecision(req.getOrigin(), askList, 'block')
             if (allowed.length > 0) {
               this.grantWebResources(req, allowed)
             } else {
@@ -505,6 +531,19 @@ export struct TabWeb {
         }
       ]
     }, 'webPermission')
+  }
+
+  /** 记录摄像头/麦克风弹窗决策，并同步 live 策略避免同页重复弹窗 */
+  private rememberResourceDecision(origin: string, resources: Array<string>, mode: string): void {
+    for (const r of resources) {
+      if (r === 'TYPE_VIDEO_CAPTURE') {
+        this.policy.cameraMode = mode
+        this.rememberPermission(origin, 'site_camera', mode)
+      } else if (r === 'TYPE_AUDIO_CAPTURE') {
+        this.policy.micMode = mode
+        this.rememberPermission(origin, 'site_microphone', mode)
+      }
+    }
   }
 
   /** 授权网页资源前先确保系统级摄像头/麦克风权限 */
@@ -522,7 +561,7 @@ export struct TabWeb {
       return
     }
     const atManager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager()
-    atManager.requestPermissionsFromUser(getContext(this), perms)
+    atManager.requestPermissionsFromUser(_QhState.Context, perms)
       .then((result: PermissionRequestResult): void => {
         let allGranted: boolean = true
         for (const r of result.authResults) {
@@ -593,7 +632,8 @@ export struct TabWeb {
   /** 原生写入系统剪贴板（无需权限） */
   private doClipboardWrite(cbId: number, text: string): void {
     try {
-      const data: pasteboard.PasteData = pasteboard.createPlainTextData(text)
+      const data: pasteboard.PasteData =
+        pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text)
       pasteboard.getSystemPasteboard().setData(data)
         .then((): void => {
           this.resolveClipboard(cbId, true)
@@ -612,7 +652,7 @@ export struct TabWeb {
   private doClipboardRead(cbId: number): void {
     const atManager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager()
     const perms: Array<Permissions> = ['ohos.permission.READ_PASTEBOARD']
-    atManager.requestPermissionsFromUser(getContext(this), perms)
+    atManager.requestPermissionsFromUser(_QhState.Context, perms)
       .then((result: PermissionRequestResult): void => {
         if (result.authResults.length === 0 || result.authResults[0] !== 0) {
           this.resolveClipboard(cbId, false)
@@ -790,11 +830,52 @@ export struct TabWeb {
       })
   }
 
+  /**
+   * 页面加载完成后检测是否适合阅读模式（isProbablyReaderable 启发式），
+   * 结果驱动地址栏阅读按钮显隐；设置关闭时不检测。
+   * 延迟 500ms 执行且导航后旧检测作废，不与页面收尾阶段的资源加载抢占
+   */
+  private detectReadability(): void {
+    if (!appSettings.read_mode_address_button || this.tab.isHome) {
+      this.tab.readerable = false
+      return
+    }
+    const seq: number = this.detectSeq
+    setTimeout(() => {
+      if (seq !== this.detectSeq || this.tab.isHome || this.tab.controller === null
+        || !appSettings.read_mode_address_button) {
+        return
+      }
+      const c = this.tab.controller
+      c.runJavaScript(`${ReaderScripts.readerableProbeJs()};JSON.stringify(window.__qhIsReadable())`)
+        .then((raw: string) => {
+          let v: string = raw
+          if (raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')) {
+            try {
+              v = JSON.parse(raw) as string
+            } catch (e) {
+              // 保持原值
+            }
+          }
+          this.tab.readerable = v === 'true'
+          console.info(`[TabWeb] 阅读可用性检测 readable=${this.tab.readerable} url=${this.tab.url}`)
+        })
+        .catch((error: BusinessError): void => {
+          this.tab.readerable = false
+          console.error(`[TabWeb] 阅读可用性检测失败: ${error.code} ${error.message}`)
+        })
+    }, 500)
+  }
+
   build() {
     Stack() {
       Web({ src: this.tab.url, controller: tabsVM.ensureController(this.tab), incognitoMode: this.tab.isIncognito })
         .onControllerAttached(() => {
           UaUtils.applyTo(tabsVM.ensureController(this.tab))
+          this.applyAdsBlockEnable()
+          this.applyIntelligentTrackingPrevention()
+          // 安全浏览需在页面加载前设置（onPageBegin 时首屏加载已开始）
+          this.applySafeBrowsing()
           this.refreshPolicy(this.tab.url)
         })
         .domStorageAccess(true)
@@ -839,8 +920,29 @@ export struct TabWeb {
           }
           return this.interceptRedirect(event)
         })
-        .onInterceptRequest((event: OnInterceptRequestEvent): WebResourceResponse | null => {
-          return this.interceptRequest(event)
+        // 广告拦截：ArkWeb 原生 AdsBlock 引擎（规则经 AdsBlockManager 全局装载，
+        // 实例级开关 enableAdsBlock 随站点策略应用；此回调周期性批量上报拦截结果）
+        .onAdsBlocked((details: AdsBlockedDetails) => {
+          const urls: Array<string> = details.adsBlocked
+          if (urls.length === 0) {
+            return
+          }
+          let bytes: number = 0
+          for (const u of urls) {
+            bytes += AdBlockEngine.estimateBytes(u)
+          }
+          adBlockStore.add(urls.length, bytes)
+          console.info(`[TabWeb] 广告拦截命中 ${urls.length} 条: ${urls[0]}`)
+        })
+        .onErrorReceive((event: OnErrorReceiveEvent) => {
+          // 资源加载失败诊断日志（主框架/子资源均会回调）
+          console.error(`[TabWeb] 资源加载失败 ${event.error.getErrorCode()}: ` +
+            `${event.request.getRequestUrl()} ${event.error.getErrorInfo()}`)
+        })
+        .onHttpErrorReceive((event: OnHttpErrorReceiveEvent) => {
+          // HTTP 层错误诊断日志（4xx/5xx 不触发 onErrorReceive）
+          console.error(`[TabWeb] HTTP错误 ${event.response.getResponseCode()}: ` +
+            `${event.request.getRequestUrl()}`)
         })
         .geolocationAccess(this.policy.locationMode === 'allow' ? true : appSettings.geolocation_access)
         .onGeolocationShow((event: OnGeolocationShowEvent) => {
@@ -859,6 +961,8 @@ export struct TabWeb {
         .onPageBegin((event: OnPageBeginEvent) => {
           this.applySafeBrowsing()
           this.refreshPolicy(event.url)
+          this.detectSeq++
+          this.tab.readerable = false
           browserVM.updateNavState(this.tab)
         })
         .onPageEnd((event: OnPageEndEvent) => {
@@ -866,6 +970,7 @@ export struct TabWeb {
           this.tab.progress = 100
           this.applyBackForwardCache()
           this.autofillPassword()
+          this.detectReadability()
           browserVM.onPageEnded(this.tab, event.url)
           browserVM.updateNavState(this.tab)
         })

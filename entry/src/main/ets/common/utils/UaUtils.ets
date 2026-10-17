@@ -89,9 +89,11 @@ export class UaUtils {
     return r
   }
 
-  /** 当前生效的 UA 字符串（含简化处理） */
+  /** 当前生效的 UA 字符串（含简化处理；电脑模式开启时改用电脑模式标识） */
   static effectiveUa(): string {
-    let ua: string = UaUtils.resolveUa(appSettings.ua_mode)
+    let ua: string = appSettings.desktop_mode
+      ? UaUtils.desktopUa()
+      : UaUtils.resolveUa(appSettings.ua_mode)
     if (ua === '') {
       ua = UaUtils.defaultUa
     }

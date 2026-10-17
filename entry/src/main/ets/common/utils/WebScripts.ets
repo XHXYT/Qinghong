@@ -1,5 +1,4 @@
 import { appSettings } from '../entity/SettingsModel';
-import { adBlockEngine } from './AdBlockEngine';
 
 /**
  * 网页注入脚本构建（文档加载前按设置注入，纯逻辑无 UI）
@@ -7,10 +6,10 @@ import { adBlockEngine } from './AdBlockEngine';
 export class WebScripts {
 
   /**
-   * 隐私与增强脚本：不跟踪/不出售/禁用WebRTC/自动展开全文/广告元素隐藏
-   * @param adBlockOn 调用方（站点级）广告拦截是否生效，false 时不注入元素隐藏
+   * 隐私与增强脚本：不跟踪/不出售/禁用WebRTC/自动展开全文
+   * （广告拦截由 ArkWeb 原生 AdsBlock 引擎处理，不再注入隐藏脚本）
    */
-  static privacyScripts(adBlockOn: boolean = true): Array<ScriptItem> {
+  static privacyScripts(): Array<ScriptItem> {
     const scripts: Array<ScriptItem> = []
     if (appSettings.do_not_track) {
       scripts.push({
@@ -56,16 +55,6 @@ export class WebScripts {
           "})()}catch(e){}",
         scriptRules: ['*']
       })
-    }
-    // 广告拦截：元素隐藏注入脚本（依赖设置与自定义规则版本，变更后自动重建）
-    if (adBlockOn) {
-      const hide: string = adBlockEngine.hideScript()
-      if (hide !== '') {
-        scripts.push({
-          script: hide,
-          scriptRules: ['*']
-        })
-      }
     }
     return scripts
   }
