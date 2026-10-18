@@ -77,6 +77,14 @@
       "value": "已添加书签"
     },
     {
+      "name": "bookmark_state_added",
+      "value": "已收藏"
+    },
+    {
+      "name": "bookmark_edit_title",
+      "value": "编辑书签"
+    },
+    {
       "name": "find_in_page",
       "value": "页内查找"
     },
@@ -151,6 +159,90 @@
     {
       "name": "bookmark_url_hint",
       "value": "请输入网址"
+    },
+    {
+      "name": "bookmark_field_name",
+      "value": "名称"
+    },
+    {
+      "name": "bookmark_field_url",
+      "value": "网址"
+    },
+    {
+      "name": "bookmark_field_folder",
+      "value": "文件夹"
+    },
+    {
+      "name": "bookmark_folder_root",
+      "value": "根目录"
+    },
+    {
+      "name": "bookmark_new_folder",
+      "value": "新建文件夹"
+    },
+    {
+      "name": "bookmark_select_folder",
+      "value": "选择文件夹"
+    },
+    {
+      "name": "bookmark_add_folder",
+      "value": "添加文件夹"
+    },
+    {
+      "name": "bookmark_folder_name_hint",
+      "value": "请输入名称"
+    },
+    {
+      "name": "bookmark_multi_select",
+      "value": "多选"
+    },
+    {
+      "name": "bookmark_edit_folder",
+      "value": "编辑文件夹"
+    },
+    {
+      "name": "bookmark_move_to",
+      "value": "移动至"
+    },
+    {
+      "name": "bookmark_add_desktop",
+      "value": "添加至桌面"
+    },
+    {
+      "name": "bookmark_open_new_tab",
+      "value": "新标签页打开"
+    },
+    {
+      "name": "bookmark_move_invalid",
+      "value": "不能移动到自身或其子文件夹"
+    },
+    {
+      "name": "bookmark_selected_count",
+      "value": "已选 %d 项"
+    },
+    {
+      "name": "bookmark_moved",
+      "value": "已移动"
+    },
+    {
+      "name": "bookmark_deleted",
+      "value": "已删除"
+    },
+    {
+      "name": "bookmark_desktop_added",
+      "value": "已添加至桌面"
+    },
+    {
+      "name": "bookmark_desktop_failed",
+      "value": "添加至桌面失败"
+    },
+    {
+      "name": "select_all",
+      "value": "全选"
+    },
+    {
+      "name": "more",
+      "value": "更多"
     },
     {
       "name": "set_quick",
@@ -570,7 +662,7 @@
     },
     {
       "name": "ad_block_builtin_desc",
-      "value": "内建规则仅拦截常见广告"
+      "value": "使用系统 Web 组件云端下发的内置规则"
     },
     {
       "name": "ad_block_custom_rules",
@@ -1017,6 +1109,62 @@
       "value": "源码"
     },
     {
+      "name": "dom_tree",
+      "value": "结构"
+    },
+    {
+      "name": "inspect_element",
+      "value": "元素审查"
+    },
+    {
+      "name": "inspect_tab_element",
+      "value": "元素"
+    },
+    {
+      "name": "inspect_tab_console",
+      "value": "调试"
+    },
+    {
+      "name": "inspect_btn_select",
+      "value": "选"
+    },
+    {
+      "name": "inspect_btn_parent",
+      "value": "父"
+    },
+    {
+      "name": "inspect_btn_child",
+      "value": "子"
+    },
+    {
+      "name": "inspect_selecting_hint",
+      "value": "点击页面元素选中"
+    },
+    {
+      "name": "inspect_pick_first",
+      "value": "请先选中元素"
+    },
+    {
+      "name": "inspect_blocked",
+      "value": "已拦截所选元素"
+    },
+    {
+      "name": "inspect_empty_hint",
+      "value": "点击「选」选择页面元素"
+    },
+    {
+      "name": "inspect_console_empty",
+      "value": "暂无日志"
+    },
+    {
+      "name": "inspect_console_hint",
+      "value": "输入 JS 表达式"
+    },
+    {
+      "name": "inspect_console_run",
+      "value": "运行"
+    },
+    {
       "name": "fullscreen",
       "value": "全屏"
     },
@@ -1103,6 +1251,66 @@
     {
       "name": "customize_long_press_menu",
       "value": "定制长按菜单"
+    },
+    {
+      "name": "long_press_open_bg",
+      "value": "后台打开"
+    },
+    {
+      "name": "long_press_open_new",
+      "value": "新标签打开"
+    },
+    {
+      "name": "long_press_view_image",
+      "value": "查看图片"
+    },
+    {
+      "name": "long_press_save_image",
+      "value": "保存图片"
+    },
+    {
+      "name": "long_press_download_image",
+      "value": "下载图片"
+    },
+    {
+      "name": "long_press_share_image",
+      "value": "分享图片"
+    },
+    {
+      "name": "long_press_search_image",
+      "value": "以图搜图"
+    },
+    {
+      "name": "long_press_image_viewer",
+      "value": "看图模式"
+    },
+    {
+      "name": "long_press_page_info",
+      "value": "页面信息"
+    },
+    {
+      "name": "long_press_copy_link_text",
+      "value": "复制链接文本"
+    },
+    {
+      "name": "ad_marked",
+      "value": "已标记广告"
+    },
+    {
+      "name": "qr_not_found",
+      "value": "未识别到二维码"
+    },
+    {
+      "name": "text_menu_copy",
+      "value": "复制"
+    },
+    {
+      "name": "text_menu_select_all",
+      "value": "全选"
+    },
+    {
+      "name": "text_menu_search",
+      "value": "搜索"
     },
     {
       "name": "language",
@@ -1987,6 +2195,35 @@
     {
       "name": "search_toolbar_off",
       "value": "已关闭"
-    }
+    },
+    {
+      "name": "net_log_hint",
+      "value": "你可以手动编辑它来修改规则，或者长按下列条目来选择是否拦截"
+    },
+    {
+      "name": "net_log_empty",
+      "value": "暂无请求记录"
+    },
+    {
+      "name": "net_log_block",
+      "value": "拦截此链接"
+    },
+    {
+      "name": "net_log_unblock",
+      "value": "取消拦截此链接"
+    },
+    {
+      "name": "net_log_unblocked",
+      "value": "已取消拦截"
+    },
+    {
+      "name": "net_log_path_prefix",
+      "value": "所有拦截规则存储在"
+    },
+    { "name": "net_log_open_new_tab", "value": "新标签页打开" },
+    { "name": "net_log_open_background", "value": "后台打开" },
+    { "name": "net_log_block_domain", "value": "拦截此域名" },
+    { "name": "net_log_unblock_domain", "value": "取消拦截域名" },
+    { "name": "net_log_download", "value": "下载" }
   ]
 }

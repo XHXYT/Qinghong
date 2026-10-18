@@ -11,10 +11,12 @@ const logger = createLogger('AdBlockEngine')
 
 /**
  * 广告拦截（ArkWeb 原生 AdsBlock 引擎托管）：
- * - 规则源（内建 + 自定义 + 订阅，easylist 格式）合并写入沙箱文件，经
- *   webview.AdsBlockManager.setAdsBlockRules 交内核解析拦截；
+ * - 「内建规则」开关控制系统 Web 组件云端下发的内置 easylist 规则：
+ *   开 → setAdsBlockRules(file, false)，云端内建与自定义规则共存；
+ *   关 → setAdsBlockRules(file, true)，仅用自定义 + 订阅规则
+ * - 自定义 + 订阅（easylist 格式）合并写入沙箱文件交内核解析拦截；
  *   网络拦截与 ## 元素隐藏均由内核原生完成，不走 onInterceptRequest
- * - 内容哈希守卫：规则未变化不重复设置，利用内核持久化避免冷启动重复编译
+ * - 哈希守卫（内容 + replace 标记）：未变化不重复设置，利用内核持久化避免冷启动重复编译
  * - Web 实例级开关由 TabWeb 调 controller.enableAdsBlock 控制（站点策略）
  */
 export class AdBlockEngine {
@@ -62,60 +64,6 @@ export class AdBlockEngine {
     return AdBlockEngine.ESTIMATED_BYTES_PER_AD
   }
 
-  /** 内建规则（常见广告/统计域名） */
-  private static readonly BUILTIN_RULES: string[] = [
-    // 国际广告网络
-    '||doubleclick.net^',
-    '||googlesyndication.com^',
-    '||googleadservices.com^',
-    '||google-analytics.com^',
-    '||googletagmanager.com^',
-    '||adnxs.com^',
-    '||adsrvr.org^',
-    '||criteo.com^',
-    '||criteo.net^',
-    '||scorecardresearch.com^',
-    '||quantserve.com^',
-    '||moatads.com^',
-    '||pubmatic.com^',
-    '||rubiconproject.com^',
-    '||openx.net^',
-    '||smartadserver.com^',
-    '||adform.net^',
-    '||adroll.com^',
-    '||taboola.com^',
-    '||outbrain.com^',
-    '||revcontent.com^',
-    '||mgid.com^',
-    '||amazon-adsystem.com^',
-    '||ads.yahoo.com^',
-    '||advertising.com^',
-    '||yieldmo.com^',
-    '||popads.net^',
-    '||popcash.net^',
-    '||inmobi.com^',
-    '||mopub.com^',
-    '||chartboost.com^',
-    '||vungle.com^',
-    '||adcolony.com^',
-    // 国内广告与统计
-    '||pos.baidu.com^',
-    '||cpro.baidu.com^',
-    '||eclick.baidu.com^',
-    '||hm.baidu.com^',
-    '||tanx.com^',
-    '||mmstat.com^',
-    '||adsmind.ugdtimg.com^',
-    '||pgdt.ugdtimg.com^',
-    '||gdt.qq.com^',
-    '||l.qq.com^',
-    '||cnzz.com^',
-    '||umeng.com^',
-    '||umeng.co^',
-    '||51.la^',
-    '||miaozhen.com^'
-  ]
-
   /** 同步中标记（防重入，期间触发的同步排队执行） */
   private syncing: boolean = false
   private syncQueued: boolean = false
@@ -160,8 +108,10 @@ export class AdBlockEngine {
   }
 
   /**
-   * 合并全部规则源写入沙箱文件并交给 ArkWeb 原生 AdsBlock 引擎：
-   * 内容哈希与上次一致时跳过（内核持久化配置，冷启动无需重复设置）
+   * 合并自定义 + 订阅规则写入沙箱文件并交给 ArkWeb 原生 AdsBlock 引擎：
+   * 「内建规则」开 → replace=false（系统云端内置规则与自定义共存）；
+   * 关 → replace=true（禁用云端内置规则，仅用自定义规则）。
+   * 哈希与上次一致（含 replace 标记）时跳过（内核持久化配置，冷启动无需重复设置）
    */
   async syncToWebEngine(): Promise<void> {
     if (this.syncing) {
@@ -172,9 +122,6 @@ export class AdBlockEngine {
     try {
       const t0: number = Date.now()
       const parts: string[] = []
-      if (appSettings.ad_block_builtin) {
-        parts.push(AdBlockEngine.BUILTIN_RULES.join('\n'))
-      }
       parts.push(this.loadCustomRulesSync())
       for (const sub of adBlockSubsStore.subs) {
         if (!sub.enabled) {
@@ -183,16 +130,21 @@ export class AdBlockEngine {
         parts.push(this.readTextFile(adBlockSubsStore.rulesPath(sub)))
         await AdBlockEngine.yieldToUI()
       }
-      const content: string = parts.join('\n')
-      const hash: string = `${AdBlockEngine.hashStr(content)}`
+      let content: string = parts.join('\n')
+      if (content.trim() === '') {
+        // 空内容时写注释行，保证文件非空可解析
+        content = '!'
+      }
+      const replace: boolean = !appSettings.ad_block_builtin
+      const hash: string = `${AdBlockEngine.hashStr(content)}_${replace ? '1' : '0'}`
       if (hash === this.readTextFile(AdBlockEngine.webRulesHashFile()).trim()) {
         logger.info(`syncToWebEngine 规则未变化，跳过（长度 ${content.length}）`)
         return
       }
       this.writeTextFile(AdBlockEngine.webRulesFile(), content)
-      webview.AdsBlockManager.setAdsBlockRules(AdBlockEngine.webRulesFile(), true)
+      webview.AdsBlockManager.setAdsBlockRules(AdBlockEngine.webRulesFile(), replace)
       this.writeTextFile(AdBlockEngine.webRulesHashFile(), hash)
-      logger.info(`syncToWebEngine 规则已更新: 哈希 ${hash} 长度 ${content.length} 耗时 ${Date.now() - t0}ms`)
+      logger.info(`syncToWebEngine 规则已更新: 哈希 ${hash} replace ${replace} 长度 ${content.length} 耗时 ${Date.now() - t0}ms`)
     } catch (e) {
       logger.error(`syncToWebEngine 失败: ${e}`)
     } finally {

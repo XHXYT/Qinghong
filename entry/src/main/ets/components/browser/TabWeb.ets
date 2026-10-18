@@ -2,7 +2,7 @@ import { connection } from '@kit.NetworkKit';
 import { webview } from '@kit.ArkWeb';
 import { abilityAccessCtrl, Permissions, PermissionRequestResult } from '@kit.AbilityKit';
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
-import { CustomContentDialog } from '@kit.ArkUI';
+import { CustomContentDialog, display } from '@kit.ArkUI';
 import { tabsVM, TabInfo } from '../../viewmodel/TabsViewModel';
 import { browserVM } from '../../viewmodel/BrowserViewModel';
 import { downloadVM } from '../../viewmodel/DownloadViewModel';
@@ -14,25 +14,43 @@ import { AdBlockEngine } from '../../common/utils/AdBlockEngine';
 import { adBlockStore } from '../../common/utils/AdBlockStore';
 import { WebScripts } from '../../common/utils/WebScripts';
 import { ReaderScripts } from '../../common/utils/ReaderScripts';
+import { ViewSourceScripts } from '../../common/utils/ViewSourceScripts';
 import { SitePolicy, SiteSettingsViewModel, siteSettingsVM } from '../../viewmodel/SiteSettingsViewModel';
 import { passwordVM, PasswordDecision } from '../../viewmodel/PasswordViewModel';
 import PasswordInfo from '../../common/entity/PasswordInfo';
 import { buildDialogButtons } from '../dialog/AppContentDialog';
 import { _QhState } from '../../entryability/AppState';
+import { LongPressMenuItem, LongPressMenuItems, LongPressTarget } from '../../common/constants/LongPressMenuItems';
+import { longPressVM, LongPressContext } from '../../viewmodel/LongPressMenuViewModel';
+import { netLogVM } from '../../viewmodel/NetworkLogViewModel';
+import { inspectorVM } from '../../viewmodel/InspectorViewModel';
+
+/** 网页选区矩形（CSS px，相对视口；由注入脚本返回的 JSON 解析而来） */
+interface SelectionRect {
+  x: number
+  y: number
+  w: number
+  h: number
+  iw: number
+}
 
 /**
- * 剪贴板 + 密码 JS 代理对象（window.__qhNative）：
+ * 剪贴板 + 密码 + 审查 JS 代理对象（window.__qhNative）：
  * 网页 navigator.clipboard 文本读写转发原生按站点策略处理；
- * 登录表单凭据捕获上报原生弹保存提示
+ * 登录表单凭据捕获上报原生弹保存提示；
+ * 元素审查页内选点回传（__qhNative.inspectEvent）
  */
 class ClipboardBridge {
   private readonly handler: (action: string, cbId: number, text: string) => void
   private readonly passwordHandler: (username: string, password: string) => void
+  private readonly inspectHandler: (payload: string) => void
 
   constructor(handler: (action: string, cbId: number, text: string) => void,
-    passwordHandler: (username: string, password: string) => void) {
+    passwordHandler: (username: string, password: string) => void,
+    inspectHandler: (payload: string) => void) {
     this.handler = handler
     this.passwordHandler = passwordHandler
+    this.inspectHandler = inspectHandler
   }
 
   clipboardRequest(action: string, cbId: number, text: string): void {
@@ -41,6 +59,10 @@ class ClipboardBridge {
 
   passwordSubmit(username: string, password: string): void {
     this.passwordHandler(username, password)
+  }
+
+  inspectEvent(payload: string): void {
+    this.inspectHandler(payload)
   }
 }
 
@@ -74,6 +96,8 @@ export struct TabWeb {
     this.handleClipboardRequest(action, cbId, text)
   }, (username: string, password: string): void => {
     this.handlePasswordSubmit(username, password)
+  }, (payload: string): void => {
+    inspectorVM.onInspectEvent(this.tab.id, payload)
   })
 
   /** 保存密码提示弹窗 */
@@ -86,6 +110,30 @@ export struct TabWeb {
   private promptPassword: string = ''
   /** 已提示过的凭据 key（防重复弹窗） */
   private passwordPromptKey: string = ''
+
+  /** 长按/右键菜单：是否显示 */
+  @Local ctxMenuVisible: boolean = false
+  /** 长按/右键菜单：条目列表 */
+  @Local ctxMenuItems: LongPressMenuItem[] = []
+  /** 长按/右键菜单：面板位置与高度（vp，相对 Web 组件） */
+  @Local ctxMenuX: number = 0
+  @Local ctxMenuY: number = 0
+  @Local ctxMenuHeight: number = 0
+  /** 当前菜单是否为文字选中菜单（自绘面板，动作走文本分支） */
+  private ctxIsTextMenu: boolean = false
+  /** Web 区域实际尺寸（vp，菜单位置/高度计算用） */
+  private webWidthVp: number = 0
+  private webHeightVp: number = 0
+  /** 看图模式：全屏查看的图片地址（'' = 关闭） */
+  @Local imageViewerUrl: string = ''
+  /** 看图模式：捏合缩放倍数 */
+  @Local viewerScale: number = 1
+  private viewerBaseScale: number = 1
+  /** 长按上下文（命中元素快照） */
+  private ctxLinkUrl: string = ''
+  private ctxImageUrl: string = ''
+  private ctxLinkText: string = ''
+  private ctxResult: WebContextMenuResult | null = null
 
   aboutToAppear(): void {
     this.initPasswordDialogs()
@@ -104,6 +152,7 @@ export struct TabWeb {
   aboutToDisappear(): void {
     this.netConn?.unregister(() => {
     })
+    inspectorVM.removeLogs(this.tab.id)
   }
 
   /** 查询当前默认网络是否为 WIFI */
@@ -184,10 +233,11 @@ export struct TabWeb {
     }
   }
 
-  /** 文档加载前注入脚本：隐私脚本 + 剪贴板接管 + 振动禁用（全局关闭时）+ 密码管理器 */
+  /** 文档加载前注入脚本：隐私脚本 + 剪贴板接管 + 长按菜单辅助 + 振动禁用（全局关闭时）+ 密码管理器 */
   private documentStartScripts(): Array<ScriptItem> {
     const scripts: Array<ScriptItem> = WebScripts.privacyScripts()
     scripts.push(WebScripts.clipboardScript())
+    scripts.push(WebScripts.contextMenuScript())
     if (!appSettings.web_vibration_enabled) {
       scripts.push(WebScripts.vibrationBlockScript())
     }
@@ -867,10 +917,369 @@ export struct TabWeb {
     }, 500)
   }
 
+  /** 长按/右键菜单：是否需要接管（true=显示自定义菜单，false=系统默认） */
+  private handleContextMenu(event: OnContextMenuShowEvent): boolean {
+    const p = event.param
+    // 输入框/可编辑元素交给系统默认编辑菜单
+    if (p.isEditable() || p.getInputFieldType() !== ContextMenuInputFieldType.None) {
+      return false
+    }
+    // 已选中文本交给系统默认选择菜单
+    const selection = p.getSelectionText()
+    if (typeof selection === 'string' && selection !== '') {
+      return false
+    }
+    const linkUrl = p.getLinkUrl() ?? ''
+    const imageUrl = p.getSourceUrl() ?? ''
+    if (linkUrl === '' && imageUrl === '') {
+      return false
+    }
+    const items = this.buildCtxMenuItems(linkUrl !== '', imageUrl !== '')
+    if (items.length === 0) {
+      return false
+    }
+    this.ctxLinkUrl = linkUrl
+    this.ctxImageUrl = imageUrl
+    this.ctxLinkText = ''
+    this.ctxResult = event.result
+    this.ctxIsTextMenu = false
+    this.ctxMenuItems = items
+    this.placeCtxMenu(p.x(), p.y(), items.length)
+    this.ctxMenuVisible = true
+    if (linkUrl !== '') {
+      this.fetchCtxLinkText()
+    }
+    return true
+  }
+
+  /** 按开关配置与命中元素类型构建菜单条目 */
+  private buildCtxMenuItems(isLink: boolean, isImage: boolean): LongPressMenuItem[] {
+    const enabled = LongPressMenuItems.enabledIds()
+    const items: LongPressMenuItem[] = []
+    for (const item of LongPressMenuItems.ALL) {
+      if (!enabled.includes(item.id)) {
+        continue
+      }
+      if (item.target === LongPressTarget.LINK && !isLink) {
+        continue
+      }
+      if (item.target === LongPressTarget.IMAGE && !isImage) {
+        continue
+      }
+      items.push(item)
+    }
+    return items
+  }
+
+  /**
+   * 按内容高度与 Web 区域钳制面板位置与高度（入参 vp，相对 Web 组件）
+   * 纵向：锚点下方优先；下方放不下翻到锚点上方（不遮挡选中内容）；均放不下贴底
+   */
+  private clampMenuPosition(x: number, anchorTop: number, anchorBottom: number, rowCount: number): void {
+    const panelW = 160
+    const ui = this.getUIContext()
+    let vw = this.webWidthVp > 0 ? this.webWidthVp :
+      ui.px2vp(display.getDefaultDisplaySync().width)
+    let vh = this.webHeightVp > 0 ? this.webHeightVp :
+      ui.px2vp(display.getDefaultDisplaySync().height)
+    if (!(vw > 0)) {
+      vw = 360
+    }
+    if (!(vh > 0)) {
+      vh = 780
+    }
+    // 高度：贴合内容，超出 Web 可用高度时封顶（内部滚动）
+    const h = Math.min(rowCount * 48, Math.max(vh - 16, 96))
+    if (!(x > 0)) {
+      x = 8
+    }
+    x = Math.min(Math.max(x, 8), Math.max(vw - panelW - 8, 8))
+    // 间距：菜单与选区/触点保持 14vp 间距
+    const gap = 14
+    let y = anchorBottom + gap
+    if (y + h > vh - 8) {
+      const yAbove = anchorTop - gap - h
+      y = yAbove >= 8 ? yAbove : Math.max(8, vh - h - 8)
+    }
+    this.ctxMenuX = x
+    this.ctxMenuY = y
+    this.ctxMenuHeight = h
+  }
+
+  /** 计算菜单面板位置与高度（px→vp 后钳制） */
+  private placeCtxMenu(xPx: number, yPx: number, rowCount: number): void {
+    const ui = this.getUIContext()
+    const ay = ui.px2vp(yPx)
+    this.clampMenuPosition(ui.px2vp(xPx), ay, ay, rowCount)
+  }
+
+  /** 读取注入脚本记录的命中链接文本（复制链接文本用） */
+  private fetchCtxLinkText(): void {
+    try {
+      const c = tabsVM.ensureController(this.tab)
+      c.runJavaScript('window.__qhCtxText||""')
+        .then((raw: string): void => {
+          let v: string = raw
+          if (raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')) {
+            try {
+              v = JSON.parse(raw) as string
+            } catch (e) {
+              v = raw
+            }
+          }
+          this.ctxLinkText = v
+        })
+        .catch((error: BusinessError): void => {
+          console.error(`[TabWeb] 读取长按链接文本失败: ${error.code} ${error.message}`)
+        })
+    } catch (e) {
+      console.error(`[TabWeb] 读取长按链接文本异常: ${e}`)
+    }
+  }
+
+  /** 关闭自定义长按菜单并释放内核菜单状态 */
+  private closeCtxMenu(): void {
+    this.ctxMenuVisible = false
+    this.ctxIsTextMenu = false
+    const result = this.ctxResult
+    this.ctxResult = null
+    if (result !== null) {
+      try {
+        result.closeContextMenu()
+      } catch (e) {
+        console.error(`[TabWeb] closeContextMenu 失败: ${e}`)
+      }
+    }
+  }
+
+  /** 内核隐藏菜单（如返回键）时同步清理自定义面板状态 */
+  private onCtxMenuHidden(): void {
+    this.ctxMenuVisible = false
+    this.ctxResult = null
+    this.ctxIsTextMenu = false
+  }
+
+  /** 执行菜单动作后关闭菜单 */
+  private runCtxAction(item: LongPressMenuItem): void {
+    // 文字选中菜单：动作走文本分支（复制/全选/搜索/分享）
+    if (this.ctxIsTextMenu) {
+      const id = item.id
+      this.closeCtxMenu()
+      if (id === 'text_copy') {
+        this.onTextMenuCopy()
+      } else if (id === 'text_select_all') {
+        this.onTextMenuSelectAll()
+      } else if (id === 'text_search') {
+        this.onTextMenuSearch()
+      } else if (id === 'text_share') {
+        this.onTextMenuShare()
+      }
+      return
+    }
+    const ctx = new LongPressContext()
+    ctx.linkUrl = this.ctxLinkUrl
+    ctx.imageUrl = this.ctxImageUrl
+    ctx.linkText = this.ctxLinkText
+    ctx.pageUrl = this.tab.url
+    ctx.pageTitle = this.tab.title
+    const tab = this.tab
+    this.closeCtxMenu()
+    longPressVM.runAction(item.id, ctx, tab, (url: string): void => {
+      this.imageViewerUrl = url
+    })
+  }
+
+  /** 取网页当前选中文本（含输入框/文本域选区） */
+  private async fetchSelectionText(): Promise<string> {
+    try {
+      const c = tabsVM.ensureController(this.tab)
+      const raw: string = await c.runJavaScript(
+        '(function(){var s=window.getSelection().toString();if(!s){var el=document.activeElement;' +
+        'if(el&&(el.tagName===\'INPUT\'||el.tagName===\'TEXTAREA\')&&typeof el.selectionStart===\'number\'){' +
+        's=el.value.substring(el.selectionStart,el.selectionEnd);}}return s||\'\';})()')
+      let v: string = raw
+      if (raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')) {
+        try {
+          v = JSON.parse(raw) as string
+        } catch (e) {
+          v = raw
+        }
+      }
+      return v
+    } catch (e) {
+      console.error(`[TabWeb] 读取选中文本异常: ${e}`)
+      return ''
+    }
+  }
+
+  /** 文本菜单：复制选中文本 */
+  private onTextMenuCopy(): void {
+    this.fetchSelectionText()
+      .then((text: string): void => {
+        longPressVM.copySelectedText(text)
+      })
+      .catch((): void => {
+      })
+  }
+
+  /** 文本菜单：全选（编辑框内全选其内容，普通页面全选正文） */
+  private onTextMenuSelectAll(): void {
+    try {
+      tabsVM.ensureController(this.tab).runJavaScript('document.execCommand("selectAll")')
+    } catch (e) {
+      console.error(`[TabWeb] 全选执行异常: ${e}`)
+    }
+  }
+
+  /** 文本菜单：按地址栏提交逻辑搜索选中文本 */
+  private onTextMenuSearch(): void {
+    this.fetchSelectionText()
+      .then((text: string): void => {
+        longPressVM.searchText(text)
+      })
+      .catch((): void => {
+      })
+  }
+
+  /** 文本菜单：分享选中文本 */
+  private onTextMenuShare(): void {
+    this.fetchSelectionText()
+      .then((text: string): void => {
+        longPressVM.shareText(text)
+      })
+      .catch((): void => {
+      })
+  }
+
+  /**
+   * 文字选中：取选区矩形并显示自绘文本菜单（复用长按菜单面板）
+   * 作为 editMenuOptions.onCreateMenu 的触发点调用
+   */
+  private async showTextMenuAtSelection(): Promise<void> {
+    const items = LongPressMenuItems.TEXT_MENU
+    if (items.length === 0) {
+      return
+    }
+    let xVp = -1
+    let selTopVp = -1
+    let selBottomVp = -1
+    try {
+      const c = tabsVM.ensureController(this.tab)
+      const raw: string = await c.runJavaScript(
+        '(function(){try{var s=window.getSelection();' +
+        'if(s&&s.rangeCount>0&&!s.isCollapsed){var r=s.getRangeAt(0).getBoundingClientRect();' +
+        'if(r.width>0||r.height>0){return JSON.stringify({x:r.left,y:r.top,w:r.width,h:r.height,iw:window.innerWidth});}}}catch(e){}' +
+        'try{var el=document.activeElement;' +
+        'if(el&&(el.tagName===\'INPUT\'||el.tagName===\'TEXTAREA\')&&typeof el.selectionStart===\'number\'' +
+        '&&el.selectionStart!==el.selectionEnd){var r2=el.getBoundingClientRect();' +
+        'return JSON.stringify({x:r2.left,y:r2.top,w:r2.width,h:r2.height,iw:window.innerWidth});}}catch(e){}' +
+        'return \'\';})()')
+      let selJson: string = raw
+      if (raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')) {
+        try {
+          selJson = JSON.parse(raw) as string
+        } catch (e) {
+          selJson = ''
+        }
+      }
+      if (selJson !== '' && selJson.startsWith('{')) {
+        try {
+          const rect = JSON.parse(selJson) as SelectionRect
+          // CSS px → vp：按 Web 宽与视口宽比例换算（无捏合缩放时准确）
+          const scale = rect.iw > 0 && this.webWidthVp > 0 ? this.webWidthVp / rect.iw : 1
+          // 面板中心对齐选区中心，纵向锚点取选区顶/底
+          xVp = (rect.x + rect.w / 2) * scale - 80
+          selTopVp = rect.y * scale
+          selBottomVp = (rect.y + rect.h) * scale
+        } catch (e) {
+          xVp = -1
+        }
+      }
+    } catch (e) {
+      console.error(`[TabWeb] 读取选区矩形异常: ${e}`)
+      xVp = -1
+    }
+    if (xVp < 0 || selBottomVp < 0) {
+      // 选区矩形获取失败：居中偏上兜底
+      const vh = this.webHeightVp > 0 ? this.webHeightVp : 600
+      xVp = (this.webWidthVp > 0 ? this.webWidthVp : 360) / 2 - 80
+      selTopVp = vh * 0.4
+      selBottomVp = vh * 0.4
+    }
+    this.ctxLinkUrl = ''
+    this.ctxImageUrl = ''
+    this.ctxLinkText = ''
+    this.ctxResult = null
+    this.ctxIsTextMenu = true
+    this.ctxMenuItems = items
+    this.clampMenuPosition(xVp, selTopVp, selBottomVp, items.length)
+    this.ctxMenuVisible = true
+  }
+
+  /** 源码视图自愈重载标志（防死循环） */
+  private viewSourceRetried: boolean = false
+
+  /** 源码视图标签：捕获的 HTML 经转义模板 loadData 渲染（CSP 禁脚本） */
+  private loadViewSourceDoc(): void {
+    try {
+      const prefix: string = ViewSourceScripts.URL_PREFIX
+      const srcUrl: string = this.tab.url.startsWith(prefix)
+        ? this.tab.url.substring(prefix.length) : this.tab.url
+      const doc: string = ViewSourceScripts.buildDoc(srcUrl, this.tab.viewSourceHtml,
+        ResourceUtils.getString($r('app.string.view_source')),
+        ResourceUtils.getString($r('app.string.dom_tree')))
+      tabsVM.ensureController(this.tab).loadData(doc, 'text/html', 'UTF-8', ' ', ' ')
+      console.info(`[TabWeb] 源码视图已提交 docLen=${doc.length}`)
+    } catch (e) {
+      console.error(`[TabWeb] 源码视图加载失败: ${e}`)
+    }
+  }
+
+  /**
+   * 源码视图内容校验：loadData 与初始 about:blank 存在竞态（同 ReaderView），
+   * 若文档被空白页覆盖则自愈重载一次（viewSourceRetried 防死循环）
+   */
+  private verifyViewSourceLoaded(): void {
+    tabsVM.ensureController(this.tab)
+      .runJavaScript('JSON.stringify(document.body ? document.body.innerText.length : -1)')
+      .then((raw: string) => {
+        let text: string = raw
+        try {
+          const parsed = JSON.parse(raw) as string
+          if (typeof parsed === 'string') {
+            text = parsed
+          }
+        } catch (e) {
+          // 保留原始返回
+        }
+        const len: number = Number(text)
+        if (len <= 0 && !this.viewSourceRetried) {
+          this.viewSourceRetried = true
+          console.error('[TabWeb] 源码视图内容为空，自愈重载')
+          this.loadViewSourceDoc()
+        }
+      })
+      .catch((error: BusinessError): void => {
+        console.error(`[TabWeb] 源码视图校验失败: ${error.code} ${error.message}`)
+        if (!this.viewSourceRetried) {
+          this.viewSourceRetried = true
+          this.loadViewSourceDoc()
+        }
+      })
+  }
+
   build() {
     Stack() {
-      Web({ src: this.tab.url, controller: tabsVM.ensureController(this.tab), incognitoMode: this.tab.isIncognito })
+      Web({
+        src: this.tab.viewSourceHtml !== '' ? 'about:blank' : this.tab.url,
+        controller: tabsVM.ensureController(this.tab),
+        incognitoMode: this.tab.isIncognito
+      })
         .onControllerAttached(() => {
+          if (this.tab.viewSourceHtml !== '') {
+            this.loadViewSourceDoc()
+            return
+          }
           UaUtils.applyTo(tabsVM.ensureController(this.tab))
           this.applyAdsBlockEnable()
           this.applyIntelligentTrackingPrevention()
@@ -890,7 +1299,7 @@ export struct TabWeb {
         .javaScriptProxy({
           object: this.clipboardBridge,
           name: '__qhNative',
-          methodList: ['clipboardRequest', 'passwordSubmit'],
+          methodList: ['clipboardRequest', 'passwordSubmit', 'inspectEvent'],
           controller: tabsVM.ensureController(this.tab)
         })
         .copyOptions(this.policy.clipboardMode === 'block' ? CopyOptions.None : CopyOptions.LocalDevice)
@@ -912,6 +1321,11 @@ export struct TabWeb {
           }
         })
         .onLoadIntercept((event: OnLoadInterceptEvent): boolean => {
+          // 源码视图：不应用站点策略——loadData 导航栈内同步 setCustomUserAgent
+          // 会触发内核 NavigationController 重入断言（SIGTRAP 崩溃），直接放行
+          if (this.tab.viewSourceHtml !== '') {
+            return false
+          }
           // 导航发起前用缓存策略提前应用，保证 UA 对本次主框架请求生效
           const p: SitePolicy | null =
             siteSettingsVM.cachedPolicy(SiteSettingsViewModel.hostOf(event.data.getRequestUrl()))
@@ -919,6 +1333,14 @@ export struct TabWeb {
             this.applyPolicy(p)
           }
           return this.interceptRedirect(event)
+        })
+        // 网络日志数据源：轻量记录每个请求（仅字符串处理，无痕标签不记录），
+        // 返回 null 按原方式加载（真机已验证该用法无副作用）
+        .onInterceptRequest((event: OnInterceptRequestEvent) => {
+          if (!this.tab.isIncognito) {
+            netLogVM.recordRequest(this.tab.id, event.request, event.request.isMainFrame())
+          }
+          return null
         })
         // 广告拦截：ArkWeb 原生 AdsBlock 引擎（规则经 AdsBlockManager 全局装载，
         // 实例级开关 enableAdsBlock 随站点策略应用；此回调周期性批量上报拦截结果）
@@ -932,17 +1354,24 @@ export struct TabWeb {
             bytes += AdBlockEngine.estimateBytes(u)
           }
           adBlockStore.add(urls.length, bytes)
+          netLogVM.markBlocked(this.tab.id, urls)
           console.info(`[TabWeb] 广告拦截命中 ${urls.length} 条: ${urls[0]}`)
         })
         .onErrorReceive((event: OnErrorReceiveEvent) => {
           // 资源加载失败诊断日志（主框架/子资源均会回调）
+          netLogVM.markError(this.tab.id, event.request.getRequestUrl())
           console.error(`[TabWeb] 资源加载失败 ${event.error.getErrorCode()}: ` +
             `${event.request.getRequestUrl()} ${event.error.getErrorInfo()}`)
         })
         .onHttpErrorReceive((event: OnHttpErrorReceiveEvent) => {
           // HTTP 层错误诊断日志（4xx/5xx 不触发 onErrorReceive）
+          netLogVM.markHttpError(this.tab.id, event.request.getRequestUrl())
           console.error(`[TabWeb] HTTP错误 ${event.response.getResponseCode()}: ` +
             `${event.request.getRequestUrl()}`)
+        })
+        // 网页图标由内核浏览器进程获取（不经过 onInterceptRequest），按惯例补记 /favicon.ico
+        .onFaviconReceived((event: OnFaviconReceivedEvent) => {
+          netLogVM.recordFavicon(this.tab.id, this.tab.url)
         })
         .geolocationAccess(this.policy.locationMode === 'allow' ? true : appSettings.geolocation_access)
         .onGeolocationShow((event: OnGeolocationShowEvent) => {
@@ -959,6 +1388,14 @@ export struct TabWeb {
           }
         })
         .onPageBegin((event: OnPageBeginEvent) => {
+          // 导航离开时关闭可能残留的自定义菜单
+          this.closeCtxMenu()
+          // 元素审查：绑定标签导航时清选点与选中态（面板保留）
+          inspectorVM.resetForNavigation(this.tab.id)
+          // 源码视图：无站点策略应用（about:blank），跳过
+          if (this.tab.viewSourceHtml !== '') {
+            return
+          }
           this.applySafeBrowsing()
           this.refreshPolicy(event.url)
           this.detectSeq++
@@ -966,6 +1403,11 @@ export struct TabWeb {
           browserVM.updateNavState(this.tab)
         })
         .onPageEnd((event: OnPageEndEvent) => {
+          // 源码视图：仅做内容校验（初始 about:blank 竞态自愈），不写地址/历史/导航状态
+          if (this.tab.viewSourceHtml !== '') {
+            this.verifyViewSourceLoaded()
+            return
+          }
           this.tab.url = event.url
           this.tab.progress = 100
           this.applyBackForwardCache()
@@ -978,11 +1420,42 @@ export struct TabWeb {
           this.tab.progress = event.newProgress
         })
         .onTitleReceive((event: OnTitleReceiveEvent) => {
+          // 源码文档无 <title>，保持标签标题"源码"不被空标题覆盖
+          if (this.tab.viewSourceHtml !== '') {
+            return
+          }
           this.tab.title = event.title
+        })
+        // 控制台消息捕获（元素审查-调试页数据源），返回 false 保持默认输出行为
+        .onConsole((event: OnConsoleEvent): boolean => {
+          const m = event.message
+          const lv = m.getMessageLevel()
+          const level: string = lv === MessageLevel.Error ? 'error'
+            : lv === MessageLevel.Warn ? 'warn'
+              : lv === MessageLevel.Debug ? 'debug' : 'log'
+          inspectorVM.pushLog(this.tab.id, level, m.getMessage(), m.getSourceId(), `${m.getLineNumber()}`)
+          return false
         })
         .onSearchResultReceive((event: OnSearchResultReceiveEvent) => {
           browserVM.onFindResult(event.activeMatchOrdinal, event.numberOfMatches, event.isDoneCounting)
         })
+        // 网页元素长按菜单（PC 窗口模式鼠标右键同触发）：返回 true 接管为自定义菜单
+        .onContextMenuShow((event: OnContextMenuShowEvent): boolean => {
+          return this.handleContextMenu(event)
+        })
+        .onContextMenuHide(() => {
+          this.onCtxMenuHidden()
+        })
+        // 文字长按/选中：屏蔽系统文本菜单（onCreateMenu 返回空），改弹自绘面板
+        .editMenuOptions({
+          onCreateMenu: (menuItems: Array<TextMenuItem>): Array<TextMenuItem> => {
+            this.showTextMenuAtSelection()
+            return []
+          },
+          onMenuItemClick: (menuItem: TextMenuItem, textRange: TextRange): boolean => {
+            return false
+          }
+        } as EditMenuOptions)
         .onDownloadStart((event: OnDownloadStartEvent) => {
           downloadVM.download(event.url)
         })
@@ -996,9 +1469,116 @@ export struct TabWeb {
           .opacity(appSettings.night_mask_opacity / 100)
           .hitTestBehavior(HitTestMode.None)
       }
+
+      // 网页元素长按/右键菜单（自定义接管）
+      if (this.ctxMenuVisible) {
+        this.ctxMenuOverlay()
+      }
+
+      // 看图模式：图片全屏查看
+      if (this.imageViewerUrl !== '') {
+        this.imageViewerOverlay()
+      }
     }
     .width('100%')
     .height('100%')
     .visibility(this.tab.id === tabsVM.activeTabId ? Visibility.Visible : Visibility.None)
+    .onAreaChange((_oldValue: Area, newValue: Area) => {
+      const w = newValue.width
+      const h = newValue.height
+      if (typeof w === 'number' && w > 0) {
+        this.webWidthVp = w
+      }
+      if (typeof h === 'number' && h > 0) {
+        this.webHeightVp = h
+      }
+    })
+  }
+
+  /** 长按/右键自定义菜单覆盖层：透明捕获层 + 浮动文字面板 */
+  @Builder
+  ctxMenuOverlay() {
+    Stack() {
+      Column()
+        .width('100%')
+        .height('100%')
+        .onClick(() => {
+          this.closeCtxMenu()
+        })
+      Scroll() {
+        Column() {
+          ForEach(this.ctxMenuItems, (item: LongPressMenuItem) => {
+            Text(item.title)
+              .fontSize(16)
+              .fontColor($r('sys.color.font_primary'))
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .width('100%')
+              .height(48)
+              .padding({ left: 16, right: 16 })
+              .textAlign(TextAlign.Start)
+              .onClick(() => {
+                this.runCtxAction(item)
+            })
+          }, (item: LongPressMenuItem) => item.id)
+        }
+        .width('100%')
+      }
+      .width(160)
+      .height(this.ctxMenuHeight)
+      .align(Alignment.Top)
+      .scrollable(ScrollDirection.Vertical)
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.None)
+      .transition(TransitionEffect.OPACITY
+        .combine(TransitionEffect.scale({ x: 0.9, y: 0.9 }))
+        .combine(TransitionEffect.translate({ y: 8 }))
+        .animation({ duration: 150, curve: Curve.EaseOut }))
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .borderRadius(16)
+      .shadow({ radius: 24, color: 'rgba(0,0,0,0.2)', offsetX: 0, offsetY: 8 })
+      .position({ x: this.ctxMenuX, y: this.ctxMenuY })
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  /** 看图模式：黑底全屏查看，单击关闭，捏合缩放 */
+  @Builder
+  imageViewerOverlay() {
+    Stack({ alignContent: Alignment.TopEnd }) {
+      Image(this.imageViewerUrl)
+        .objectFit(ImageFit.Contain)
+        .width('100%')
+        .height('100%')
+        .scale({ x: this.viewerScale, y: this.viewerScale })
+        .gesture(PinchGesture()
+          .onActionStart(() => {
+            this.viewerBaseScale = this.viewerScale
+          })
+          .onActionUpdate((event: GestureEvent) => {
+            this.viewerScale = Math.min(5, Math.max(1, this.viewerBaseScale * event.scale))
+          }))
+      SymbolGlyph($r('sys.symbol.xmark_circle_fill'))
+        .fontSize(28)
+        .fontColor([Color.White])
+        .margin(16)
+        .onClick(() => {
+          this.closeImageViewer()
+        })
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor('rgba(0,0,0,0.92)')
+    .onClick(() => {
+      this.closeImageViewer()
+    })
+  }
+
+  /** 关闭看图模式并复位缩放 */
+  private closeImageViewer(): void {
+    this.viewerScale = 1
+    this.viewerBaseScale = 1
+    this.imageViewerUrl = ''
   }
 }

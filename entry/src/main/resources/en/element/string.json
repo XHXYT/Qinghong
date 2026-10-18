@@ -77,6 +77,14 @@
       "value": "Bookmark added"
     },
     {
+      "name": "bookmark_state_added",
+      "value": "Added"
+    },
+    {
+      "name": "bookmark_edit_title",
+      "value": "Edit bookmark"
+    },
+    {
       "name": "find_in_page",
       "value": "Find in page"
     },
@@ -151,6 +159,90 @@
     {
       "name": "bookmark_url_hint",
       "value": "Enter a URL"
+    },
+    {
+      "name": "bookmark_field_name",
+      "value": "Name"
+    },
+    {
+      "name": "bookmark_field_url",
+      "value": "URL"
+    },
+    {
+      "name": "bookmark_field_folder",
+      "value": "Folder"
+    },
+    {
+      "name": "bookmark_folder_root",
+      "value": "Root"
+    },
+    {
+      "name": "bookmark_new_folder",
+      "value": "New folder"
+    },
+    {
+      "name": "bookmark_select_folder",
+      "value": "Select folder"
+    },
+    {
+      "name": "bookmark_add_folder",
+      "value": "Add folder"
+    },
+    {
+      "name": "bookmark_folder_name_hint",
+      "value": "Enter a name"
+    },
+    {
+      "name": "bookmark_multi_select",
+      "value": "Select"
+    },
+    {
+      "name": "bookmark_edit_folder",
+      "value": "Edit folder"
+    },
+    {
+      "name": "bookmark_move_to",
+      "value": "Move to"
+    },
+    {
+      "name": "bookmark_add_desktop",
+      "value": "Add to home screen"
+    },
+    {
+      "name": "bookmark_open_new_tab",
+      "value": "Open in new tab"
+    },
+    {
+      "name": "bookmark_move_invalid",
+      "value": "Cannot move into itself or its subfolder"
+    },
+    {
+      "name": "bookmark_selected_count",
+      "value": "%d selected"
+    },
+    {
+      "name": "bookmark_moved",
+      "value": "Moved"
+    },
+    {
+      "name": "bookmark_deleted",
+      "value": "Deleted"
+    },
+    {
+      "name": "bookmark_desktop_added",
+      "value": "Added to home screen"
+    },
+    {
+      "name": "bookmark_desktop_failed",
+      "value": "Failed to add to home screen"
+    },
+    {
+      "name": "select_all",
+      "value": "Select all"
+    },
+    {
+      "name": "more",
+      "value": "More"
     },
     {
       "name": "set_quick",
@@ -570,7 +662,7 @@
     },
     {
       "name": "ad_block_builtin_desc",
-      "value": "Built-in rules only block common ads"
+      "value": "Use cloud-delivered built-in rules from the system web engine"
     },
     {
       "name": "ad_block_custom_rules",
@@ -1017,6 +1109,62 @@
       "value": "View source"
     },
     {
+      "name": "dom_tree",
+      "value": "Elements"
+    },
+    {
+      "name": "inspect_element",
+      "value": "Inspect Element"
+    },
+    {
+      "name": "inspect_tab_element",
+      "value": "Elements"
+    },
+    {
+      "name": "inspect_tab_console",
+      "value": "Console"
+    },
+    {
+      "name": "inspect_btn_select",
+      "value": "Select"
+    },
+    {
+      "name": "inspect_btn_parent",
+      "value": "Parent"
+    },
+    {
+      "name": "inspect_btn_child",
+      "value": "Child"
+    },
+    {
+      "name": "inspect_selecting_hint",
+      "value": "Tap a page element to select it"
+    },
+    {
+      "name": "inspect_pick_first",
+      "value": "Select an element first"
+    },
+    {
+      "name": "inspect_blocked",
+      "value": "Selected element blocked"
+    },
+    {
+      "name": "inspect_empty_hint",
+      "value": "Tap Select to pick a page element"
+    },
+    {
+      "name": "inspect_console_empty",
+      "value": "No messages"
+    },
+    {
+      "name": "inspect_console_hint",
+      "value": "Enter a JS expression"
+    },
+    {
+      "name": "inspect_console_run",
+      "value": "Run"
+    },
+    {
       "name": "fullscreen",
       "value": "Fullscreen"
     },
@@ -1103,6 +1251,66 @@
     {
       "name": "customize_long_press_menu",
       "value": "Customize long-press menu"
+    },
+    {
+      "name": "long_press_open_bg",
+      "value": "Open in background"
+    },
+    {
+      "name": "long_press_open_new",
+      "value": "Open in new tab"
+    },
+    {
+      "name": "long_press_view_image",
+      "value": "View image"
+    },
+    {
+      "name": "long_press_save_image",
+      "value": "Save image"
+    },
+    {
+      "name": "long_press_download_image",
+      "value": "Download image"
+    },
+    {
+      "name": "long_press_share_image",
+      "value": "Share image"
+    },
+    {
+      "name": "long_press_search_image",
+      "value": "Search by image"
+    },
+    {
+      "name": "long_press_image_viewer",
+      "value": "Image viewer"
+    },
+    {
+      "name": "long_press_page_info",
+      "value": "Page info"
+    },
+    {
+      "name": "long_press_copy_link_text",
+      "value": "Copy link text"
+    },
+    {
+      "name": "ad_marked",
+      "value": "Ad marked"
+    },
+    {
+      "name": "qr_not_found",
+      "value": "No QR code found"
+    },
+    {
+      "name": "text_menu_copy",
+      "value": "Copy"
+    },
+    {
+      "name": "text_menu_select_all",
+      "value": "Select all"
+    },
+    {
+      "name": "text_menu_search",
+      "value": "Search"
     },
     {
       "name": "language",
@@ -1987,6 +2195,35 @@
     {
       "name": "search_toolbar_off",
       "value": "Off"
-    }
+    },
+    {
+      "name": "net_log_hint",
+      "value": "Edit the rules file to modify rules, or long-press an entry to block or allow it"
+    },
+    {
+      "name": "net_log_empty",
+      "value": "No requests recorded"
+    },
+    {
+      "name": "net_log_block",
+      "value": "Block this link"
+    },
+    {
+      "name": "net_log_unblock",
+      "value": "Unblock this link"
+    },
+    {
+      "name": "net_log_unblocked",
+      "value": "Unblocked"
+    },
+    {
+      "name": "net_log_path_prefix",
+      "value": "All blocking rules are stored in"
+    },
+    { "name": "net_log_open_new_tab", "value": "Open in new tab" },
+    { "name": "net_log_open_background", "value": "Open in background" },
+    { "name": "net_log_block_domain", "value": "Block this domain" },
+    { "name": "net_log_unblock_domain", "value": "Unblock this domain" },
+    { "name": "net_log_download", "value": "Download" }
   ]
 }

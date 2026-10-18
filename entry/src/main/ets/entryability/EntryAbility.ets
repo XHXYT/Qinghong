@@ -50,9 +50,17 @@ export default class EntryAbility extends UIAbility {
 
   /**
    * 捕获外部以浏览器身份拉起本应用时传入的 http/https 链接
+   * （含桌面快捷方式以 Want 参数 url 拉起的场景）
    */
   private captureExternalUrl(want: Want): void {
-    const uri = want.uri ?? ''
+    let uri = want.uri ?? ''
+    if (uri === '') {
+      const params: Record<string, Object> | undefined = want.parameters
+      const v: Object | undefined = params === undefined ? undefined : params['url']
+      if (v !== undefined && typeof v === 'string') {
+        uri = v
+      }
+    }
     if (uri.startsWith('http://') || uri.startsWith('https://')) {
       logger.info('WantUri', `外部拉起链接: ${uri}`)
       if (QhState.externalUrlHandler) {

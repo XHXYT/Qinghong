@@ -141,13 +141,27 @@ struct MenuCustomizePage {
     }
   }
 
-  /** 点击可添加条目：加入菜单末尾 */
+  /** 点击可添加条目：加入菜单末尾（带衔接动画） */
   private addToMenu(e: MenuEntry): void {
     const idx: number = this.addableEntries.indexOf(e)
     if (idx >= 0) {
-      this.addableEntries.splice(idx, 1)
-      this.menuEntries.push(e)
-      this.persistLayout()
+      this.getUIContext().animateTo({ duration: 300, curve: Curve.EaseInOut }, (): void => {
+        this.addableEntries.splice(idx, 1)
+        this.menuEntries.push(e)
+        this.persistLayout()
+      })
+    }
+  }
+
+  /** 点击菜单条目：移回可添加区（带衔接动画；可添加区为空时也能由此找回条目） */
+  private removeFromMenu(e: MenuEntry): void {
+    const idx: number = this.menuEntries.indexOf(e)
+    if (idx >= 0) {
+      this.getUIContext().animateTo({ duration: 300, curve: Curve.EaseInOut }, (): void => {
+        this.menuEntries.splice(idx, 1)
+        this.addableEntries.push(e)
+        this.persistLayout()
+      })
     }
   }
 
@@ -214,6 +228,10 @@ struct MenuCustomizePage {
               MenuEntryItem({ entry: e })
             }
             .height(CELL_HEIGHT)
+            .onClick(() => {
+              this.removeFromMenu(e)
+            })
+            .transition(TransitionEffect.OPACITY.animation({ duration: 250, curve: Curve.Friction }))
           }, (e: MenuEntry) => e.id)
         }
         .columnsTemplate('1fr 1fr 1fr 1fr 1fr')
@@ -256,6 +274,7 @@ struct MenuCustomizePage {
             .onClick(() => {
               this.addToMenu(e)
             })
+            .transition(TransitionEffect.OPACITY.animation({ duration: 250, curve: Curve.Friction }))
           }, (e: MenuEntry) => e.id)
         }
         .columnsTemplate('1fr 1fr 1fr 1fr 1fr')

@@ -241,7 +241,8 @@ export class BrowserViewModel {
   }
 
   /**
-   * 网页内回退，无法回退则回主页态。返回 true 表示已消费返回事件
+   * 网页内回退；历史耗尽时按标签栈回退（关闭由其他标签打开的"后面"标签，
+   * 切回打开它的标签），栈底标签才回主页态。返回 true 表示已消费返回事件
    */
   goBack(): boolean {
     const tab = tabsVM.activeTab
@@ -251,11 +252,16 @@ export class BrowserViewModel {
       this.closeReader()
       return true
     }
-    if (tab.isHome) return false
-    if (tab.controller) {
+    // 主页态：后开的标签（有打开者）返回即关闭回退，栈底交给系统
+    if (tab.isHome) {
+      return this.popTabStack(tab)
+    }
+    // 源码视图标签：Web 里仅有 about:blank→loadData 两条无意义历史，
+    // 跳过 backward，返回直接走标签栈回退（关闭本标签切回打开它的标签）
+    if (tab.controller && tab.viewSourceHtml === '') {
       try {
         const c = tab.controller as webview.WebviewController
-        // 有网页历史才走 backward，否则回主页态
+        // 有网页历史才走 backward
         if (c.accessBackward()) {
           tab.programmaticNav = true
           c.backward()
@@ -265,11 +271,28 @@ export class BrowserViewModel {
         logger.error('goBack', `${e}`)
       }
     }
+    // 网页历史耗尽：优先标签栈回退（关闭本标签切回打开它的标签），而非退到主页
+    if (this.popTabStack(tab)) {
+      return true
+    }
     // 网页模式主页：已在主页网页上，返回交给系统（退出应用）
     if (tabsVM.isWebHome(tab)) {
       return false
     }
     tabsVM.goHome(tab)
+    return true
+  }
+
+  /**
+   * 标签栈回退：本标签由其他仍存在的标签打开时，关闭本标签并切回打开者。
+   * 返回 true 表示已消费返回事件
+   */
+  private popTabStack(tab: TabInfo): boolean {
+    const openerId = tab.openerTabId
+    if (openerId < 0 || openerId === tab.id || !tabsVM.hasTab(openerId)) {
+      return false
+    }
+    tabsVM.closeTabAndSwitch(tab.id, openerId)
     return true
   }
 
@@ -369,7 +392,7 @@ export class BrowserViewModel {
    * Web 页面加载完成回调统一处理（记录历史）
    */
   onPageEnded(tab: TabInfo, url: string): void {
-    if (!tab.isIncognito && url && !url.startsWith('about:')) {
+    if (!tab.isIncognito && url && !url.startsWith('about:') && !url.startsWith('view-source:')) {
       historyVM.addVisit(tab.title, url)
     }
   }

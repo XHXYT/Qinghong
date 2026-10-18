@@ -62,6 +62,7 @@ export class BookmarkDao extends AutoTable<BookmarkInfo> {
       existing.title = bookmark.title
       existing.isQuick = bookmark.isQuick || existing.isQuick
       existing.orderIndex = bookmark.orderIndex
+      existing.folder = bookmark.folder
       return this.update(existing)
     }
     return this.insert(bookmark)

@@ -6,6 +6,16 @@
       "buildFunction": "BookmarkBuilder"
     },
     {
+      "name": "bookmark_select_folder",
+      "pageSourceFile": "src/main/ets/view/BookmarkFolderSelectPage.ets",
+      "buildFunction": "BookmarkFolderSelectBuilder"
+    },
+    {
+      "name": "bookmark_new_folder",
+      "pageSourceFile": "src/main/ets/view/BookmarkNewFolderPage.ets",
+      "buildFunction": "BookmarkNewFolderBuilder"
+    },
+    {
       "name": "history",
       "pageSourceFile": "src/main/ets/view/HistoryPage.ets",
       "buildFunction": "HistoryBuilder"
@@ -127,7 +137,7 @@
     },
     {
       "name": "settings_long_press",
-      "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
+      "pageSourceFile": "src/main/ets/view/settings/general/LongPressMenuPage.ets",
       "buildFunction": "SettingsLongPressBuilder"
     },
     {

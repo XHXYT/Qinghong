@@ -12,7 +12,10 @@ import { BrowserToolbar } from '../components/browser/Toolbar';
 import { TabSwitcher } from '../components/browser/TabSwitcher';
 import { FindInPageBar } from '../components/browser/FindInPageBar';
 import { TabWeb } from '../components/browser/TabWeb';
+import { NetworkLogTab } from '../view/NetworkLogPage';
 import { ReaderView } from '../components/browser/ReaderView';
+import { ElementInspectorPanel } from '../components/browser/ElementInspectorPanel';
+import { inspectorVM } from '../viewmodel/InspectorViewModel';
 
 @Entry
 @ComponentV2
@@ -66,7 +69,18 @@ struct Index {
       browserVM.closeFind()
       return true
     }
+    if (this.inspectorVisible()) {
+      inspectorVM.handleBack()
+      return true
+    }
     return browserVM.goBack()
+  }
+
+  /** 元素审查面板是否实际可见（打开中 + 绑定当前标签 + 无覆盖层遮挡） */
+  private inspectorVisible(): boolean {
+    return inspectorVM.showInspector && !this.readerActive()
+      && !browserVM.showTabSwitcher && !browserVM.isEditingAddress
+      && tabsVM.activeTabId === inspectorVM.boundTabId
   }
 
   private async initTabs(): Promise<void> {
@@ -88,7 +102,10 @@ struct Index {
 
   @Builder
   tabContent(tab: TabInfo) {
-    if (tab.isHome) {
+    if (tab.nativeView === 'network-log') {
+      // 原生视图标签：网络日志（非 Web 组件）
+      NetworkLogTab({ tab: tab })
+    } else if (tab.isHome) {
       if (appSettings.home_page_mode === 'blank') {
         // 空白模式：无内容
         Column()
@@ -106,7 +123,7 @@ struct Index {
 
   build() {
     Navigation(QhState.pageStack) {
-      Stack({ alignContent: Alignment.Top }) {
+      Stack({ alignContent: Alignment.Bottom }) {
         // 原主内容（避让状态栏）：地址栏 + 标签内容 + 工具栏
         Stack({ alignContent: Alignment.Top }) {
           Column() {
@@ -177,6 +194,11 @@ struct Index {
         .padding({
           top: QhState.topRectHeight
         })
+
+        // 元素审查面板（标签切换/阅读/标签管理/地址编辑时由条件隐藏并清理页内蒙版）
+        if (this.inspectorVisible()) {
+          ElementInspectorPanel()
+        }
 
         // 阅读模式覆盖层：全屏沉浸，不避让状态栏（正文滚动延伸至状态栏下）
         if (this.readerActive()) {

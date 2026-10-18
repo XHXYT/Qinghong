@@ -42,11 +42,6 @@ export function SettingsScriptBuilder() {
 }
 
 @Builder
-export function SettingsLongPressBuilder() {
-  PlaceholderPage({ title: $r('app.string.customize_long_press_menu') })
-}
-
-@Builder
 export function SettingsAiBuilder() {
   PlaceholderPage({ title: $r('app.string.ai_settings') })
 }

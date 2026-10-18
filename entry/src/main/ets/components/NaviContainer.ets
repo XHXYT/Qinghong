@@ -62,6 +62,9 @@ export struct NaviContainer {
 
   @Param transitionEffect?: TransitionEffect = undefined
 
+  /** 顶部避让高度：默认取状态栏高度，sheet 等无状态栏场景传 0 */
+  @Param topPadding: Length | undefined = undefined
+
   @BuilderParam menusBuilder?: () => void
   @BuilderParam content: () => void;
 
@@ -102,7 +105,7 @@ export struct NaviContainer {
       }
       .width('100%')
       .height('100%')
-      .padding({ top: this.shouldShowBar() ? (QhState.topRectHeight || 12) : 0 })
+      .padding({ top: this.shouldShowBar() ? (this.topPadding !== undefined ? this.topPadding : (QhState.topRectHeight || 12)) : 0 })
     }
     .height('100%')
     .backgroundColor($r('app.color.background_color_accent'))

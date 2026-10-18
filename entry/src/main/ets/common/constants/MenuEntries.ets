@@ -15,7 +15,7 @@ export class MenuEntry {
 
 export class MenuEntries {
 
-  /** 全部条目（顺序：默认菜单 20 项 + 可添加 19 项） */
+  /** 全部条目（顺序：默认菜单 21 项 + 可添加 19 项） */
   static readonly ALL: MenuEntry[] = [
     // —— 默认在菜单中 ——
     new MenuEntry('bookmarks', $r('app.string.bookmarks'), $r('sys.symbol.star')),
@@ -31,6 +31,7 @@ export class MenuEntries {
     new MenuEntry('offline_page', $r('app.string.offline_page'), $r('sys.symbol.square_stack_3d')),
     new MenuEntry('translate', $r('app.string.translate'), $r('sys.symbol.translate')),
     new MenuEntry('view_source', $r('app.string.view_source'), $r('sys.symbol.code_slash')),
+    new MenuEntry('inspect_element', $r('app.string.inspect_element'), $r('sys.symbol.eyedropper')),
     new MenuEntry('fullscreen', $r('app.string.fullscreen'), $r('sys.symbol.arrow_up_left_and_arrow_down_right')),
     new MenuEntry('resource_sniff', $r('app.string.resource_sniff'), $r('sys.symbol.music_note_circle')),
     new MenuEntry('browser_id', $r('app.string.browser_id'), $r('sys.symbol.pc_ic_tab_index_1')),
@@ -64,7 +65,7 @@ export class MenuEntries {
   static readonly DEFAULT_MENU: string[] = [
     'bookmarks', 'history', 'downloads', 'incognito', 'share',
     'add_bookmark', 'mark_ad', 'desktop_mode', 'toolbox', 'settings',
-    'offline_page', 'translate', 'view_source', 'fullscreen', 'resource_sniff',
+    'offline_page', 'translate', 'view_source', 'inspect_element', 'fullscreen', 'resource_sniff',
     'browser_id', 'network_log', 'screen_orientation', 'night_mode', 'script'
   ]
 

@@ -5,7 +5,9 @@ import { kvDbUtil } from '../common/utils/KVdbUtil';
 import { appSettings } from '../common/entity/SettingsModel';
 import { createLogger } from '../common/utils/Logger';
 import { toastUtil } from '../common/utils/ToastUtils';
+import { ResourceUtils } from '../common/utils/ResourceUtil';
 import { SiteSettingsViewModel, siteSettingsVM } from './SiteSettingsViewModel';
+import { ViewSourceScripts } from '../common/utils/ViewSourceScripts';
 
 const logger = createLogger('TabsViewModel')
 
@@ -53,6 +55,14 @@ export class TabInfo {
   programmaticNav: boolean = false
   /** 弹出式窗口转开的标签（window.close 时可整标签关闭） */
   isPopupWindow: boolean = false
+  /** 查看源码：捕获的页面 HTML（非空 = 源码视图标签；瞬态，不随会话持久化） */
+  viewSourceHtml: string = ''
+  /** 原生视图标签（非空 = 标签容器渲染原生组件而非 Web；瞬态，不随会话持久化）：network-log */
+  @Trace nativeView: string = ''
+  /** 原生视图参数（网络日志 = 源标签 id） */
+  nativeParam: string = ''
+  /** 打开本标签的标签 id（-1=无；返回键标签栈回退用，不持久化） */
+  openerTabId: number = -1
   /** Web 控制器（非 UI 状态，不参与观察） */
   controller: webview.WebviewController | null = null
 
@@ -240,6 +250,8 @@ export class TabsViewModel {
       return this.activeTab
     }
     const tab = new TabInfo(this.nextId++, incognito ?? appSettings.default_incognito)
+    // 标签栈：记录打开者，返回键耗尽网页历史后关闭本标签回退到它
+    tab.openerTabId = this.activeTabId
     this.tabs.push(tab)
     this.activeTabId = tab.id
     if (url) {
@@ -260,6 +272,39 @@ export class TabsViewModel {
    */
   newIncognitoTab(): TabInfo | null {
     return this.newTab('', true)
+  }
+
+  /**
+   * 新标签页打开源码视图：捕获的 HTML 经 loadData 渲染，不走主流程导航
+   */
+  newViewSourceTab(srcUrl: string, html: string, title: string, incognito: boolean): TabInfo | null {
+    const tab = this.newTab('', incognito, true, true)
+    if (tab === null) {
+      return null
+    }
+    tab.isHome = false
+    tab.url = `${ViewSourceScripts.URL_PREFIX}${srcUrl}`
+    tab.title = title
+    tab.viewSourceHtml = html
+    this.saveSessionDebounced()
+    return tab
+  }
+
+  /**
+   * 新建网络日志原生页标签（Via 式独立标签；记录源标签 id 供日志展示；瞬态不持久化）
+   */
+  newNetworkLogTab(): TabInfo | null {
+    const sourceId = this.activeTabId
+    const tab = this.newTab('', null, true, true)
+    if (tab === null) {
+      return null
+    }
+    tab.isHome = false
+    tab.nativeView = 'network-log'
+    tab.nativeParam = `${sourceId}`
+    tab.title = ResourceUtils.getString($r('app.string.network_log'))
+    this.saveSessionDebounced()
+    return tab
   }
 
   /**
@@ -401,6 +446,28 @@ export class TabsViewModel {
     this.saveSessionDebounced()
   }
 
+  /** 是否存在指定标签 */
+  hasTab(id: number): boolean {
+    return this.tabs.some((t: TabInfo): boolean => t.id === id)
+  }
+
+  /** 按 id 查找标签（不存在返回 null） */
+  tabById(id: number): TabInfo | null {
+    const t = this.tabs.find((x: TabInfo): boolean => x.id === id)
+    return t === undefined ? null : t
+  }
+
+  /**
+   * 关闭标签并切换到指定标签（标签栈返回：关闭"后面"的标签回退到打开它的标签）
+   */
+  closeTabAndSwitch(id: number, targetId: number): void {
+    this.closeTab(id)
+    if (this.hasTab(targetId)) {
+      this.activeTabId = targetId
+      this.saveSessionDebounced()
+    }
+  }
+
   /**
    * 关闭标签，自动选中相邻标签；开启提示时展示撤销关闭提示
    */
@@ -511,6 +578,10 @@ export class TabsViewModel {
       const savedTabs: TabSessionData[] = []
       for (const t of this.tabs) {
         if (t.isIncognito) continue
+        // 源码视图为瞬态内容，不随会话恢复
+        if (t.viewSourceHtml !== '') continue
+        // 原生视图标签为瞬态内容，不随会话恢复
+        if (t.nativeView !== '') continue
         const data: TabSessionData = {
           id: t.id,
           title: t.title,

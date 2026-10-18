@@ -59,6 +59,17 @@ export default class BookmarkInfo {
   isQuick: boolean = false;
 
   /**
+   * 所在文件夹（'' = 根目录）
+   */
+  @Column({
+    name: 'folder',
+    type: 'TEXT',
+    notNull: true,
+    defaultValue: ''
+  })
+  folder: string = '';
+
+  /**
    * 创建时间
    */
   @Column({

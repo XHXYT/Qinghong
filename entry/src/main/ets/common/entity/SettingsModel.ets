@@ -209,6 +209,10 @@ export class AppSettings {
   @Trace search_toolbar_engines: string = 'baidu:1,google:1,bing:1,sogou:1,so360:1,toutiao:1,shenma:1'
   /** 主菜单条目布局（逗号分隔 id，顺序即显示顺序；空 = 默认布局） */
   @Trace menu_layout: string = ''
+  /** 定制长按菜单：已启用动作项（逗号分隔 id；空 = 默认全开但「保存图片」关闭） */
+  @Trace long_press_menu: string = ''
+  /** 书签文件夹注册表（JSON 字符串数组，'/' 分层，顺序即显示顺序） */
+  @Trace bookmark_folders: string = '[]'
 
   constructor() {
   }
@@ -311,7 +315,9 @@ export class AppSettings {
       "search_suggest_sources": this.search_suggest_sources,
       "search_toolbar_enabled": this.search_toolbar_enabled,
       "search_toolbar_engines": this.search_toolbar_engines,
-      "menu_layout": this.menu_layout
+      "menu_layout": this.menu_layout,
+      "long_press_menu": this.long_press_menu,
+      "bookmark_folders": this.bookmark_folders
     };
   }
 
@@ -375,6 +381,8 @@ export class AppSettings {
     this.search_toolbar_enabled = (json["search_toolbar_enabled"] as boolean) ?? this.search_toolbar_enabled;
     this.search_toolbar_engines = (json["search_toolbar_engines"] as string) ?? this.search_toolbar_engines;
     this.menu_layout = (json["menu_layout"] as string) ?? this.menu_layout;
+    this.long_press_menu = (json["long_press_menu"] as string) ?? this.long_press_menu;
+    this.bookmark_folders = (json["bookmark_folders"] as string) ?? this.bookmark_folders;
 
     const rawUas = json["custom_uas"] as Object[];
     if (rawUas) {
@@ -411,7 +419,7 @@ export class AppSettings {
     'ignore_ssl_warning', 'web_vibration_enabled', 'web_haptic_enabled', 'show_undo_close_tip', 'auto_expand_web', 'force_enable_zoom', 'cookies_enabled', 'cookies_block_third_party', 'popup_allowed', 'site_defaults', 'ad_block_enabled', 'ad_block_builtin', 'night_mask_enabled', 'night_mask_opacity', 'night_mask_color', 'force_dark_web',
     'read_mode_address_button', 'read_mode_confirm', 'read_mode_bg_color', 'read_mode_custom_bg', 'read_mode_font_size', 'read_mode_serif', 'font_family',
     'password_save_prompt', 'system_password_manager', 'home_page_mode', 'home_page_url',
-    'search_suggest_sources', 'search_toolbar_enabled', 'search_toolbar_engines', 'menu_layout')
+    'search_suggest_sources', 'search_toolbar_enabled', 'search_toolbar_engines', 'menu_layout', 'long_press_menu', 'bookmark_folders')
   public async save(): Promise<void> {
     try {
       const jsonStr: string = JSON.stringify(this.toSyncData());
@@ -476,6 +484,8 @@ export class AppSettings {
     this.search_toolbar_enabled = false;
     this.search_toolbar_engines = 'baidu:1,google:1,bing:1,sogou:1,so360:1,toutiao:1,shenma:1';
     this.menu_layout = '';
+    this.long_press_menu = '';
+    this.bookmark_folders = '[]';
     this.save();
   }
 }

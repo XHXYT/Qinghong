@@ -188,4 +188,25 @@ export class WebScripts {
       scriptRules: ['*']
     }
   }
+
+  /**
+   * 长按/右键菜单辅助脚本：contextmenu 触发时记录命中链接的文本，
+   * 供原生 onContextMenuShow 之后 runJavaScript 读取（复制链接文本用）
+   */
+  static contextMenuScript(): ScriptItem {
+    return {
+      script: "try{(function(){" +
+        "if(window.__qhCtxInit){return;}window.__qhCtxInit=1;window.__qhCtxText='';" +
+        "document.addEventListener('contextmenu',function(e){" +
+        "window.__qhCtxText='';" +
+        "try{" +
+        "var t=e.target;" +
+        "var a=t&&t.closest?t.closest('a'):null;" +
+        "if(a){window.__qhCtxText=(a.textContent||'').replace(/\\s+/g,' ').trim().slice(0,300);}" +
+        "}catch(x){}" +
+        "},true);" +
+        "})()}catch(e){}",
+      scriptRules: ['*']
+    }
+  }
 }
