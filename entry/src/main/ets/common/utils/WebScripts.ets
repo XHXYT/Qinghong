@@ -106,6 +106,31 @@ export class WebScripts {
   }
 
   /**
+   * 操作栏自动隐藏脚本（文档加载前注入，常驻）：
+   * 1. 滑动模式：页面上滑（内容下滚）上报隐藏、下滑上报显示（capture 捕获内部滚动容器）；
+   * 2. 点击模式：点击非交互元素（非链接/按钮/输入等）上报切换；
+   * 模式是否生效由原生侧 __qhNative 回调按设置判定
+   */
+  static actionBarScript(): ScriptItem {
+    return {
+      script: "try{(function(){" +
+        "if(window.__qhActionBarBound){return}window.__qhActionBarBound=true;" +
+        "var lastY=window.scrollY||0;" +
+        "window.addEventListener('scroll',function(ev){" +
+        "var y=window.scrollY||document.documentElement.scrollTop||0;" +
+        "if(y>lastY+4&&y>10){__qhNative.actionBarScroll(true)}" +
+        "else if(y<lastY-4){__qhNative.actionBarScroll(false)}" +
+        "lastY=y;},true);" +
+        "document.addEventListener('click',function(ev){" +
+        "var t=ev.target;" +
+        "if(t&&t.closest&&!t.closest('a,button,input,select,textarea,label,video,audio,embed,object,svg,[onclick],[role=button],[contenteditable]')){" +
+        "__qhNative.actionBarTapToggle();}},true);" +
+        "})()}catch(e){}",
+      scriptRules: ['*']
+    }
+  }
+
+  /**
    * 密码管理器脚本（文档加载前注入）：
    * 1. 挂 window.__qhFillPassword(user,pass) 供原生自动填充（含 SPA 表单延迟重试）；
    * 2. 监听表单提交与按钮点击，捕获登录凭据经 __qhNative.passwordSubmit 上报原生弹保存提示

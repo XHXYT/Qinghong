@@ -6,7 +6,7 @@ import { CustomContentDialog, display } from '@kit.ArkUI';
 import { tabsVM, TabInfo } from '../../viewmodel/TabsViewModel';
 import { browserVM } from '../../viewmodel/BrowserViewModel';
 import { downloadVM } from '../../viewmodel/DownloadViewModel';
-import { appSettings } from '../../common/entity/SettingsModel';
+import { appSettings, UISettings } from '../../common/entity/SettingsModel';
 import { toastUtil } from '../../common/utils/ToastUtils';
 import { ResourceUtils } from '../../common/utils/ResourceUtil';
 import { UaUtils } from '../../common/utils/UaUtils';
@@ -44,13 +44,19 @@ class ClipboardBridge {
   private readonly handler: (action: string, cbId: number, text: string) => void
   private readonly passwordHandler: (username: string, password: string) => void
   private readonly inspectHandler: (payload: string) => void
+  private readonly scrollHandler: (hidden: boolean) => void
+  private readonly tapToggleHandler: () => void
 
   constructor(handler: (action: string, cbId: number, text: string) => void,
     passwordHandler: (username: string, password: string) => void,
-    inspectHandler: (payload: string) => void) {
+    inspectHandler: (payload: string) => void,
+    scrollHandler: (hidden: boolean) => void,
+    tapToggleHandler: () => void) {
     this.handler = handler
     this.passwordHandler = passwordHandler
     this.inspectHandler = inspectHandler
+    this.scrollHandler = scrollHandler
+    this.tapToggleHandler = tapToggleHandler
   }
 
   clipboardRequest(action: string, cbId: number, text: string): void {
@@ -63,6 +69,16 @@ class ClipboardBridge {
 
   inspectEvent(payload: string): void {
     this.inspectHandler(payload)
+  }
+
+  /** 滑动显隐操作栏（仅 slide 模式生效） */
+  actionBarScroll(hidden: boolean): void {
+    this.scrollHandler(hidden)
+  }
+
+  /** 点击切换操作栏（仅 tap 模式生效） */
+  actionBarTapToggle(): void {
+    this.tapToggleHandler()
   }
 }
 
@@ -98,6 +114,16 @@ export struct TabWeb {
     this.handlePasswordSubmit(username, password)
   }, (payload: string): void => {
     inspectorVM.onInspectEvent(this.tab.id, payload)
+  }, (hidden: boolean): void => {
+    // 滑动显隐：仅 slide 模式生效
+    if (UISettings.auto_hide_action_bar === 'slide') {
+      this.tab.actionBarHidden = hidden
+    }
+  }, (): void => {
+    // 点击切换：仅 tap 模式生效
+    if (UISettings.auto_hide_action_bar === 'tap') {
+      this.tab.actionBarHidden = !this.tab.actionBarHidden
+    }
   })
 
   /** 保存密码提示弹窗 */
@@ -238,6 +264,7 @@ export struct TabWeb {
     const scripts: Array<ScriptItem> = WebScripts.privacyScripts()
     scripts.push(WebScripts.clipboardScript())
     scripts.push(WebScripts.contextMenuScript())
+    scripts.push(WebScripts.actionBarScript())
     if (!appSettings.web_vibration_enabled) {
       scripts.push(WebScripts.vibrationBlockScript())
     }
@@ -881,6 +908,38 @@ export struct TabWeb {
   }
 
   /**
+   * 色彩模式：提取页面 meta theme-color 供操作栏自适应（提取失败保持默认色）
+   */
+  private detectThemeColor(): void {
+    if (!UISettings.action_bar_color_mode || this.tab.isHome) {
+      return
+    }
+    const c = this.tab.controller
+    if (c === null) {
+      return
+    }
+    const script: string =
+      '(function(){var m=document.querySelector(\'meta[name="theme-color"]\');' +
+      'return m&&m.content?m.content:""})()'
+    c.runJavaScript(script)
+      .then((raw: string) => {
+        let v: string = raw
+        if (raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')) {
+          try {
+            v = JSON.parse(raw) as string
+          } catch (e) {
+            // 保持原值
+          }
+        }
+        if (v !== '' && v.startsWith('#')) {
+          this.tab.themeColor = v
+        }
+      })
+      .catch((): void => {
+      })
+  }
+
+  /**
    * 页面加载完成后检测是否适合阅读模式（isProbablyReaderable 启发式），
    * 结果驱动地址栏阅读按钮显隐；设置关闭时不检测。
    * 延迟 500ms 执行且导航后旧检测作废，不与页面收尾阶段的资源加载抢占
@@ -889,8 +948,7 @@ export struct TabWeb {
     if (!appSettings.read_mode_address_button || this.tab.isHome) {
       this.tab.readerable = false
       return
-    }
-    const seq: number = this.detectSeq
+    }    const seq: number = this.detectSeq
     setTimeout(() => {
       if (seq !== this.detectSeq || this.tab.isHome || this.tab.controller === null
         || !appSettings.read_mode_address_button) {
@@ -1400,6 +1458,8 @@ export struct TabWeb {
           this.refreshPolicy(event.url)
           this.detectSeq++
           this.tab.readerable = false
+          // 色彩模式：新页面 theme-color 重新提取
+          this.tab.themeColor = ''
           browserVM.updateNavState(this.tab)
         })
         .onPageEnd((event: OnPageEndEvent) => {
@@ -1413,6 +1473,7 @@ export struct TabWeb {
           this.applyBackForwardCache()
           this.autofillPassword()
           this.detectReadability()
+          this.detectThemeColor()
           browserVM.onPageEnded(this.tab, event.url)
           browserVM.updateNavState(this.tab)
         })

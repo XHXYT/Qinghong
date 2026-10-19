@@ -39,8 +39,22 @@ export class CustomSearchEngine {
 @ObservedV2
 export class _UISettings {
   @Trace color_mode: ConfigurationConstant.ColorMode = ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
-  /** 工具栏位置 'bottom' | 'top' */
-  @Trace toolbar_position: string = 'bottom'
+  /** 应用布局 'traditional'(传统：地址栏上、工具栏下) | 'top'(工具栏在上：合并) | 'bottom'(工具栏在下：合并) | 'bottom_double'(双行工具栏) */
+  @Trace app_layout: string = 'traditional'
+  /** 自动隐藏操作栏 'always' | 'slide'(滑动显示隐藏) | 'tap'(点击来显示隐藏) */
+  @Trace auto_hide_action_bar: string = 'always'
+  /** 启用标签栏（配合 'top'/'bottom' 布局，常驻操作栏正上方） */
+  @Trace show_tab_bar: boolean = false
+  /** 合并操作栏显示主页按钮 */
+  @Trace show_home_button: boolean = false
+  /** 合并操作栏显示下载按钮 */
+  @Trace show_download_button: boolean = false
+  /** 启用书签栏（配合 'top'/'bottom' 布局，贴操作栏内容侧） */
+  @Trace show_bookmark_bar: boolean = false
+  /** 地址栏内容 'title' | 'url' | 'domain' */
+  @Trace address_bar_content: string = 'title'
+  /** 操作栏色彩模式（浏览网页时操作栏自适应页面 theme-color） */
+  @Trace action_bar_color_mode: boolean = false
 
   constructor() {
   }
@@ -64,19 +78,49 @@ export class _UISettings {
   public toSyncData(): Record<string, Object> {
     return {
       "color_mode": this.color_mode,
-      "toolbar_position": this.toolbar_position
+      "app_layout": this.app_layout,
+      "auto_hide_action_bar": this.auto_hide_action_bar,
+      "show_tab_bar": this.show_tab_bar,
+      "show_home_button": this.show_home_button,
+      "show_download_button": this.show_download_button,
+      "show_bookmark_bar": this.show_bookmark_bar,
+      "address_bar_content": this.address_bar_content,
+      "action_bar_color_mode": this.action_bar_color_mode
     };
   }
 
   /**
-   * 从键值数据应用配置（本地加载与云端同步共用）
+   * 从键值数据应用配置（本地加载与云端同步共用）；
+   * 兼容旧版 toolbar_position 迁移到 app_layout
    */
   public applySyncData(json: Record<string, Object>): void {
     this.color_mode = (json["color_mode"] as number) ?? this.color_mode;
-    this.toolbar_position = (json["toolbar_position"] as string) ?? this.toolbar_position;
+    const layout = json["app_layout"] as string;
+    if (layout === 'traditional' || layout === 'top' || layout === 'bottom'
+      || layout === 'bottom_double') {
+      this.app_layout = layout;
+    } else {
+      // 旧版迁移：'top' → 合并在上，其余（含 'bottom' 传统布局）→ 传统
+      this.app_layout = (json["toolbar_position"] as string) === 'top' ? 'top' : 'traditional';
+    }
+    const hide = json["auto_hide_action_bar"] as string;
+    if (hide === 'always' || hide === 'slide' || hide === 'tap') {
+      this.auto_hide_action_bar = hide;
+    }
+    this.show_tab_bar = (json["show_tab_bar"] as boolean) ?? this.show_tab_bar;
+    this.show_home_button = (json["show_home_button"] as boolean) ?? this.show_home_button;
+    this.show_download_button = (json["show_download_button"] as boolean) ?? this.show_download_button;
+    this.show_bookmark_bar = (json["show_bookmark_bar"] as boolean) ?? this.show_bookmark_bar;
+    const content = json["address_bar_content"] as string;
+    if (content === 'title' || content === 'url' || content === 'domain') {
+      this.address_bar_content = content;
+    }
+    this.action_bar_color_mode = (json["action_bar_color_mode"] as boolean) ?? this.action_bar_color_mode;
   }
 
-  @Monitor('color_mode', 'toolbar_position')
+  @Monitor('color_mode', 'app_layout', 'auto_hide_action_bar', 'show_tab_bar',
+    'show_home_button', 'show_download_button', 'show_bookmark_bar',
+    'address_bar_content', 'action_bar_color_mode')
   public async save(): Promise<void> {
     try {
       const jsonStr: string = JSON.stringify(this.toSyncData());
@@ -88,7 +132,14 @@ export class _UISettings {
 
   public async reset(): Promise<void> {
     this.color_mode = ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET;
-    this.toolbar_position = 'bottom';
+    this.app_layout = 'traditional';
+    this.auto_hide_action_bar = 'always';
+    this.show_tab_bar = false;
+    this.show_home_button = false;
+    this.show_download_button = false;
+    this.show_bookmark_bar = false;
+    this.address_bar_content = 'title';
+    this.action_bar_color_mode = false;
     this.save();
   }
 }
@@ -213,6 +264,16 @@ export class AppSettings {
   @Trace long_press_menu: string = ''
   /** 书签文件夹注册表（JSON 字符串数组，'/' 分层，顺序即显示顺序） */
   @Trace bookmark_folders: string = '[]'
+  /** 操作设定：滑动屏幕前进后退 */
+  @Trace swipe_nav_enabled: boolean = false
+  /** 操作设定：使用音量键翻页（网页中一般为控制上下滚动） */
+  @Trace volume_key_paging: boolean = false
+  /** 操作设定：启用播放器手势（网页内全屏视频滑动调整进度/亮度/音量，功能预留） */
+  @Trace player_gestures: boolean = true
+  /** 键盘快捷键自定义（逗号分隔 id:key 覆盖项，空 = 全默认） */
+  @Trace keyboard_shortcuts: string = ''
+  /** 底部工具栏事件绑定（逗号分隔 事件id:动作id，未存条目 = 无操作） */
+  @Trace toolbar_events: string = ''
 
   constructor() {
   }
@@ -317,7 +378,12 @@ export class AppSettings {
       "search_toolbar_engines": this.search_toolbar_engines,
       "menu_layout": this.menu_layout,
       "long_press_menu": this.long_press_menu,
-      "bookmark_folders": this.bookmark_folders
+      "bookmark_folders": this.bookmark_folders,
+      "swipe_nav_enabled": this.swipe_nav_enabled,
+      "volume_key_paging": this.volume_key_paging,
+      "player_gestures": this.player_gestures,
+      "keyboard_shortcuts": this.keyboard_shortcuts,
+      "toolbar_events": this.toolbar_events
     };
   }
 
@@ -383,6 +449,11 @@ export class AppSettings {
     this.menu_layout = (json["menu_layout"] as string) ?? this.menu_layout;
     this.long_press_menu = (json["long_press_menu"] as string) ?? this.long_press_menu;
     this.bookmark_folders = (json["bookmark_folders"] as string) ?? this.bookmark_folders;
+    this.swipe_nav_enabled = (json["swipe_nav_enabled"] as boolean) ?? this.swipe_nav_enabled;
+    this.volume_key_paging = (json["volume_key_paging"] as boolean) ?? this.volume_key_paging;
+    this.player_gestures = (json["player_gestures"] as boolean) ?? this.player_gestures;
+    this.keyboard_shortcuts = (json["keyboard_shortcuts"] as string) ?? this.keyboard_shortcuts;
+    this.toolbar_events = (json["toolbar_events"] as string) ?? this.toolbar_events;
 
     const rawUas = json["custom_uas"] as Object[];
     if (rawUas) {
@@ -419,7 +490,8 @@ export class AppSettings {
     'ignore_ssl_warning', 'web_vibration_enabled', 'web_haptic_enabled', 'show_undo_close_tip', 'auto_expand_web', 'force_enable_zoom', 'cookies_enabled', 'cookies_block_third_party', 'popup_allowed', 'site_defaults', 'ad_block_enabled', 'ad_block_builtin', 'night_mask_enabled', 'night_mask_opacity', 'night_mask_color', 'force_dark_web',
     'read_mode_address_button', 'read_mode_confirm', 'read_mode_bg_color', 'read_mode_custom_bg', 'read_mode_font_size', 'read_mode_serif', 'font_family',
     'password_save_prompt', 'system_password_manager', 'home_page_mode', 'home_page_url',
-    'search_suggest_sources', 'search_toolbar_enabled', 'search_toolbar_engines', 'menu_layout', 'long_press_menu', 'bookmark_folders')
+    'search_suggest_sources',     'search_toolbar_enabled', 'search_toolbar_engines', 'menu_layout', 'long_press_menu', 'bookmark_folders',
+    'swipe_nav_enabled', 'volume_key_paging', 'player_gestures', 'keyboard_shortcuts', 'toolbar_events')
   public async save(): Promise<void> {
     try {
       const jsonStr: string = JSON.stringify(this.toSyncData());
@@ -486,6 +558,11 @@ export class AppSettings {
     this.menu_layout = '';
     this.long_press_menu = '';
     this.bookmark_folders = '[]';
+    this.swipe_nav_enabled = false;
+    this.volume_key_paging = false;
+    this.player_gestures = true;
+    this.keyboard_shortcuts = '';
+    this.toolbar_events = '';
     this.save();
   }
 }

@@ -1,11 +1,11 @@
 import { QhState } from '../../entryability/AppState';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
 import { browserVM } from '../../viewmodel/BrowserViewModel';
-import { UISettings } from '../../common/entity/SettingsModel';
 import { MenuEntry } from '../../common/constants/MenuEntries';
 import { SheetPicker } from '../SheetPicker';
 import { menuVM } from '../../viewmodel/MenuViewModel';
 import { BookmarkEditor } from './BookmarkEditor';
+import { ActionBarColor } from '../../common/utils/ActionBarColor';
 
 /**
  * 底部工具栏（纯视图）：返回/前进/主页/标签管理/菜单
@@ -161,7 +161,7 @@ export struct BrowserToolbar {
       Row() {
         SymbolGlyph($r('sys.symbol.house'))
           .fontSize(25)
-          .fontColor([$r('sys.color.font_primary')])
+          .fontColor([ActionBarColor.fg($r('sys.color.font_primary'))])
       }
       .layoutWeight(1)
       .height('100%')
@@ -180,14 +180,15 @@ export struct BrowserToolbar {
           Text(`${tabsVM.tabCount}`)
             .fontSize(12)
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('sys.color.font_primary'))
+            .fontColor(ActionBarColor.fg($r('sys.color.font_primary')))
             .maxLines(1)
         }
         .width(21)
         .height(21)
+        .alignContent(Alignment.Center)
         .border({
           width: 1.5,
-          color: $r('sys.color.font_primary'),
+          color: ActionBarColor.fg($r('sys.color.font_primary')),
           radius: 4
         })
       }
@@ -203,7 +204,7 @@ export struct BrowserToolbar {
         SymbolGlyph($r('sys.symbol.square_grid_2x2'))
           .fontSize(25)
           .fontWeight(FontWeight.Normal)
-          .fontColor([$r('sys.color.font_primary')])
+          .fontColor([ActionBarColor.fg($r('sys.color.font_primary'))])
       }
       .layoutWeight(1)
       .height('100%')
@@ -224,7 +225,7 @@ export struct BrowserToolbar {
     }
     .width('100%')
     .height(52)
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    .backgroundColor(ActionBarColor.bg($r('sys.color.comp_background_primary')))
     .bindSheet(menuVM.showSheet!!, this.sheetBuilder(), {
       height: menuVM.sheetKind === 'font' ? 172 : menuVM.pickerHeight,
       dragBar: true,
@@ -237,9 +238,9 @@ export struct BrowserToolbar {
     }
     .width('100%')
     .padding({
-      bottom: UISettings.toolbar_position !== 'top' ? QhState.bottomRectHeight : 0
+      bottom: QhState.bottomRectHeight
     })
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    .backgroundColor(ActionBarColor.bg($r('sys.color.comp_background_primary')))
     .bindSheet(menuVM.showBookmarkEditor!!, this.bookmarkEditorBuilder(), {
       height: 560,
       dragBar: true,
@@ -252,7 +253,7 @@ export struct BrowserToolbar {
   }
 
   navColor(enabled: boolean): ResourceColor {
-    return enabled ? $r('sys.color.font_primary') : $r('sys.color.font_tertiary')
+    return enabled ? ActionBarColor.fg($r('sys.color.font_primary')) : ActionBarColor.fg($r('sys.color.font_tertiary'))
   }
 
 }

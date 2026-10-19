@@ -3,7 +3,7 @@ import { CustomContentDialog } from '@kit.ArkUI';
 import { picker } from '@kit.CoreFileKit';
 import { defaultAppManager, Want } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { NaviContainer } from '../../../components/NaviContainer';
+import { SettingsScaffold, SettingsSection } from '../../../components/SettingsScaffold';
 import { QhState } from '../../../entryability/AppState';
 import { appSettings } from '../../../common/entity/SettingsModel';
 import { historyVM } from '../../../viewmodel/HistoryViewModel';
@@ -12,7 +12,6 @@ import { tabsVM } from '../../../viewmodel/TabsViewModel';
 import { bookmarkVM } from '../../../viewmodel/BookmarkViewModel';
 import { dataBackupVM, DataBackupViewModel } from '../../../viewmodel/DataBackupViewModel';
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
-import { CustomListItem } from '../../../components/CusItemBuilder';
 import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../../../components/SheetPicker';
 import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
 import { toastUtil } from '../../../common/utils/ToastUtils';
@@ -137,20 +136,6 @@ struct ActionRow {
   }
 }
 
-/**
- * 设置分组：组头标题 + 组内条目（分组卡片渲染用）
- */
-class SettingsGroup {
-  readonly key: string
-  title: ResourceStr
-  items: CustomItemInfo[] = []
-
-  constructor(key: string, title: ResourceStr) {
-    this.key = key
-    this.title = title
-  }
-}
-
 @Builder
 export function GeneralSettingsBuilder() {
   GeneralSettingsPage()
@@ -159,7 +144,7 @@ export function GeneralSettingsBuilder() {
 @ComponentV2
 struct GeneralSettingsPage {
 
-  @Local groups: SettingsGroup[] = []
+  @Local groups: SettingsSection[] = []
   @Local picker: PickerConfig = new PickerConfig()
   @Local showPicker: boolean = false
   @Local pickerHeight: number = pickerSheetHeight(3)
@@ -215,9 +200,9 @@ struct GeneralSettingsPage {
   }
 
   private buildItems(): void {
-    const groups: SettingsGroup[] = []
+    const groups: SettingsSection[] = []
     // 启动与系统
-    let g = new SettingsGroup('startup', $r('app.string.general_group_startup'))
+    let g = new SettingsSection('startup', $r('app.string.general_group_startup'))
     g.items.push(this.textItem('restore_tabs', $r('app.string.restore_tabs'),
       ResourceUtils.getString(restoreLabel(appSettings.restore_mode)), (): void => {
         this.openRestorePicker()
@@ -248,8 +233,15 @@ struct GeneralSettingsPage {
       }))
     g.items.push(this.routerItem('sync', $r('app.string.settings_sync'), 'settings_sync'))
     groups.push(g)
+    // 菜单与操作
+    g = new SettingsSection('menu', $r('app.string.general_group_menu'))
+    g.items.push(this.routerItem('toolbar_settings', $r('app.string.toolbar_settings'), 'settings_toolbar'))
+    g.items.push(this.routerItem('customize_menu', $r('app.string.customize_menu'), 'settings_menu_custom'))
+    g.items.push(this.routerItem('customize_long_press_menu', $r('app.string.customize_long_press_menu'), 'settings_long_press'))
+    g.items.push(this.routerItem('operations_settings', $r('app.string.operations_settings'), 'settings_operations'))
+    groups.push(g)
     // 外观与显示
-    g = new SettingsGroup('appearance', $r('app.string.general_group_appearance'))
+    g = new SettingsSection('appearance', $r('app.string.general_group_appearance'))
     g.items.push(this.routerItem('night_mode', $r('app.string.night_mode'), 'settings_night_mode'))
     g.items.push(this.routerItem('read_mode', $r('app.string.read_mode'), 'settings_read_mode'))
     g.items.push(this.routerItem('font', $r('app.string.font'), 'settings_font'))
@@ -263,7 +255,7 @@ struct GeneralSettingsPage {
       }))
     groups.push(g)
     // 网页浏览
-    g = new SettingsGroup('browsing', $r('app.string.general_group_browsing'))
+    g = new SettingsSection('browsing', $r('app.string.general_group_browsing'))
     g.items.push(this.routerItem('ua', $r('app.string.settings_ua'), 'settings_ua'))
     g.items.push(this.routerItem('ad_block', $r('app.string.ad_block'), 'settings_adblock'))
     g.items.push(this.routerItem('site_settings', $r('app.string.site_settings'), 'settings_site'))
@@ -278,7 +270,7 @@ struct GeneralSettingsPage {
     g.items.push(this.routerItem('password_manager', $r('app.string.password_manager'), 'settings_password'))
     groups.push(g)
     // 搜索与主页
-    g = new SettingsGroup('search', $r('app.string.general_group_search'))
+    g = new SettingsSection('search', $r('app.string.general_group_search'))
     g.items.push(this.textItem('home_page', $r('app.string.home_page'),
       ResourceUtils.getString(homeModeLabel(appSettings.home_page_mode)), (): void => {
         this.openHomePicker()
@@ -287,7 +279,7 @@ struct GeneralSettingsPage {
     g.items.push(this.routerItem('ai_settings', $r('app.string.ai_settings'), 'settings_ai'))
     groups.push(g)
     // 下载与数据
-    g = new SettingsGroup('data', $r('app.string.general_group_data'))
+    g = new SettingsSection('data', $r('app.string.general_group_data'))
     g.items.push(this.textItem('download_dir', $r('app.string.download_dir'), AppConstants.DOWNLOAD_DIR, (): void => {
       toastUtil.showToast({ message: $r('app.string.download_dir_unsupported') })
     }))
@@ -307,13 +299,6 @@ struct GeneralSettingsPage {
     g.items.push(this.textItem('export_data', $r('app.string.export_data'), '', (): void => {
       this.exportDialog?.open()
     }))
-    groups.push(g)
-    // 菜单与操作
-    g = new SettingsGroup('menu', $r('app.string.general_group_menu'))
-    g.items.push(this.routerItem('toolbar_settings', $r('app.string.toolbar_settings'), 'settings_toolbar'))
-    g.items.push(this.routerItem('customize_menu', $r('app.string.customize_menu'), 'settings_menu_custom'))
-    g.items.push(this.routerItem('customize_long_press_menu', $r('app.string.customize_long_press_menu'), 'settings_long_press'))
-    g.items.push(this.routerItem('operations_settings', $r('app.string.operations_settings'), 'settings_operations'))
     groups.push(g)
     this.groups = groups
   }
@@ -679,72 +664,34 @@ struct GeneralSettingsPage {
   }
 
   build() {
-    NaviContainer({
+    SettingsScaffold({
       title: $r('app.string.settings_general'),
-      content: (): void => {
-        this.pageContent()
-      },
-      onReady: (ctx: NavDestinationContext): void => {
-      },
+      sections: this.groups,
       onShown: (): void => {
         // 从系统设置返回后刷新默认浏览器状态
         this.setItemValue('set_default_browser', this.defaultBrowserStatus())
       },
-      onBackPressed: (): boolean => {
-        return false
+      footer: (): void => {
+        this.pageFooter()
       }
     })
   }
 
+  /** 列表末尾锚点：挂载选择器 bindSheet */
   @Builder
-  pageContent() {
-    List() {
-      Repeat<SettingsGroup>(this.groups)
-        .each((ri: RepeatItem<SettingsGroup>) => {
-          ListItem() {
-            Column() {
-              Text(ri.item.title)
-                .fontSize(14)
-                .fontColor($r('sys.color.font_secondary'))
-                .margin({ left: 4, bottom: 6, top: ri.index === 0 ? 10 : 18 })
-              Column() {
-                Repeat<CustomItemInfo>(ri.item.items)
-                  .each((ci: RepeatItem<CustomItemInfo>) => {
-                    CustomListItem({
-                      item: ci.item,
-                      itemPadding: { left: 16, right: 16, top: 12, bottom: 12 }
-                    })
-                  })
-                  .key((item: CustomItemInfo) => item.id)
-              }
-              .width('100%')
-              .borderRadius(16)
-              .backgroundColor($r('app.color.background_color'))
-              .clip(true)
-            }
-            .width('100%')
-            .alignItems(HorizontalAlign.Start)
-          }
-          .width('100%')
-        })
-        .key((group: SettingsGroup) => group.key)
-    }
-    .width('100%')
-    .height('100%')
-    .contentEndOffset(56)
-    .align(Alignment.Top)
-    .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
-    .padding({ left: 16, right: 16 })
-    .bindSheet(this.showPicker!!, this.pickerBuilder(), {
-      height: this.pickerHeight,
-      dragBar: true,
-      showClose: false,
-      backgroundColor: $r('sys.color.comp_background_primary'),
-      onDisappear: (): void => {
-        this.showPicker = false
-      }
-    })
+  pageFooter() {
+    Row()
+      .height(1)
+      .width('100%')
+      .bindSheet(this.showPicker!!, this.pickerBuilder(), {
+        height: this.pickerHeight,
+        dragBar: true,
+        showClose: false,
+        backgroundColor: $r('sys.color.comp_background_primary'),
+        onDisappear: (): void => {
+          this.showPicker = false
+        }
+      })
   }
 
   @Builder

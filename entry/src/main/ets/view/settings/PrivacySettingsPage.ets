@@ -1,7 +1,6 @@
-import { NaviContainer } from '../../components/NaviContainer';
+import { SettingsScaffold, SettingsSection } from '../../components/SettingsScaffold';
 import { appSettings } from '../../common/entity/SettingsModel';
 import { CustomItemInfo, ItemActionType } from '../../common/entity/CusItemInfo';
-import { CustomListItem } from '../../components/CusItemBuilder';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
 
 @Builder
@@ -12,7 +11,7 @@ export function PrivacySettingsBuilder() {
 @ComponentV2
 struct PrivacySettingsPage {
 
-  @Local items: CustomItemInfo[] = []
+  @Local sections: SettingsSection[] = []
 
   aboutToAppear(): void {
     const items: CustomItemInfo[] = []
@@ -89,51 +88,15 @@ struct PrivacySettingsPage {
         tabsVM.applyGlobalIncognito(target)
       }
     }))
-    this.items = items
+    const section: SettingsSection = new SettingsSection('privacy')
+    section.items = items
+    this.sections = [section]
   }
 
   build() {
-    NaviContainer({
+    SettingsScaffold({
       title: $r('app.string.settings_privacy'),
-      content: (): void => {
-        this.pageContent()
-      },
-      onReady: (ctx: NavDestinationContext): void => {
-      },
-      onBackPressed: (): boolean => {
-        return false
-      }
+      sections: this.sections
     })
-  }
-
-  @Builder
-  pageContent() {
-    List() {
-      ListItem() {
-        Column() {
-          Repeat<CustomItemInfo>(this.items)
-            .each((ri: RepeatItem<CustomItemInfo>) => {
-              CustomListItem({
-                item: ri.item,
-                itemPadding: { left: 16, right: 16, top: 12, bottom: 12 }
-              })
-            })
-            .key((item: CustomItemInfo) => item.id)
-        }
-        .width('100%')
-        .borderRadius(16)
-        .backgroundColor($r('app.color.background_color'))
-        .clip(true)
-      }
-      .width('100%')
-      .margin({ top: 10 })
-    }
-    .width('100%')
-    .height('100%')
-    .contentEndOffset(56)
-    .align(Alignment.Top)
-    .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
-    .padding({ left: 16, right: 16 })
   }
 }

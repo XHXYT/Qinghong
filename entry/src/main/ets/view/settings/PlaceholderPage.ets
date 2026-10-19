@@ -47,11 +47,6 @@ export function SettingsAiBuilder() {
 }
 
 @Builder
-export function SettingsOperationsBuilder() {
-  PlaceholderPage({ title: $r('app.string.operations_settings') })
-}
-
-@Builder
 export function OfflinePageBuilder() {
   PlaceholderPage({ title: $r('app.string.offline_page') })
 }

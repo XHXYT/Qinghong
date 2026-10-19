@@ -157,8 +157,18 @@
     },
     {
       "name": "settings_operations",
-      "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
-      "buildFunction": "SettingsOperationsBuilder"
+      "pageSourceFile": "src/main/ets/view/settings/general/OperationSettingsPage.ets",
+      "buildFunction": "OperationSettingsBuilder"
+    },
+    {
+      "name": "settings_keyboard",
+      "pageSourceFile": "src/main/ets/view/settings/general/KeyboardShortcutsPage.ets",
+      "buildFunction": "KeyboardShortcutsBuilder"
+    },
+    {
+      "name": "settings_toolbar_event",
+      "pageSourceFile": "src/main/ets/view/settings/general/ToolbarEventPage.ets",
+      "buildFunction": "ToolbarEventBuilder"
     },
     {
       "name": "offline_page",

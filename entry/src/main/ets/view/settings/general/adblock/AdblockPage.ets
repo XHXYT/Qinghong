@@ -1,9 +1,8 @@
-import { NaviContainer } from '../../../../components/NaviContainer';
+import { SettingsScaffold, SettingsSection } from '../../../../components/SettingsScaffold';
 import { appSettings } from '../../../../common/entity/SettingsModel';
 import { AdBlockStore, adBlockStore } from '../../../../common/utils/AdBlockStore';
 import { AdBlockEngine, adBlockEngine } from '../../../../common/utils/AdBlockEngine';
 import { CustomItemInfo, ItemActionType } from '../../../../common/entity/CusItemInfo';
-import { CustomListItem } from '../../../../components/CusItemBuilder';
 import { QhState } from '../../../../entryability/AppState';
 
 @Builder
@@ -18,6 +17,8 @@ struct AdBlockPage {
   @Local builtinItem: CustomItemInfo = new CustomItemInfo({ id: 'ad_block_builtin', type: ItemActionType.TOGGLE })
   @Local customRulesItem: CustomItemInfo = new CustomItemInfo({ id: 'ad_block_custom_rules', type: ItemActionType.ROUTER })
   @Local subscriptionItem: CustomItemInfo = new CustomItemInfo({ id: 'ad_block_subscription', type: ItemActionType.ROUTER })
+
+  @Local sections: SettingsSection[] = []
 
   aboutToAppear(): void {
     // 总开关关闭时，下方规则相关条目整体置灰
@@ -68,77 +69,18 @@ struct AdBlockPage {
     this.subscriptionItem.onChange = (v: string | boolean | number): void => {
       QhState.pushPage('settings_adblock_subs', null)
     }
+
+    const mainSection: SettingsSection = new SettingsSection('ad_main')
+    mainSection.items = [this.blockItem, this.builtinItem]
+    const rulesSection: SettingsSection = new SettingsSection('ad_rules')
+    rulesSection.items = [this.customRulesItem, this.subscriptionItem]
+    this.sections = [mainSection, rulesSection]
   }
 
   build() {
-    NaviContainer({
+    SettingsScaffold({
       title: $r('app.string.ad_block'),
-      content: (): void => {
-        this.pageContent()
-      },
-      onReady: (ctx: NavDestinationContext): void => {
-      },
-      onBackPressed: (): boolean => {
-        return false
-      }
+      sections: this.sections
     })
-  }
-
-  @Builder
-  pageContent() {
-    List() {
-      // 开关卡片
-      ListItem() {
-        Column() {
-          CustomListItem({
-            item: this.blockItem,
-            itemPadding: { left: 16, right: 16, top: 13, bottom: 13 }
-          })
-          Divider()
-            .color($r('sys.color.comp_divider'))
-            .margin({ left: 16 })
-          CustomListItem({
-            item: this.builtinItem,
-            itemPadding: { left: 16, right: 16, top: 13, bottom: 13 }
-          })
-        }
-        .width('100%')
-        .backgroundColor($r('app.color.background_color'))
-        .borderRadius(16)
-        .clip(true)
-      }
-      .width('100%')
-      .margin({ top: 10 })
-
-      // 规则卡片（自定义规则 / 规则订阅）
-      ListItem() {
-        Column() {
-          CustomListItem({
-            item: this.customRulesItem,
-            itemPadding: { left: 16, right: 16, top: 13, bottom: 13 }
-          })
-          Divider()
-            .color($r('sys.color.comp_divider'))
-            .margin({ left: 16 })
-          CustomListItem({
-            item: this.subscriptionItem,
-            itemPadding: { left: 16, right: 16, top: 13, bottom: 13 }
-          })
-        }
-        .width('100%')
-        .backgroundColor($r('app.color.background_color'))
-        .borderRadius(16)
-        .clip(true)
-      }
-      .width('100%')
-      .margin({ top: 12, bottom: 12 })
-    }
-    .width('100%')
-    .height('100%')
-    .align(Alignment.Top)
-    .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
-    .contentEndOffset(QhState.bottomRectHeight)
-    .padding({ left: 16, right: 16 })
   }
 }

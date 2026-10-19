@@ -51,6 +51,10 @@ export class TabInfo {
   @Trace lastWebUrl: string = ''
   /** 页面加载完成后检测为适合阅读模式（地址栏阅读按钮显隐依据） */
   @Trace readerable: boolean = false
+  /** 页面 theme-color meta（操作栏色彩模式自适应用；'' = 未提取） */
+  @Trace themeColor: string = ''
+  /** 操作栏隐藏态（自动隐藏：滑动/点击切换；按标签记忆，导航时重置） */
+  @Trace actionBarHidden: boolean = false
   /** 应用主动导航标记（返回/前进，重定向拦截用；首次主框架请求消费） */
   programmaticNav: boolean = false
   /** 弹出式窗口转开的标签（window.close 时可整标签关闭） */
@@ -376,6 +380,7 @@ export class TabsViewModel {
   navigate(tab: TabInfo, url: string, siteFilter: boolean = true): void {
     const target = url.trim()
     if (!target) return
+    tab.actionBarHidden = false
     if (tab.isHome) {
       // Web 创建期过滤：站点无痕覆盖优先于全局默认无痕开关
       if (siteFilter) {
@@ -435,6 +440,7 @@ export class TabsViewModel {
     tab.canBack = false
     tab.canForward = tab.lastWebUrl !== ''
     tab.controller = null
+    tab.actionBarHidden = false
     this.saveSessionDebounced()
   }
 

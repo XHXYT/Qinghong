@@ -3,7 +3,21 @@ import { tabsVM } from '../../viewmodel/TabsViewModel';
 import { browserVM } from '../../viewmodel/BrowserViewModel';
 import { searchVM, SuggestItem, SuggestType } from '../../viewmodel/SearchViewModel';
 import { UrlUtils, SearchToolbarEngines, ToolbarEngineEntry } from '../../common/constants/SearchEngines';
-import { appSettings } from '../../common/entity/SettingsModel';
+import { appSettings, UISettings } from '../../common/entity/SettingsModel';
+import { ActionBarColor } from '../../common/utils/ActionBarColor';
+
+/**
+ * 地址栏显示文本（按地址栏内容设置：标题/地址/域名，标题为空回退域名）
+ */
+export function addressDisplayText(url: string, title: string): string {
+  if (UISettings.address_bar_content === 'title' && title !== '') {
+    return title
+  }
+  if (UISettings.address_bar_content === 'url') {
+    return url
+  }
+  return UrlUtils.hostOf(url)
+}
 
 /**
  * 顶部地址栏（网页态显示，点击进入编辑）
@@ -19,12 +33,12 @@ export struct AddressBar {
           Row({ space: 8 }) {
             SymbolGlyph(tabSecureIcon(tabsVM.activeTab.url))
               .fontSize(16)
-              .fontColor([$r('sys.color.font_secondary')])
-            Text(UrlUtils.hostOf(tabsVM.activeTab.url))
+              .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'))])
+            Text(addressDisplayText(tabsVM.activeTab.url, tabsVM.activeTab.title))
               .fontSize(15)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .fontColor($r('sys.color.font_primary'))
+              .fontColor(ActionBarColor.fg($r('sys.color.font_primary')))
               .layoutWeight(1)
           }
           .layoutWeight(1)
@@ -40,7 +54,7 @@ export struct AddressBar {
             && !browserVM.isReaderActive(tabsVM.activeTab.id)) {
             SymbolGlyph($r('sys.symbol.doc_plaintext'))
               .fontSize(20)
-              .fontColor([$r('sys.color.font_secondary')])
+              .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'))])
               .margin({ right: 14 })
               .onClick(() => {
                 browserVM.enterReaderWithConfirm()
@@ -56,13 +70,13 @@ export struct AddressBar {
           Progress({ value: tabsVM.activeTab.progress, total: 100, type: ProgressType.Linear })
             .width('100%')
             .height(2)
-            .color(QhState.currentThemeColor)
+            .color(ActionBarColor.fg(QhState.currentThemeColor))
             .backgroundColor(Color.Transparent)
         }
       }
     }
     .width('100%')
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    .backgroundColor(ActionBarColor.bg($r('sys.color.comp_background_primary')))
   }
 }
 

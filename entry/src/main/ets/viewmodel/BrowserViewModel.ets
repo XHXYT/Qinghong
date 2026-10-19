@@ -60,6 +60,10 @@ export class BrowserViewModel {
   @Trace isEditingAddress: boolean = false
   /** 标签管理覆盖层 */
   @Trace showTabSwitcher: boolean = false
+  /** 书签文件夹树覆盖层 */
+  @Trace showBookmarkMenu: boolean = false
+  /** 覆盖层打开的文件夹路径（'' 为根） */
+  @Trace bookmarkMenuFolder: string = ''
   /** 页内查找栏 */
   @Trace showFindBar: boolean = false
   /** 查找：当前命中序号（1 起） */

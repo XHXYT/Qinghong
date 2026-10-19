@@ -574,7 +574,7 @@ export class MenuViewModel {
   private static readonly WEB_ONLY: Set<string> = new Set<string>([
     'share', 'add_bookmark', 'mark_ad', 'translate',
     'view_source', 'inspect_element', 'fullscreen', 'resource_sniff', 'browser_id', 'network_log',
-    'find_in_page', 'save', 'refresh_page', 'site_settings', 'font_size',
+    'find_in_page', 'save', 'refresh_page', 'font_size',
     'print_pdf', 'read_aloud', 'add_to_home', 'read_mode', 'open_with',
     'game_mode', 'add_home_favorite', 'report_site'
   ])
@@ -884,6 +884,32 @@ export class MenuViewModel {
       })
   }
 
+  /** 网站设定：网页打开时直达当前站点详情页（未建档先注册），否则进通用站点设定页 */
+  private openCurrentSiteDetail(): void {
+    const tab = tabsVM.activeTab
+    if (tab === null || tab.isHome) {
+      QhState.pushPage('settings_site', null)
+      return
+    }
+    const host: string = SiteSettingsViewModel.hostOf(tab.url)
+    if (host === '') {
+      QhState.pushPage('settings_site', null)
+      return
+    }
+    siteSettingsVM.listSites().then((sites: string[]): void => {
+      const push = (): void => {
+        QhState.pushPage('settings_site_detail', host)
+      }
+      if (sites.indexOf(host) >= 0) {
+        push()
+        return
+      }
+      siteSettingsVM.addSite(host).then(push).catch(push)
+    }).catch((): void => {
+      QhState.pushPage('settings_site_detail', host)
+    })
+  }
+
   /** 菜单条目点击分发；返回 false 表示保持面板打开（开关类） */
   onMenuEntry(e: MenuEntry): boolean {
     switch (e.id) {
@@ -929,7 +955,7 @@ export class MenuViewModel {
         inspectorVM.open()
         return true
       case 'site_settings':
-        QhState.pushPage('settings_site', null)
+        this.openCurrentSiteDetail()
         return true
       case 'font_size':
         this.openFontSlider()

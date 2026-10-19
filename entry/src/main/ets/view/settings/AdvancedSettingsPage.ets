@@ -1,9 +1,8 @@
 import { webview } from '@kit.ArkWeb';
 import { CustomContentDialog } from '@kit.ArkUI';
-import { NaviContainer } from '../../components/NaviContainer';
+import { SettingsScaffold, SettingsSection } from '../../components/SettingsScaffold';
 import { appSettings } from '../../common/entity/SettingsModel';
 import { CustomItemInfo, ItemActionType } from '../../common/entity/CusItemInfo';
-import { CustomListItem } from '../../components/CusItemBuilder';
 import { buildDialogButtons } from '../../components/dialog/AppContentDialog';
 import { toastUtil } from '../../common/utils/ToastUtils';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
@@ -16,9 +15,10 @@ export function AdvancedSettingsBuilder() {
 @ComponentV2
 struct AdvancedSettingsPage {
 
-  @Local items: CustomItemInfo[] = []
+  @Local sections: SettingsSection[] = []
   @Local sslAckChecked: boolean = false
 
+  private items: CustomItemInfo[] = []
   private sslConfirmDialog: CustomDialogController | undefined = undefined
 
   aboutToAppear(): void {
@@ -121,6 +121,9 @@ struct AdvancedSettingsPage {
       }
     }))
     this.items = items
+    const section: SettingsSection = new SettingsSection('advanced')
+    section.items = items
+    this.sections = [section]
   }
 
   private initDialogs(): void {
@@ -163,48 +166,10 @@ struct AdvancedSettingsPage {
   }
 
   build() {
-    NaviContainer({
+    SettingsScaffold({
       title: $r('app.string.settings_advanced'),
-      content: (): void => {
-        this.pageContent()
-      },
-      onReady: (ctx: NavDestinationContext): void => {
-      },
-      onBackPressed: (): boolean => {
-        return false
-      }
+      sections: this.sections
     })
-  }
-
-  @Builder
-  pageContent() {
-    List() {
-      ListItem() {
-        Column() {
-          Repeat<CustomItemInfo>(this.items)
-            .each((ri: RepeatItem<CustomItemInfo>) => {
-              CustomListItem({
-                item: ri.item,
-                itemPadding: { left: 16, right: 16, top: 12, bottom: 12 }
-              })
-            })
-            .key((item: CustomItemInfo) => item.id)
-        }
-        .width('100%')
-        .borderRadius(16)
-        .backgroundColor($r('app.color.background_color'))
-        .clip(true)
-      }
-      .width('100%')
-      .margin({ top: 10 })
-    }
-    .width('100%')
-    .height('100%')
-    .contentEndOffset(56)
-    .align(Alignment.Top)
-    .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
-    .padding({ left: 16, right: 16 })
   }
 
   @Builder

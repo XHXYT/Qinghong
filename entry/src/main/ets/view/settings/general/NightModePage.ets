@@ -1,25 +1,10 @@
 import { ConfigurationConstant } from '@kit.AbilityKit';
-import { NaviContainer } from '../../../components/NaviContainer';
+import { SettingsScaffold, SettingsSection } from '../../../components/SettingsScaffold';
 import { appSettings, UISettings } from '../../../common/entity/SettingsModel';
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
-import { CustomListItem } from '../../../components/CusItemBuilder';
 import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../../../components/SheetPicker';
 import { SettingsUtils } from '../../../common/utils/SettingsUtils';
 import { ResourceUtils } from '../../../common/utils/ResourceUtil';
-
-/**
- * 设置分组：组头标题 + 组内条目（分组卡片渲染用）
- */
-class NightGroup {
-  readonly key: string
-  title: ResourceStr
-  items: CustomItemInfo[] = []
-
-  constructor(key: string, title: ResourceStr) {
-    this.key = key
-    this.title = title
-  }
-}
 
 function themeModeKey(mode: ConfigurationConstant.ColorMode): string {
   if (mode === ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT) {
@@ -60,7 +45,7 @@ export function SettingsNightModeBuilder() {
 @ComponentV2
 struct NightModePage {
 
-  @Local groups: NightGroup[] = []
+  @Local groups: SettingsSection[] = []
   @Local picker: PickerConfig = new PickerConfig()
   /** 半模态类型 'theme' 主题选择器 | 'mask' 蒙版滤镜配置 */
   @Local sheetType: string = ''
@@ -96,16 +81,16 @@ struct NightModePage {
   }
 
   private buildItems(): void {
-    const groups: NightGroup[] = []
+    const groups: SettingsSection[] = []
 
-    const gAppearance = new NightGroup('appearance', $r('app.string.night_group_appearance'))
+    const gAppearance = new SettingsSection('appearance', $r('app.string.night_group_appearance'))
     gAppearance.items.push(this.textItem('theme_mode', $r('app.string.night_theme_mode'), undefined,
       ResourceUtils.getString(themeModeLabel(UISettings.color_mode)), (): void => {
         this.openThemePicker()
       }))
     groups.push(gAppearance)
 
-    const gWeb = new NightGroup('web', $r('app.string.night_group_web'))
+    const gWeb = new SettingsSection('web', $r('app.string.night_group_web'))
     gWeb.items.push(this.textItem('night_mask', $r('app.string.night_mask_filter'),
       $r('app.string.night_mask_filter_desc'), this.maskSummary(), (): void => {
         this.sheetType = 'mask'
@@ -153,71 +138,33 @@ struct NightModePage {
   }
 
   build() {
-    NaviContainer({
+    SettingsScaffold({
       title: $r('app.string.night_mode'),
-      content: (): void => {
-        this.pageContent()
-      },
-      onReady: (ctx: NavDestinationContext): void => {
-      },
-      onBackPressed: (): boolean => {
-        return false
+      sections: this.groups,
+      footer: (): void => {
+        this.pageFooter()
       }
     })
   }
 
+  /** 列表末尾锚点：挂载半模态 bindSheet */
   @Builder
-  pageContent() {
-    List() {
-      Repeat<NightGroup>(this.groups)
-        .each((ri: RepeatItem<NightGroup>) => {
-          ListItem() {
-            Column() {
-              Text(ri.item.title)
-                .fontSize(14)
-                .fontColor($r('sys.color.font_secondary'))
-                .margin({ left: 4, bottom: 6, top: ri.index === 0 ? 10 : 18 })
-              Column() {
-                Repeat<CustomItemInfo>(ri.item.items)
-                  .each((ci: RepeatItem<CustomItemInfo>) => {
-                    CustomListItem({
-                      item: ci.item,
-                      itemPadding: { left: 16, right: 16, top: 12, bottom: 12 }
-                    })
-                  })
-                  .key((item: CustomItemInfo) => item.id)
-              }
-              .width('100%')
-              .borderRadius(16)
-              .backgroundColor($r('app.color.background_color'))
-              .clip(true)
-            }
-            .width('100%')
-            .alignItems(HorizontalAlign.Start)
+  pageFooter() {
+    Row()
+      .height(1)
+      .width('100%')
+      .bindSheet(this.showSheet!!, this.sheetContent(), {
+        height: this.sheetType === 'mask' ? 500 : pickerSheetHeight(3),
+        dragBar: true,
+        showClose: false,
+        backgroundColor: $r('sys.color.comp_background_primary'),
+        onDisappear: (): void => {
+          this.showSheet = false
+          if (this.sheetType === 'mask') {
+            this.setItemValue('night_mask', this.maskSummary())
           }
-          .width('100%')
-        })
-        .key((group: NightGroup) => group.key)
-    }
-    .width('100%')
-    .height('100%')
-    .contentEndOffset(56)
-    .align(Alignment.Top)
-    .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
-    .padding({ left: 16, right: 16 })
-    .bindSheet(this.showSheet!!, this.sheetContent(), {
-      height: this.sheetType === 'mask' ? 500 : pickerSheetHeight(3),
-      dragBar: true,
-      showClose: false,
-      backgroundColor: $r('sys.color.comp_background_primary'),
-      onDisappear: (): void => {
-        this.showSheet = false
-        if (this.sheetType === 'mask') {
-          this.setItemValue('night_mask', this.maskSummary())
         }
-      }
-    })
+      })
   }
 
   @Builder

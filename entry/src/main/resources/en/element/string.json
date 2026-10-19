@@ -1058,7 +1058,7 @@
     },
     {
       "name": "toolbar_settings",
-      "value": "Toolbar settings"
+      "value": "Action bar settings"
     },
     {
       "name": "customize_menu",
@@ -1415,6 +1415,182 @@
     {
       "name": "operations_settings",
       "value": "Operations"
+    },
+    {
+      "name": "swipe_nav",
+      "value": "Swipe to navigate"
+    },
+    {
+      "name": "volume_key_paging",
+      "value": "Volume keys paging"
+    },
+    {
+      "name": "volume_key_paging_desc",
+      "value": "Usually scrolls the page up and down in web pages"
+    },
+    {
+      "name": "player_gestures",
+      "value": "Enable player gestures"
+    },
+    {
+      "name": "player_gestures_desc",
+      "value": "When available, swipe on the screen to adjust video progress, brightness and device volume while playing videos in fullscreen"
+    },
+    {
+      "name": "keyboard_shortcuts",
+      "value": "Keyboard shortcuts"
+    },
+    {
+      "name": "toolbar_events_hint",
+      "value": "Tap a button below to set its long-press action; long-press to view its current action. You can also swipe the toolbar to set swipe actions"
+    },
+    {
+      "name": "next_tab",
+      "value": "Next tab"
+    },
+    {
+      "name": "previous_tab",
+      "value": "Previous tab"
+    },
+    {
+      "name": "web_back",
+      "value": "Go back"
+    },
+    {
+      "name": "web_forward",
+      "value": "Go forward"
+    },
+    {
+      "name": "enter_url",
+      "value": "Enter address"
+    },
+    {
+      "name": "menu",
+      "value": "Menu"
+    },
+    {
+      "name": "press_new_key",
+      "value": "Press a new key"
+    },
+    {
+      "name": "shortcut_key_conflict",
+      "value": "This key combination is already in use"
+    },
+    {
+      "name": "reset_shortcuts",
+      "value": "Reset shortcuts"
+    },
+    {
+      "name": "reset_shortcuts_confirm",
+      "value": "Restore all shortcuts to their defaults?"
+    },
+    {
+      "name": "select_behavior",
+      "value": "Select behavior"
+    },
+    {
+      "name": "event_back_long",
+      "value": "Back long-press"
+    },
+    {
+      "name": "event_forward_long",
+      "value": "Forward long-press"
+    },
+    {
+      "name": "event_home_long",
+      "value": "Home long-press"
+    },
+    {
+      "name": "event_tabs_long",
+      "value": "Tabs long-press"
+    },
+    {
+      "name": "event_menu_long",
+      "value": "Menu long-press"
+    },
+    {
+      "name": "event_swipe_left",
+      "value": "Swipe left"
+    },
+    {
+      "name": "event_swipe_right",
+      "value": "Swipe right"
+    },
+    {
+      "name": "action_none",
+      "value": "None"
+    },
+    {
+      "name": "close_all_tabs",
+      "value": "Close all tabs"
+    },
+    {
+      "name": "duplicate_tab",
+      "value": "Duplicate tab"
+    },
+    {
+      "name": "open_bookmarks",
+      "value": "Open bookmarks"
+    },
+    {
+      "name": "bookmark_dialog",
+      "value": "Open bookmarks dialog"
+    },
+    {
+      "name": "open_history",
+      "value": "Open history"
+    },
+    {
+      "name": "open_downloads",
+      "value": "Open downloads"
+    },
+    {
+      "name": "open_settings",
+      "value": "Open settings"
+    },
+    {
+      "name": "open_ai_panel",
+      "value": "Open AI panel"
+    },
+    {
+      "name": "save_page",
+      "value": "Save page"
+    },
+    {
+      "name": "page_down",
+      "value": "Page down"
+    },
+    {
+      "name": "page_up",
+      "value": "Page up"
+    },
+    {
+      "name": "scroll_top",
+      "value": "Back to top"
+    },
+    {
+      "name": "scroll_bottom",
+      "value": "Scroll to bottom"
+    },
+    {
+      "name": "group_tab_actions",
+      "value": "Tab actions"
+    },
+    {
+      "name": "group_feature_actions",
+      "value": "Feature actions"
+    },
+    {
+      "name": "group_address_actions",
+      "value": "Address bar actions"
+    },
+    {
+      "name": "group_web_actions",
+      "value": "Web page actions"
+    },
+    {
+      "name": "current_action",
+      "value": "Current action: "
     },
     {
       "name": "import_backup_bookmarks",
@@ -2224,6 +2400,28 @@
     { "name": "net_log_open_background", "value": "Open in background" },
     { "name": "net_log_block_domain", "value": "Block this domain" },
     { "name": "net_log_unblock_domain", "value": "Unblock this domain" },
-    { "name": "net_log_download", "value": "Download" }
+    { "name": "net_log_download", "value": "Download" },
+    { "name": "app_layout", "value": "App layout" },
+    { "name": "layout_traditional", "value": "Traditional" },
+    { "name": "layout_toolbar_top", "value": "Toolbar on top" },
+    { "name": "layout_toolbar_bottom", "value": "Toolbar on bottom" },
+    { "name": "layout_bottom_double", "value": "Double toolbar" },
+    { "name": "auto_hide_action_bar", "value": "Auto-hide action bar" },
+    { "name": "auto_hide_always", "value": "Always show" },
+    { "name": "auto_hide_slide", "value": "Show/hide on scroll" },
+    { "name": "auto_hide_tap", "value": "Tap to toggle" },
+    { "name": "enable_tab_bar", "value": "Enable tab bar" },
+    { "name": "tab_bar", "value": "Tab bar" },
+  { "name": "home_button", "value": "Home button" },
+  { "name": "download_button", "value": "Download button" },
+  { "name": "bookmark_bar", "value": "Bookmark bar" },
+  { "name": "parent_folder", "value": "Parent folder" },
+    { "name": "tab_bar_layout_hint", "value": "Tab bar requires toolbar on top or bottom. Please choose:" },
+    { "name": "address_bar_content", "value": "Address bar content" },
+    { "name": "address_content_title", "value": "Title" },
+    { "name": "address_content_url", "value": "Address" },
+    { "name": "address_content_domain", "value": "Domain" },
+    { "name": "action_bar_color_mode", "value": "Color mode" },
+    { "name": "action_bar_color_mode_desc", "value": "Action bar adapts to webpage colors" }
   ]
 }

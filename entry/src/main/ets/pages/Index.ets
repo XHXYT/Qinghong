@@ -9,6 +9,11 @@ import { HomepageView } from '../components/browser/HomepageView';
 import { HomeBookmarksView } from '../components/browser/HomeBookmarksView';
 import { AddressBar, AddressEditOverlay } from '../components/browser/AddressBar';
 import { BrowserToolbar } from '../components/browser/Toolbar';
+import { MergedActionBar } from '../components/browser/MergedActionBar';
+import { TabBar } from '../components/browser/TabBar';
+import { BookmarkBar } from '../components/browser/BookmarkBar';
+import { BookmarkFolderMenu } from '../components/browser/BookmarkFolderMenu';
+import { ActionBarColor } from '../common/utils/ActionBarColor';
 import { TabSwitcher } from '../components/browser/TabSwitcher';
 import { FindInPageBar } from '../components/browser/FindInPageBar';
 import { TabWeb } from '../components/browser/TabWeb';
@@ -100,6 +105,50 @@ struct Index {
     return browserVM.showReader && tabsVM.activeTabId === browserVM.readerArticle.tabId
   }
 
+  /** 合并单行布局：工具栏在上 */
+  private mergedTop(): boolean {
+    return UISettings.app_layout === 'top'
+  }
+
+  /** 合并单行布局：工具栏在下 */
+  private mergedBottom(): boolean {
+    return UISettings.app_layout === 'bottom'
+  }
+
+  /** 双行工具栏布局：地址栏 + 工具栏都在底部 */
+  private doubleBottom(): boolean {
+    return UISettings.app_layout === 'bottom_double'
+  }
+
+  /** 操作栏自动隐藏中（滑动/点击隐藏触发，各标签独立记忆） */
+  private barsHidden(): boolean {
+    const tab = tabsVM.activeTab
+    return tab !== null && tab.actionBarHidden
+  }
+
+  /** 标签栏行：启用标签栏且为合并单行布局 */
+  private showTabBarRow(): boolean {
+    return UISettings.show_tab_bar && (this.mergedTop() || this.mergedBottom())
+  }
+
+  /** 顶栏可见且吸收状态栏区域（合并栏在上时背景沉浸到状态栏，否则内容避让） */
+  private topBarsImmersive(): boolean {
+    return this.mergedTop() && !this.readerActive() && !this.barsHidden()
+  }
+
+  /** 状态栏沉浸色条颜色：与最顶行栏背景一致（标签栏在最上用其底色，否则操作栏底色含色彩模式） */
+  private topBarsBg(): ResourceColor {
+    if (this.showTabBarRow()) {
+      return $r('sys.color.comp_background_primary')
+    }
+    return ActionBarColor.bg($r('sys.color.comp_background_primary'))
+  }
+
+  /** 内容区是否需要避让底部小白条（底部无操作栏避让时） */
+  private needsBottomPadding(): boolean {
+    return !this.readerActive() && (this.mergedTop() || this.barsHidden())
+  }
+
   @Builder
   tabContent(tab: TabInfo) {
     if (tab.nativeView === 'network-log') {
@@ -111,6 +160,7 @@ struct Index {
         Column()
           .width('100%')
           .height('100%')
+          .backgroundColor($r('app.color.background_color_accent'))
       } else if (appSettings.home_page_mode === 'bookmarks') {
         HomeBookmarksView()
       } else {
@@ -124,15 +174,30 @@ struct Index {
   build() {
     Navigation(QhState.pageStack) {
       Stack({ alignContent: Alignment.Bottom }) {
+        // 状态栏沉浸色条：合并栏在上时顶栏背景延伸至状态栏区域，消除色带断层
+        if (this.topBarsImmersive()) {
+          Column()
+            .width('100%')
+            .height(QhState.topRectHeight)
+            .backgroundColor(this.topBarsBg())
+            .position({ x: 0, y: 0 })
+        }
         // 原主内容（避让状态栏）：地址栏 + 标签内容 + 工具栏
         Stack({ alignContent: Alignment.Top }) {
           Column() {
-            if (!this.readerActive()) {
-              AddressBar()
-            }
-
-            if (UISettings.toolbar_position === 'top' && !this.readerActive()) {
-              BrowserToolbar()
+            // 顶部操作区：合并栏在上（标签栏常驻其正上方、书签栏贴其下方）/ 传统布局地址栏；底部布局组此处留空
+            if (!this.readerActive() && !this.barsHidden()) {
+              if (this.mergedTop()) {
+                if (this.showTabBarRow()) {
+                  TabBar()
+                }
+                MergedActionBar({ barPosition: 'top' })
+                if (UISettings.show_bookmark_bar) {
+                  BookmarkBar()
+                }
+              } else if (!this.mergedBottom() && !this.doubleBottom()) {
+                AddressBar()
+              }
             }
 
             Stack({ alignContent: Alignment.Bottom }) {
@@ -165,19 +230,46 @@ struct Index {
               }
             }
             .layoutWeight(1)
-            // 工具栏在顶部时，由内容区避让底部小白条区域
-            .padding({ bottom: UISettings.toolbar_position === 'top' ? QhState.bottomRectHeight : 0 })
+            // 操作栏不在底部（工具栏在上）或已自动隐藏时，由内容区避让底部小白条区域
+            .padding({ bottom: this.needsBottomPadding() ? QhState.bottomRectHeight : 0 })
+            .backgroundColor($r('app.color.background_color_accent'))
 
             if (browserVM.showFindBar) {
               FindInPageBar()
             }
 
-            if (UISettings.toolbar_position !== 'top' && !this.readerActive()) {
-              BrowserToolbar()
+            // 底部操作区：合并栏在下（标签栏常驻其正上方、书签栏贴其上方）/ 双行地址栏+工具栏 / 传统布局工具栏
+            if (!this.readerActive() && !this.barsHidden()) {
+              if (this.mergedBottom()) {
+                if (UISettings.show_bookmark_bar) {
+                  BookmarkBar()
+                }
+                if (this.showTabBarRow()) {
+                  TabBar()
+                }
+                MergedActionBar({ barPosition: 'bottom' })
+              } else if (this.doubleBottom()) {
+                AddressBar()
+                BrowserToolbar()
+              } else if (!this.mergedTop()) {
+                BrowserToolbar()
+              }
             }
           }
           .width('100%')
           .height('100%')
+
+          // 书签文件夹树覆盖层（合并栏在上：贴顶边向下展开；在下：贴底边向上展开）
+          if (browserVM.showBookmarkMenu && UISettings.show_bookmark_bar
+            && !this.barsHidden() && !this.readerActive()) {
+            BookmarkFolderMenu({
+              rootFolder: browserVM.bookmarkMenuFolder,
+              edgeAnchor: this.mergedBottom() ? 'bottom' : 'top',
+              edgeOffset: this.mergedBottom()
+                ? QhState.bottomRectHeight + 34 + (this.showTabBarRow() ? 27 : 0) + 33 + 6
+                : (this.showTabBarRow() ? 27 : 0) + 34 + 33 + 6
+            })
+          }
 
           // 标签管理
           if (browserVM.showTabSwitcher) {

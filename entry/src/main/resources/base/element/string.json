@@ -1058,7 +1058,7 @@
     },
     {
       "name": "toolbar_settings",
-      "value": "工具栏设置"
+      "value": "操作栏设置"
     },
     {
       "name": "customize_menu",
@@ -1415,6 +1415,182 @@
     {
       "name": "operations_settings",
       "value": "操作设定"
+    },
+    {
+      "name": "swipe_nav",
+      "value": "滑动屏幕前进后退"
+    },
+    {
+      "name": "volume_key_paging",
+      "value": "使用音量键翻页"
+    },
+    {
+      "name": "volume_key_paging_desc",
+      "value": "在网页中一般为控制上下滚动"
+    },
+    {
+      "name": "player_gestures",
+      "value": "启用播放器手势"
+    },
+    {
+      "name": "player_gestures_desc",
+      "value": "条件允许的情况下，在网页内全屏播放视频时允许滑动屏幕以调整视频进度、屏幕亮度、设备音量"
+    },
+    {
+      "name": "keyboard_shortcuts",
+      "value": "键盘快捷键"
+    },
+    {
+      "name": "toolbar_events_hint",
+      "value": "点击下列按钮来设置它的长按事件，长按查看它的事件，你也可以滑动工具栏来设置滑动事件"
+    },
+    {
+      "name": "next_tab",
+      "value": "下一个标签"
+    },
+    {
+      "name": "previous_tab",
+      "value": "上一个标签"
+    },
+    {
+      "name": "web_back",
+      "value": "网页后退"
+    },
+    {
+      "name": "web_forward",
+      "value": "网页前进"
+    },
+    {
+      "name": "enter_url",
+      "value": "输入网址"
+    },
+    {
+      "name": "menu",
+      "value": "菜单"
+    },
+    {
+      "name": "press_new_key",
+      "value": "按下新的按键"
+    },
+    {
+      "name": "shortcut_key_conflict",
+      "value": "该按键组合已被使用"
+    },
+    {
+      "name": "reset_shortcuts",
+      "value": "重置快捷键"
+    },
+    {
+      "name": "reset_shortcuts_confirm",
+      "value": "确定将所有快捷键恢复为默认设置吗？"
+    },
+    {
+      "name": "select_behavior",
+      "value": "选择行为"
+    },
+    {
+      "name": "event_back_long",
+      "value": "左箭头长按"
+    },
+    {
+      "name": "event_forward_long",
+      "value": "右箭头长按"
+    },
+    {
+      "name": "event_home_long",
+      "value": "主页键长按"
+    },
+    {
+      "name": "event_tabs_long",
+      "value": "标签键长按"
+    },
+    {
+      "name": "event_menu_long",
+      "value": "菜单键长按"
+    },
+    {
+      "name": "event_swipe_left",
+      "value": "左滑"
+    },
+    {
+      "name": "event_swipe_right",
+      "value": "右滑"
+    },
+    {
+      "name": "action_none",
+      "value": "无操作"
+    },
+    {
+      "name": "close_all_tabs",
+      "value": "关闭所有标签页"
+    },
+    {
+      "name": "duplicate_tab",
+      "value": "复制标签页"
+    },
+    {
+      "name": "open_bookmarks",
+      "value": "打开书签"
+    },
+    {
+      "name": "bookmark_dialog",
+      "value": "打开书签对话框"
+    },
+    {
+      "name": "open_history",
+      "value": "打开历史"
+    },
+    {
+      "name": "open_downloads",
+      "value": "打开下载"
+    },
+    {
+      "name": "open_settings",
+      "value": "打开设置"
+    },
+    {
+      "name": "open_ai_panel",
+      "value": "打开 AI 面板"
+    },
+    {
+      "name": "save_page",
+      "value": "保存网页"
+    },
+    {
+      "name": "page_down",
+      "value": "向下翻页"
+    },
+    {
+      "name": "page_up",
+      "value": "向上翻页"
+    },
+    {
+      "name": "scroll_top",
+      "value": "返回顶部"
+    },
+    {
+      "name": "scroll_bottom",
+      "value": "滑到底部"
+    },
+    {
+      "name": "group_tab_actions",
+      "value": "标签页行为"
+    },
+    {
+      "name": "group_feature_actions",
+      "value": "特性行为"
+    },
+    {
+      "name": "group_address_actions",
+      "value": "地址栏行为"
+    },
+    {
+      "name": "group_web_actions",
+      "value": "网页行为"
+    },
+    {
+      "name": "current_action",
+      "value": "当前行为："
     },
     {
       "name": "import_backup_bookmarks",
@@ -2224,6 +2400,28 @@
     { "name": "net_log_open_background", "value": "后台打开" },
     { "name": "net_log_block_domain", "value": "拦截此域名" },
     { "name": "net_log_unblock_domain", "value": "取消拦截域名" },
-    { "name": "net_log_download", "value": "下载" }
+    { "name": "net_log_download", "value": "下载" },
+    { "name": "app_layout", "value": "应用布局" },
+    { "name": "layout_traditional", "value": "传统" },
+    { "name": "layout_toolbar_top", "value": "工具栏在上" },
+    { "name": "layout_toolbar_bottom", "value": "工具栏在下" },
+    { "name": "layout_bottom_double", "value": "双行工具栏" },
+    { "name": "auto_hide_action_bar", "value": "自动隐藏操作栏" },
+    { "name": "auto_hide_always", "value": "总是显示" },
+    { "name": "auto_hide_slide", "value": "滑动显示隐藏" },
+    { "name": "auto_hide_tap", "value": "点击来显示隐藏" },
+    { "name": "enable_tab_bar", "value": "启用标签栏" },
+    { "name": "tab_bar", "value": "标签栏" },
+  { "name": "home_button", "value": "主页按钮" },
+  { "name": "download_button", "value": "下载按钮" },
+  { "name": "bookmark_bar", "value": "书签栏" },
+  { "name": "parent_folder", "value": "返回上级" },
+    { "name": "tab_bar_layout_hint", "value": "标签栏需配合工具栏在上或在下的布局使用，请选择：" },
+    { "name": "address_bar_content", "value": "地址栏内容" },
+    { "name": "address_content_title", "value": "标题" },
+    { "name": "address_content_url", "value": "地址" },
+    { "name": "address_content_domain", "value": "域名" },
+    { "name": "action_bar_color_mode", "value": "色彩模式" },
+    { "name": "action_bar_color_mode_desc", "value": "浏览网页时操作栏自适应色彩" }
   ]
 }

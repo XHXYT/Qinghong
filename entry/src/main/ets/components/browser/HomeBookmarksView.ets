@@ -129,7 +129,7 @@ export struct HomeBookmarksView {
         endMargin: 16
       })
       .scrollBar(BarState.Off)
-      .backgroundColor($r('app.color.background_color'))
+      .backgroundColor($r('app.color.background_color_accent'))
     }
   }
 }
