@@ -66,6 +66,16 @@ export class _QhState {
     this.pageStack.pop(animated)
   }
 
+  /**
+   * 返回路由根（浏览器主页）：逐层弹出全部路由
+   */
+  popToRoot(animated: boolean = false): void {
+    while (this.pageStack.size() > 0) {
+      this.pageStack.pop(animated)
+    }
+    logger.debug('Router', `popToRoot: stack size: ${this.pageStack.size()}`)
+  }
+
 }
 
 export const QhState: _QhState = new _QhState()

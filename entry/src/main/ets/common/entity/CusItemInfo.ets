@@ -19,6 +19,8 @@ export interface CustomItemInfoParam {
   radioConfig?: RadioConfig;
   menuOptions?: Array<MenuOption>;
   contextMenuItems?: Array<ContextMenuItem>;
+  /** 长按上下文菜单弹出方位（缺省走系统默认） */
+  contextMenuPlacement?: Placement;
   onChange?: (value: string | boolean | number) => void;
   menuDisabled?: (item: MenuOption, index: number) => boolean;
 }
@@ -56,6 +58,7 @@ export class CustomItemInfo {
   @Trace radioConfig?: RadioConfig; // 单选框配置
   @Trace menuOptions?: Array<MenuOption>; // 菜单选项列表
   @Trace contextMenuItems?: Array<ContextMenuItem>; // 长按上下文菜单项
+  @Trace contextMenuPlacement?: Placement; // 长按上下文菜单弹出方位
 
   // 回调事件
   // 点击及值变化事件 (用于 Toggle, Slider, Radio 变化)
@@ -87,6 +90,7 @@ export class CustomItemInfo {
       if (init.radioConfig !== undefined) this.radioConfig = init.radioConfig;
       if (init.menuOptions !== undefined) this.menuOptions = init.menuOptions;
       if (init.contextMenuItems !== undefined) this.contextMenuItems = init.contextMenuItems;
+      if (init.contextMenuPlacement !== undefined) this.contextMenuPlacement = init.contextMenuPlacement;
 
       if (init.onChange !== undefined) this.onChange = init.onChange;
       if (init.menuDisabled !== undefined) this.menuDisabled = init.menuDisabled;

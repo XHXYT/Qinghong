@@ -1,4 +1,5 @@
 import { tabsVM, TabInfo } from '../../viewmodel/TabsViewModel';
+import { HomeImmersive } from '../../common/utils/HomeImmersive';
 
 /**
  * 标签栏：横向标签条（工具栏在上时紧随操作栏下一行，工具栏在下时置顶）
@@ -59,6 +60,8 @@ export struct TabBar {
     .width('100%')
     .height(27)
     .align(Alignment.Start)
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    // 主页沉浸时背景透明，透出全屏主页背景层
+    .backgroundColor(HomeImmersive.active() ? Color.Transparent
+      : $r('sys.color.comp_background_primary'))
   }
 }

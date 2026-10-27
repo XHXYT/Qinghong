@@ -13,11 +13,24 @@ import { ResourceUtils } from '../common/utils/ResourceUtil';
 import { SiteSettingsViewModel, SitePolicy, siteSettingsVM } from './SiteSettingsViewModel';
 import { CustomItemInfo, ItemActionType, RadioConfig } from '../common/entity/CusItemInfo';
 import { scanBarcode, scanCore } from '@kit.ScanKit';
-import { BusinessError } from '@kit.BasicServicesKit';
-import { hilog } from '@kit.PerformanceAnalysisKit';
+import { BusinessError, print } from '@kit.BasicServicesKit';
+import { Want } from '@kit.AbilityKit';
+import { fileIo, fileUri } from '@kit.CoreFileKit';
+import { image } from '@kit.ImageKit';
+import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { systemShare } from '@kit.ShareKit';
 import { adBlockEngine } from '../common/utils/AdBlockEngine';
 import { inspectorVM } from './InspectorViewModel';
+import { webview } from '@kit.ArkWeb';
+import { downloadVM } from './DownloadViewModel';
+import { sniffVM } from './SniffViewModel';
+import { offlinePageVM } from './OfflinePageViewModel';
+import { readAloudVM } from './ReadAloudViewModel';
+import { shortcutVM, ShortcutViewModel } from './ShortcutViewModel';
+import { PublicDownloadDir } from '../common/utils/PublicDownloadDir';
+import { createLogger } from '../common/utils/Logger';
+
+const logger = createLogger('MenuVM');
 
 /**
  * 文件夹选择行：通用列表行数据 + 缩进层级
@@ -46,8 +59,12 @@ export class MenuViewModel {
   @Trace fontZoomValue: number = 100
   /** 工具栏半模态（选择器/字号滑杆共用一个 sheet，按 sheetKind 切换内容） */
   @Trace showSheet: boolean = false
-  /** sheet 内容类型：picker=单选选择器 | font=字号滑杆（打开时设置，关闭过程中不变） */
+  /** sheet 内容类型：picker=单选选择器 | font=字号滑杆 | save=保存网页（打开时设置，关闭过程中不变） */
   sheetKind: string = 'picker'
+  /** 保存网页弹窗：保存名（预填页面标题，可改） */
+  @Trace saveName: string = ''
+  /** 保存网页弹窗：勾选保存为PDF（直接存 PDF 不进打印预览） */
+  @Trace saveAsPdf: boolean = false
   /** 添加书签流程状态（编辑器局部路由共享） */
   /** 编辑器局部路由栈（全屏 cover 内 Navigation，独立于主路由） */
   editorStack: NavPathStack = new NavPathStack()
@@ -61,6 +78,8 @@ export class MenuViewModel {
   @Trace bmUrl: string = ''
   @Trace bmFolder: string = ''
   @Trace bmQuick: boolean = false
+  /** 书签编辑器：自定义图标沙箱路径（'' = 未自定义） */
+  @Trace bmIcon: string = ''
   @Trace newFolderName: string = ''
   @Trace newFolderParent: string = ''
   /** 文件夹注册表（路径数组，顺序即显示顺序） */
@@ -75,6 +94,8 @@ export class MenuViewModel {
   private moveBookmarkIds: number[] = []
   /** 编辑器 sheet 关闭回调（书签页等自建宿主同步关闭自己的 sheet） */
   onEditorClosed: (() => void) | null = null
+  /** 编辑器正在编辑的书签 id（-1 = 新增；用于保存时区分插入/更新） */
+  private editingId: number = -1
   /** 文件夹编辑模式（新建文件夹页兼做编辑文件夹页） */
   @Trace folderEditMode: boolean = false
   /** 待编辑文件夹路径 */
@@ -144,6 +165,8 @@ export class MenuViewModel {
     this.bmUrl = tab.url
     this.bmFolder = existing !== null ? existing.folder : ''
     this.bmQuick = existing !== null ? existing.isQuick : false
+    this.bmIcon = existing !== null ? existing.icon : ''
+    this.editingId = existing !== null && existing.id !== null ? existing.id : -1
     this.folderPickerTarget = 'bookmark'
     this.nameItem.value = this.bmTitle
     this.urlItem.value = this.bmUrl
@@ -176,11 +199,40 @@ export class MenuViewModel {
     this.bmUrl = ''
     this.bmFolder = folder
     this.bmQuick = false
+    this.bmIcon = ''
+    this.editingId = -1
     this.folderPickerTarget = 'bookmark'
     this.nameItem.value = ''
     this.urlItem.value = ''
     this.folderItem.value = this.folderPathLabel(folder)
     this.quickItem.value = false
+    this.newFolderName = ''
+    this.newFolderNameItem.value = ''
+    this.newFolderParent = ''
+    this.newFolderParentItem.value = this.folderPathLabel('')
+    this.loadFolderRegistry()
+    this.clearEditorStack()
+    this.folderPickerMainStack = null
+    this.moveFolderSources = []
+    this.moveBookmarkIds = []
+    this.folderEditMode = false
+    this.editFolderPath = ''
+  }
+
+  /** 书签页发起：编辑已有书签（复用半模态编辑器，替代旧标题/网址对话框） */
+  prepareEditBookmark(b: BookmarkInfo): void {
+    this.editorIsEdit = true
+    this.editingId = b.id !== null ? b.id : -1
+    this.bmTitle = b.title
+    this.bmUrl = b.url
+    this.bmFolder = b.folder
+    this.bmQuick = b.isQuick
+    this.bmIcon = b.icon
+    this.folderPickerTarget = 'bookmark'
+    this.nameItem.value = b.title
+    this.urlItem.value = b.url
+    this.folderItem.value = this.folderPathLabel(b.folder)
+    this.quickItem.value = b.isQuick
     this.newFolderName = ''
     this.newFolderNameItem.value = ''
     this.newFolderParent = ''
@@ -561,9 +613,84 @@ export class MenuViewModel {
       return
     }
     const title: string = this.bmTitle.trim() || url
-    bookmarkVM.addBookmarkWithMeta(title, url, this.bmFolder, this.bmQuick)
+    const isUpdate: boolean = this.editorIsEdit && this.editingId >= 0
+    if (isUpdate) {
+      bookmarkVM.updateBookmarkWithMeta(this.editingId, title, url, this.bmFolder, this.bmQuick, this.bmIcon)
+    } else {
+      bookmarkVM.addBookmarkWithMeta(title, url, this.bmFolder, this.bmQuick, this.bmIcon)
+    }
     this.closeEditorSheet()
-    toastUtil.showToast({ message: $r('app.string.bookmark_added') })
+    if (!isUpdate) {
+      toastUtil.showToast({ message: $r('app.string.bookmark_added') })
+    }
+  }
+
+  /** 书签编辑器：从相册选一张图片作为自定义图标 */
+  pickBookmarkIcon(): void {
+    const picker: photoAccessHelper.PhotoViewPicker = new photoAccessHelper.PhotoViewPicker()
+    const options: photoAccessHelper.PhotoSelectOptions = {
+      MIMEType: photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE,
+      maxSelectNumber: 1
+    }
+    picker.select(options)
+      .then((result: photoAccessHelper.PhotoSelectResult): void => {
+        if (result.photoUris.length === 0) {
+          return
+        }
+        this.copyPickedIcon(result.photoUris[0])
+      })
+      .catch((error: BusinessError): void => {
+        logger.error(`pickBookmarkIcon failed: ${error.code} ${error.message}`)
+      })
+  }
+
+  /** 相册图片 → 解码缩放（最长边 256）→ 重编码 PNG → files/bookmark_icons/ */
+  private async copyPickedIcon(uri: string): Promise<void> {
+    let srcFile: fileIo.File | null = null
+    let source: image.ImageSource | null = null
+    let pixelMap: image.PixelMap | null = null
+    let packer: image.ImagePacker | null = null
+    try {
+      srcFile = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY)
+      source = image.createImageSource(srcFile.fd)
+      pixelMap = await source.createPixelMap()
+      const info: image.ImageInfo = await pixelMap.getImageInfo()
+      const maxSide: number = Math.max(info.size.width, info.size.height)
+      if (maxSide > 256) {
+        const ratio: number = 256 / maxSide
+        await pixelMap.scale(ratio, ratio)
+      }
+      packer = image.createImagePacker()
+      const buf: ArrayBuffer = await packer.packToData(pixelMap,
+        { format: 'image/png', quality: 100 })
+      const dir: string = `${_QhState.Context.filesDir}/bookmark_icons`
+      if (!fileIo.accessSync(dir)) {
+        fileIo.mkdirSync(dir)
+      }
+      const dest: string = `${dir}/bm_icon_${Date.now()}.png`
+      const bytes: Uint8Array = new Uint8Array(buf)
+      const file: fileIo.File = fileIo.openSync(dest,
+        fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+      fileIo.writeSync(file.fd, bytes.buffer, { length: bytes.byteLength })
+      fileIo.closeSync(file)
+      this.bmIcon = dest
+    } catch (error) {
+      const err = error as BusinessError
+      logger.error(`copyPickedIcon failed: ${err.code} ${err.message}`)
+    } finally {
+      if (packer !== null) {
+        packer.release()
+      }
+      if (pixelMap !== null) {
+        pixelMap.release()
+      }
+      if (source !== null) {
+        source.release()
+      }
+      if (srcFile !== null) {
+        fileIo.closeSync(srcFile)
+      }
+    }
   }
   /** 菜单宫格当前页索引（工具箱 = 跳第二页） */
   @Trace menuPageIndex: number = 0
@@ -607,7 +734,7 @@ export class MenuViewModel {
     return id === 'incognito' || id === 'ad_block' || id === 'image_mode'
       || id === 'browser_id' || id === 'screen_orientation' || id === 'font_size'
       || id === 'night_mode' || id === 'desktop_mode' || id === 'read_mode'
-      || id === 'add_bookmark'
+      || id === 'add_bookmark' || id === 'add_home_favorite'
   }
 
   /** 条目当前是否处于高亮状态 */
@@ -642,6 +769,10 @@ export class MenuViewModel {
     if (id === 'add_bookmark') {
       const tab = tabsVM.activeTab
       return tab !== null && bookmarkVM.hasBookmark(tab.url)
+    }
+    if (id === 'add_home_favorite') {
+      const tab = tabsVM.activeTab
+      return tab !== null && bookmarkVM.hasQuick(tab.url)
     }
     return false
   }
@@ -781,7 +912,7 @@ export class MenuViewModel {
    * 阅读模式切换：直接 Readability 提取正文（提取逻辑收敛在 browserVM.enterReader，
    * 与地址栏阅读按钮共用）；已打开时退出
    */
-  private toggleReadMode(): void {
+  toggleReadMode(): void {
     const tab = tabsVM.activeTab
     if (!tab || tab.isHome) {
       return
@@ -860,7 +991,7 @@ export class MenuViewModel {
   }
 
   /** 查看源码：捕获当前页 outerHTML，新标签页打开源码视图 */
-  private openViewSource(): void {
+  openViewSource(): void {
     const tab = tabsVM.activeTab
     if (tab === null || tab.isHome || tab.controller === null || tab.viewSourceHtml !== '') {
       return
@@ -910,6 +1041,45 @@ export class MenuViewModel {
     })
   }
 
+  /** 添加到桌面：为当前网页创建桌面快捷方式（图标抓取失败回退首字头像） */
+  private addCurrentPageToHome(): void {
+    const tab = tabsVM.activeTab
+    if (tab === null || tab.isHome) {
+      return
+    }
+    shortcutVM.addToDesktop(`page_${ShortcutViewModel.urlKey(tab.url)}`,
+      tab.title !== '' ? tab.title : tab.url, tab.url)
+  }
+
+  /** 其它应用打开：隐式 Want（ACTION_VIEW_DATA + 当前网页地址），系统弹出可打开应用的选择器 */
+  private openWithOtherApp(): void {
+    const tab = tabsVM.activeTab
+    if (tab === null || tab.isHome) {
+      return
+    }
+    const want: Want = {
+      action: 'ohos.want.action.viewData',
+      uri: tab.url,
+      type: 'text/html'
+    }
+    _QhState.Context.startAbility(want)
+      .catch((error: BusinessError): void => {
+        logger.error(`openWithOtherApp failed: ${error.code} ${error.message}`)
+        toastUtil.showToast({ message: $r('app.string.open_with_failed') })
+      })
+  }
+
+  /** 举报网站：复制当前网址，新标签打开腾讯网址安全中心举报页（表单内粘贴举报） */
+  private reportCurrentSite(): void {
+    const tab = tabsVM.activeTab
+    if (tab === null || tab.isHome) {
+      return
+    }
+    browserVM.copyLink()
+    tabsVM.newTab('https://urlsec.qq.com/report.html')
+    toastUtil.showToast({ message: $r('app.string.report_site_copied') })
+  }
+
   /** 菜单条目点击分发；返回 false 表示保持面板打开（开关类） */
   onMenuEntry(e: MenuEntry): boolean {
     switch (e.id) {
@@ -933,6 +1103,27 @@ export class MenuViewModel {
       case 'add_bookmark':
         this.openBookmarkEditor()
         return true
+      case 'add_home_favorite': {
+        // 添加主页收藏：已是主页收藏则移除（toggle）；书签不存在时顺带建档
+        const tab = tabsVM.activeTab
+        if (tab === null || tab.isHome) {
+          return false
+        }
+        if (bookmarkVM.hasQuick(tab.url)) {
+          bookmarkVM.setQuick(tab.url, false)
+          this.announceMenuChange(e.title,
+            ResourceUtils.getString($r('app.string.quick_removed')))
+        } else {
+          if (bookmarkVM.findByUrl(tab.url) !== null) {
+            bookmarkVM.setQuick(tab.url, true)
+          } else {
+            bookmarkVM.addBookmark(tab.title, tab.url, true)
+          }
+          this.announceMenuChange(e.title,
+            ResourceUtils.getString($r('app.string.quick_added')))
+        }
+        return false
+      }
       case 'settings':
         QhState.pushPage('settings', null)
         return true
@@ -970,8 +1161,46 @@ export class MenuViewModel {
         browserVM.refresh()
         this.announceMenuChange(e.title, this.toggleLabel(appSettings.desktop_mode))
         return false
+      case 'print_pdf':
+        this.printPageToPdf()
+        return true
+      case 'save':
+        this.openSaveSheet()
+        return false
+      case 'resource_sniff':
+        // 资源嗅探：菜单关闭后采集当前页媒体资源并弹半模态面板
+        this.openSniffPanel()
+        return false
       case 'offline_page':
         QhState.pushPage('offline_page', null)
+        return true
+      case 'read_aloud':
+        // 朗读网页：非阅读模式先弹窗确认，进阅读模式并拉起系统朗读面板（已在阅读模式直接朗读）
+        readAloudVM.startFromTab()
+        return true
+      case 'add_to_home':
+        // 添加到桌面：复用书签的桌面快捷方式能力，为当前网页创建图标
+        this.addCurrentPageToHome()
+        return true
+      case 'open_with':
+        // 其它应用打开：隐式 Want 拉起系统应用选择器
+        this.openWithOtherApp()
+        return true
+      case 'game_mode':
+        // 游戏模式：完全沉浸全屏（隐藏系统栏与应用栏），返回两次退出
+        browserVM.enterGameMode()
+        return true
+      case 'report_site':
+        // 举报网站：复制当前网址并打开腾讯网址安全中心举报页
+        this.reportCurrentSite()
+        return true
+      case 'script':
+        // 用户脚本管理
+        QhState.pushPage('settings_script', null)
+        return true
+      case 'customize':
+        // 主页定制：路由到设置-定制页（预览 + 分区配置）
+        QhState.pushPage('settings_custom', null)
         return true
       case 'night_mode':
         // 直接切换网页强制深色（TabWeb darkMode/forceDarkAccess 随状态联动），不进设置页
@@ -1013,8 +1242,172 @@ export class MenuViewModel {
     }
   }
 
+  /** 打印PDF：当前网页 createPdf 生成 A4 PDF，拉起系统打印预览（打印机/保存为PDF/份数/纸张/色彩/双面/页数）；
+   * 菜单「打印/PDF」与键盘快捷键 Ctrl+P 共用 */
+  printPageToPdf(): void {
+    const tab = tabsVM.activeTab
+    if (tab === null || tab.isHome || tab.controller === null) {
+      return
+    }
+    const config: webview.PdfConfiguration = {
+      width: 8.27,
+      height: 11.69,
+      marginTop: 0.4,
+      marginBottom: 0.4,
+      marginLeft: 0.4,
+      marginRight: 0.4,
+      scale: 1.0,
+      shouldPrintBackground: true
+    }
+    const controller: webview.WebviewController = tab.controller
+    const url: string = tab.url
+    const title: string = tab.title
+    controller.createPdf(config)
+      .then((pdf: webview.PdfData): void => {
+        this.openPrintPreview(url, title, pdf.pdfArrayBuffer())
+      })
+      .catch((error: BusinessError): void => {
+        logger.error(`createPdf failed: ${error.code} ${error.message}`)
+        toastUtil.showToast({ message: $r('app.string.pdf_save_failed') })
+      })
+  }
+
+  /** 写临时 PDF 拉起系统打印预览；打印服务不可用回退保存 PDF 到公共下载目录 */
+  private openPrintPreview(url: string, title: string, data: Uint8Array): void {
+    const safeName: string = title.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim()
+      .substring(0, 50)
+    const name = `${safeName !== '' ? safeName : 'page'}_${new Date().getTime()}.pdf`
+    const dir: string = `${_QhState.Context.cacheDir}/print`
+    if (!fileIo.accessSync(dir)) {
+      fileIo.mkdirSync(dir, true)
+    }
+    const path: string = `${dir}/${name}`
+    const buf: ArrayBuffer = new ArrayBuffer(data.byteLength)
+    new Uint8Array(buf).set(data)
+    const file: fileIo.File = fileIo.openSync(path,
+      fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+    try {
+      fileIo.writeSync(file.fd, buf)
+    } finally {
+      fileIo.closeSync(file)
+    }
+    const files: string[] = [fileUri.getUriFromPath(path)]
+    print.print(files, _QhState.Context)
+      .catch((error: BusinessError): void => {
+        logger.error(`print failed: ${error.code} ${error.message}`)
+        downloadVM.saveLocalPdf(url, title, data)
+      })
+  }
+
+  /** 打开保存网页弹窗：预填页面标题，可勾选保存为PDF */
+  openSaveSheet(): void {
+    const tab = tabsVM.activeTab
+    if (tab === null || tab.isHome || tab.controller === null) {
+      return
+    }
+    this.saveName = tab.title !== '' ? tab.title : tab.url
+    this.saveAsPdf = false
+    this.sheetKind = 'save'
+    this.openSheetAfterMenuClosed((): void => {
+      this.showSheet = true
+    })
+  }
+
+  /** 打开资源嗅探面板：菜单收起后采集当前页媒体资源（网络日志 + 页面 JS 扫描）并弹半模态 */
+  openSniffPanel(): void {
+    this.openSheetAfterMenuClosed((): void => {
+      sniffVM.open()
+    })
+  }
+
+  /** 确认保存：勾选PDF直接存公共PDF目录（不进打印预览）；未勾选存离线网页到公共 Offline 目录 */
+  confirmSave(): void {
+    this.showSheet = false
+    const tab = tabsVM.activeTab
+    if (tab === null || tab.isHome || tab.controller === null) {
+      return
+    }
+    const controller: webview.WebviewController = tab.controller
+    const url: string = tab.url
+    if (this.saveAsPdf) {
+      const config: webview.PdfConfiguration = {
+        width: 8.27,
+        height: 11.69,
+        marginTop: 0.4,
+        marginBottom: 0.4,
+        marginLeft: 0.4,
+        marginRight: 0.4,
+        scale: 1.0,
+        shouldPrintBackground: true
+      }
+      controller.createPdf(config)
+        .then((pdf: webview.PdfData): void => {
+          downloadVM.saveLocalPdf(url, this.saveName, pdf.pdfArrayBuffer())
+        })
+        .catch((error: BusinessError): void => {
+          logger.error(`save as pdf failed: ${error.code} ${error.message}`)
+          toastUtil.showToast({ message: $r('app.string.pdf_save_failed') })
+        })
+      return
+    }
+    this.saveOfflinePage(controller, url)
+  }
+
+  /** 存离线网页：storeWebArchive 落沙箱中转，复制到公共 Download/包名/Offline 后落库 */
+  private saveOfflinePage(controller: webview.WebviewController, url: string): void {
+    const safeName: string = this.saveName.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim()
+      .substring(0, 50)
+    const baseName: string = safeName !== '' ? safeName : 'page'
+    PublicDownloadDir.ensureDir('Offline')
+      .then((dir: string): void => {
+        let fileName: string = `${baseName}.mhtml`
+        // 同名防覆盖：已存在则追加时间戳
+        if (fileIo.accessSync(`${dir}/${fileName}`)) {
+          fileName = `${baseName}_${new Date().getTime()}.mhtml`
+        }
+        const tmpDir: string = `${_QhState.Context.cacheDir}/offline`
+        if (!fileIo.accessSync(tmpDir)) {
+          fileIo.mkdirSync(tmpDir, true)
+        }
+        const tmpPath: string = `${tmpDir}/${fileName}`
+        controller.storeWebArchive(tmpPath, false)
+          .then((stored: string): void => {
+            if (stored === '') {
+              toastUtil.showToast({ message: $r('app.string.offline_save_failed') })
+              return
+            }
+            // 兼容返回全路径或纯文件名
+            const src: string = stored.indexOf('/') >= 0 ? stored : `${tmpDir}/${stored}`
+            const stat: fileIo.Stat = fileIo.statSync(src)
+            const file: fileIo.File = fileIo.openSync(src, fileIo.OpenMode.READ_ONLY)
+            let data: Uint8Array = new Uint8Array(0)
+            try {
+              const buf: ArrayBuffer = new ArrayBuffer(stat.size)
+              fileIo.readSync(file.fd, buf)
+              data = new Uint8Array(buf)
+            } finally {
+              fileIo.closeSync(file)
+            }
+            PublicDownloadDir.writeBytes(dir, fileName, data)
+            try {
+              fileIo.unlinkSync(src)
+            } catch (e) {
+              // 中转文件清理失败忽略
+            }
+            offlinePageVM.saveRecord(url, this.saveName, `${dir}/${fileName}`)
+          })
+          .catch((error: BusinessError): void => {
+            logger.error(`storeWebArchive failed: ${error.code} ${error.message}`)
+            toastUtil.showToast({ message: $r('app.string.offline_save_failed') })
+          })
+      })
+      .catch((): void => {
+        toastUtil.showToast({ message: $r('app.string.offline_save_failed') })
+      })
+  }
+
   /** 扫码：调起系统默认扫码界面，结果按地址栏提交逻辑在当前标签打开 */
-  private startScan(): void {
+  startScan(): void {
     const options: scanBarcode.ScanOptions = {
       scanTypes: [scanCore.ScanType.ALL],
       enableMultiMode: false,
@@ -1029,7 +1422,7 @@ export class MenuViewModel {
       })
       .catch((error: BusinessError): void => {
         // 用户取消等场景静默处理
-        hilog.error(0x0000, '[MenuVM]', `startScan failed: ${error.code} ${error.message}`)
+        logger.error(`startScan failed: ${error.code} ${error.message}`)
       })
   }
 
@@ -1050,10 +1443,10 @@ export class MenuViewModel {
       const controller = new systemShare.ShareController(data)
       controller.show(_QhState.Context, {})
         .catch((error: BusinessError): void => {
-          hilog.error(0x0000, '[MenuVM]', `share failed: ${error.code} ${error.message}`)
+          logger.error(`share failed: ${error.code} ${error.message}`)
         })
     } catch (e) {
-      hilog.error(0x0000, '[MenuVM]', `share exception: ${e}`)
+      logger.error(`share exception: ${e}`)
     }
   }
 
@@ -1098,7 +1491,7 @@ export class MenuViewModel {
       : $r('sys.color.font_secondary')
   }
 
-  /** 条目标题：图片模式按当前档位动态显示（有图/无图/仅WIFI有图）；已收藏书签显示已收藏 */
+  /** 条目标题：图片模式按当前档位动态显示（有图/无图/仅WIFI有图）；已收藏书签显示已收藏；已主页收藏显示已添加 */
   entryTitle(e: MenuEntry): ResourceStr {
     if (e.id === 'image_mode') {
       const mode: string = this.currentImageMode()
@@ -1111,6 +1504,9 @@ export class MenuViewModel {
     }
     if (e.id === 'add_bookmark' && this.toggleStateOf('add_bookmark')) {
       return $r('app.string.bookmark_state_added')
+    }
+    if (e.id === 'add_home_favorite' && this.toggleStateOf('add_home_favorite')) {
+      return $r('app.string.quick_added')
     }
     return e.title
   }

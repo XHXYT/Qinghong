@@ -24,6 +24,13 @@ export struct NetworkLogTab {
     return Number.isNaN(id) ? -1 : id
   }
 
+  /** 源标签页面地址（下载 Referer 用） */
+  private sourceTabUrl(): string {
+    const tabId = this.sourceTabId()
+    const source = tabsVM.tabs.find((t: TabInfo): boolean => t.id === tabId)
+    return source !== undefined ? source.url : ''
+  }
+
   /** 源标签 + 过滤器下的可见条目 */
   private visibleEntries(): NetLogEntry[] {
     const tabId: number = this.sourceTabId()
@@ -38,7 +45,7 @@ export struct NetworkLogTab {
         return e.status === 'blocked'
       }
       if (this.filter === 'other') {
-        return e.kind === 'other' || e.kind === 'main'
+        return e.kind === 'other' || e.kind === 'main' || e.kind === 'video' || e.kind === 'audio'
       }
       return e.kind === this.filter
     })
@@ -275,7 +282,7 @@ export struct NetworkLogTab {
         })
       MenuItem({ content: $r('app.string.net_log_download') })
         .onClick(() => {
-          downloadVM.download(entry.url)
+          downloadVM.download(entry.url, this.sourceTabUrl())
         })
       MenuItem({ content: $r('app.string.share') })
         .onClick(() => {

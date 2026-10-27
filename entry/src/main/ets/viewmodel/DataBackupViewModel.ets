@@ -1,6 +1,5 @@
-import { fileIo, fileUri, picker } from '@kit.CoreFileKit';
+import { fileIo } from '@kit.CoreFileKit';
 import { buffer } from '@kit.ArkTS';
-import { bundleManager } from '@kit.AbilityKit';
 import { _QhState } from '../entryability/AppState';
 import BookmarkInfo from '../common/entity/BookmarkInfo';
 import HistoryInfo from '../common/entity/HistoryInfo';
@@ -8,6 +7,7 @@ import { BookmarkDao } from '../common/utils/database/impl/BookmarkDao';
 import { HistoryDao } from '../common/utils/database/impl/HistoryDao';
 import { appSettings } from '../common/entity/SettingsModel';
 import { createLogger } from '../common/utils/Logger';
+import { PublicDownloadDir } from '../common/utils/PublicDownloadDir';
 
 const logger = createLogger('DataBackup')
 
@@ -187,56 +187,22 @@ export class DataBackupViewModel {
     }
   }
 
-  /** 备份文件目录：公共下载目录 Download/<本应用包名>/backup（真实路径） */
-  static getBackupDir(): string {
-    const info: bundleManager.BundleInfo =
-      bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT)
-    const uri: string = `file://docs/storage/Users/currentUser/Download/${info.name}/backup`
-    return new fileUri.FileUri(uri).path
-  }
-
-  /** 直接在备份目录写文本（目录不存在则创建） */
-  private static writeTextDirect(dir: string, fileName: string, text: string): void {
-    if (!fileIo.accessSync(dir)) {
-      fileIo.mkdirSync(dir, true)
-    }
-    const file: fileIo.File = fileIo.openSync(`${dir}/${fileName}`,
-      fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-    try {
-      fileIo.writeSync(file.fd, text)
-    } finally {
-      fileIo.closeSync(file)
-    }
+  /**
+   * 将文本写入公共下载目录 Download/<本应用包名>/backup/<fileName>（授权由 PublicDownloadDir 统一处理）
+   */
+  static async writeBackupFile(fileName: string, text: string): Promise<void> {
+    const dir: string = await PublicDownloadDir.ensureDir('backup')
+    PublicDownloadDir.writeText(dir, fileName, text)
   }
 
   /**
-   * 将文本写入公共下载目录 Download/<本应用包名>/backup/<fileName>。
-   * 包名目录未创建（首次导出无访问权限）时，先走系统 DOWNLOAD 保存流程：
-   * 无界面，由系统自动创建 Download/<包名> 并授予访问权限，随后重试直接写入。
+   * 将 PDF 二进制写入公共下载目录 Download/<本应用包名>/PDF/<fileName>，返回文件真实路径
+   * （授权由 PublicDownloadDir 统一处理）
    */
-  static async writeBackupFile(fileName: string, text: string): Promise<void> {
-    const dir: string = DataBackupViewModel.getBackupDir()
-    try {
-      DataBackupViewModel.writeTextDirect(dir, fileName, text)
-      return
-    } catch (e) {
-      logger.info('writeBackupFile', '直接写入失败，走 DOWNLOAD 系统授权流程')
-    }
-    const svPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker(_QhState.Context)
-    const options: picker.DocumentSaveOptions = {
-      pickerMode: picker.DocumentPickerMode.DOWNLOAD
-    }
-    const uris: string[] = await svPicker.save(options)
-    if (uris.length === 0) {
-      throw new Error('DOWNLOAD 保存流程未返回文件 URI')
-    }
-    // 系统会预创建空文件，删除后写入正式备份文件
-    try {
-      fileIo.unlinkSync(new fileUri.FileUri(uris[0]).path)
-    } catch (e) {
-      logger.error('writeBackupFile', `删除预创建文件失败: ${e}`)
-    }
-    DataBackupViewModel.writeTextDirect(dir, fileName, text)
+  static async writePdfFile(fileName: string, data: Uint8Array): Promise<string> {
+    const dir: string = await PublicDownloadDir.ensureDir('PDF')
+    PublicDownloadDir.writeBytes(dir, fileName, data)
+    return `${dir}/${fileName}`
   }
 
   static async readTextFromUri(uri: string): Promise<string> {

@@ -234,4 +234,122 @@ export class WebScripts {
       scriptRules: ['*']
     }
   }
+
+  /**
+   * 资源嗅探按需采集（打开嗅探面板时 runJavaScript 执行一次）：
+   * DOM 媒体元素（img/video/audio/source/embed/poster）+ performance 资源条目
+   * + 整页 HTML 正则扫描内嵌媒体 URL（可抓到未播放、仅写在页面/脚本配置里的地址），
+   * 按扩展名分类为 video/audio/image，返回 JSON 数组 [{u:URL,k:类型}]。
+   * 与网络日志互补：可抓到 <video> 元素 src、页面静态媒体等未走当前记录的地址
+   */
+  static sniffCollectJs(): string {
+    return "try{(function(){" +
+      "var VE=/\\.(mp4|m3u8|webm|flv|mkv|mov|ts|avi|m4v)(\\?|#|$)/i;" +
+      "var AE=/\\.(mp3|m4a|aac|flac|wav|ogg|opus|amr)(\\?|#|$)/i;" +
+      "var IE=/\\.(jpg|jpeg|png|webp|gif|bmp|svg|ico|avif)(\\?|#|$)/i;" +
+      "var ME='m3u8|mp4|webm|flv|mkv|mov|m4v|avi|mp3|m4a|aac|flac|wav|ogg|opus|amr';" +
+      "var seen={},out=[];" +
+      "function kind(u){var s=String(u).split('?')[0];" +
+      "if(VE.test(s)){return 'video';}" +
+      "if(AE.test(s)){return 'audio';}" +
+      "if(IE.test(s)){return 'image';}" +
+      "return '';}" +
+      "function add(u,k){if(!u){return;}u=String(u);" +
+      "try{u=new URL(u,location.href).href;}catch(e){return;}" +
+      "if(seen[u]){return;}var kk=k||kind(u);if(!kk){return;}" +
+      "seen[u]=1;out.push({u:u,k:kk});}" +
+      "var els=document.querySelectorAll('img,video,audio,source,embed');" +
+      "for(var i=0;i<els.length;i++){var el=els[i],tag=el.tagName;" +
+      "var def=tag==='IMG'?'image':(tag==='VIDEO'?'video':(tag==='AUDIO'?'audio':''));" +
+      "add(el.currentSrc||el.src||el.getAttribute('data-src')||'',def);" +
+      "if(tag==='VIDEO'||tag==='AUDIO'){add(el.getAttribute('poster')||'','image');}}" +
+      "if(window.performance&&performance.getEntriesByType){" +
+      "var rs=performance.getEntriesByType('resource');" +
+      "for(var j=0;j<rs.length;j++){add(rs[j].name,'');}}" +
+      "try{" +
+      "var html=document.documentElement.innerHTML||'';" +
+      "var RE=new RegExp('https?:\\\\/\\\\/[^\\\\s\\\"\\'<>\\\\\\\\)]+?\\\\.(?:'+ME+')(?:\\\\?[^\\\\s\\\"\\'<>\\\\\\\\)]*)?|[\\\"\\'(]\\\\/\\\\/[^\\\\s\\\"\\'<>\\\\\\\\)]+?\\\\.(?:'+ME+')(?:\\\\?[^\\\\s\\\"\\'<>\\\\\\\\)]*)?','gi');" +
+      "var hm;while((hm=RE.exec(html))!==null){" +
+      "var s=hm[0],c=s.charAt(0);" +
+      "if(c==='\\\"'||c===\"\\'\"||c==='('){s=s.substring(1);}" +
+      "add(s,'');}" +
+      "}catch(e){}" +
+      "return JSON.stringify(out);" +
+      "})()}catch(e){return '[]'}"
+  }
+
+  /**
+   * 媒体嗅探钩子脚本（文档加载前注入，常驻）：
+   * 1. 包装 HTMLMediaElement.src 赋值、XMLHttpRequest.open、fetch 三个入口，命中媒体扩展名即上报；
+   * 2. DOM 就绪后自动扫描整页 HTML 内嵌媒体 URL + video/audio/source 元素（可抓到只写在
+   *    页面/脚本配置里、从未经 JS 赋值或 XHR 请求的地址，对齐华为浏览器载入即捕获的行为）；
+   * 3. __qhNative 代理不可用（iframe）时经 postMessage 向父帧中继，主帧脚本转发原生。
+   * 上报经 __qhNative.sniffMedia 记入网络日志，悬浮按钮实时出现
+   */
+  static sniffMediaScript(): ScriptItem {
+    return {
+      script: "try{(function(){" +
+        "if(window.__qhSniffBound){return;}window.__qhSniffBound=1;" +
+        "var ME='m3u8|mp4|webm|flv|mkv|mov|m4v|avi|mp3|m4a|aac|flac|wav|ogg|opus|amr';" +
+        "var VE=/\\.(m3u8|mp4|webm|flv|mkv|mov|m4v|avi)([?#]|$)/i;" +
+        "var AE=/\\.(mp3|m4a|aac|flac|wav|ogg|opus|amr)([?#]|$)/i;" +
+        "var seen={};" +
+        "function abs(u){try{return new URL(u,location.href).href;}catch(e){return '';}}" +
+        "function rep(u,k){" +
+        "try{" +
+        "if(!u){return;}" +
+        "u=abs(String(u));" +
+        "if(!/^https?:/i.test(u)){return;}" +
+        "k=k||'';" +
+        "if(!k){if(VE.test(u)){k='video';}else if(AE.test(u)){k='audio';}}" +
+        "if(!k){return;}" +
+        "if(seen[u]){return;}" +
+        "seen[u]=1;" +
+        "if(window.__qhNative&&__qhNative.sniffMedia){__qhNative.sniffMedia(u,k);}" +
+        "else if(window.parent!==window){try{window.parent.postMessage({__qhSniff:{u:u,k:k}},'*');}catch(e){}}" +
+        "}catch(e){}" +
+        "}" +
+        "window.addEventListener('message',function(ev){" +
+        "try{var d=ev.data;" +
+        "if(d&&typeof d==='object'&&d.__qhSniff&&d.__qhSniff.u){rep(d.__qhSniff.u,d.__qhSniff.k||'');}" +
+        "}catch(e){}" +
+        "},false);" +
+        "function scan(){" +
+        "try{" +
+        "var RE=new RegExp('https?:\\\\/\\\\/[^\\\\s\\\"\\'<>\\\\\\\\)]+?\\\\.(?:'+ME+')(?:\\\\?[^\\\\s\\\"\\'<>\\\\\\\\)]*)?|[\\\"\\'(]\\\\/\\\\/[^\\\\s\\\"\\'<>\\\\\\\\)]+?\\\\.(?:'+ME+')(?:\\\\?[^\\\\s\\\"\\'<>\\\\\\\\)]*)?','gi');" +
+        "var html=document.documentElement.innerHTML||'';" +
+        "var m;while((m=RE.exec(html))!==null){" +
+        "var s=m[0],c=s.charAt(0);" +
+        "if(c==='\\\"'||c===\"\\'\"||c==='('){s=s.substring(1);}" +
+        "rep(s,'');}" +
+        "}catch(e){}" +
+        "try{" +
+        "var els=document.querySelectorAll('video,audio,source');" +
+        "for(var i=0;i<els.length;i++){rep(els[i].currentSrc||els[i].src||'','');}" +
+        "}catch(e){}" +
+        "}" +
+        "function sched(){scan();setTimeout(scan,1500);setTimeout(scan,4000);}" +
+        "if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',sched);}" +
+        "else{sched();}" +
+        "try{" +
+        "var d=Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype,'src');" +
+        "if(d&&d.set){" +
+        "Object.defineProperty(HTMLMediaElement.prototype,'src',{configurable:true,enumerable:d.enumerable," +
+        "get:function(){return d.get.call(this);}," +
+        "set:function(v){rep(v,'');return d.set.call(this,v);}});" +
+        "}" +
+        "}catch(e){}" +
+        "try{" +
+        "var oo=XMLHttpRequest.prototype.open;" +
+        "XMLHttpRequest.prototype.open=function(m,u){rep(u,'');return oo.apply(this,arguments);};" +
+        "}catch(e){}" +
+        "try{" +
+        "var of=window.fetch;" +
+        "if(of){window.fetch=function(i,o){try{rep(i&&i.url!==undefined?i.url:i,'');}catch(e){}return of.apply(this,arguments);};" +
+        "}" +
+        "}catch(e){}" +
+        "})()}catch(e){}",
+      scriptRules: ['*']
+    }
+  }
 }

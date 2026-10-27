@@ -9,6 +9,7 @@ import { ReaderScripts } from '../common/utils/ReaderScripts';
 import { appSettings } from '../common/entity/SettingsModel';
 import { toastUtil } from '../common/utils/ToastUtils';
 import { ResourceUtils } from '../common/utils/ResourceUtil';
+import { _QhState } from '../entryability/AppState';
 
 const logger = createLogger('BrowserViewModel')
 
@@ -62,6 +63,8 @@ export class BrowserViewModel {
   @Trace showTabSwitcher: boolean = false
   /** 书签文件夹树覆盖层 */
   @Trace showBookmarkMenu: boolean = false
+  /** 地址栏左图标全宽顶弹面板（主页态=路由入口，网页态=页面信息） */
+  @Trace showPageMenu: boolean = false
   /** 覆盖层打开的文件夹路径（'' 为根） */
   @Trace bookmarkMenuFolder: string = ''
   /** 页内查找栏 */
@@ -76,6 +79,10 @@ export class BrowserViewModel {
   @Trace showReader: boolean = false
   /** 阅读模式文章（关闭时为空对象） */
   @Trace readerArticle: ReaderArticle = new ReaderArticle()
+  /** 游戏模式：完全沉浸全屏（系统栏与应用栏全隐藏），返回两次退出 */
+  @Trace gameMode: boolean = false
+  /** 游戏模式：上次按返回键时间戳（2 秒内再按退出） */
+  private lastGameBackAt: number = 0
 
   constructor() {
   }
@@ -99,6 +106,44 @@ export class BrowserViewModel {
   /** 指定标签当前是否处于阅读模式 */
   isReaderActive(tabId: number): boolean {
     return this.showReader && this.readerArticle.tabId === tabId
+  }
+
+  /** 进入游戏模式：隐藏系统状态栏/导航栏，应用内所有栏随 gameMode 一并隐藏 */
+  enterGameMode(): void {
+    this.gameMode = true
+    try {
+      _QhState.window.setWindowSystemBarEnable([])
+        .catch((): void => {
+        })
+    } catch (error) {
+      const err = error as BusinessError
+      logger.error(`enterGameMode failed: ${err.code} ${err.message}`)
+    }
+  }
+
+  /** 退出游戏模式：恢复系统状态栏/导航栏 */
+  exitGameMode(): void {
+    this.gameMode = false
+    this.lastGameBackAt = 0
+    try {
+      _QhState.window.setWindowSystemBarEnable(['status', 'navigation'])
+        .catch((): void => {
+        })
+    } catch (error) {
+      const err = error as BusinessError
+      logger.error(`exitGameMode failed: ${err.code} ${err.message}`)
+    }
+  }
+
+  /** 游戏模式返回键分发：2 秒内连按两次退出；首次返回 false（由调用方提示「再按一次」） */
+  handleGameModeBack(): boolean {
+    const now: number = Date.now()
+    if (now - this.lastGameBackAt < 2000) {
+      this.exitGameMode()
+      return true
+    }
+    this.lastGameBackAt = now
+    return false
   }
 
   /**

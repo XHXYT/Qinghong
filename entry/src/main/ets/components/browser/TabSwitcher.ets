@@ -9,6 +9,15 @@ import { TabSwitcherColumns, gridColumnsTemplate } from '../../common/utils/brea
 @ComponentV2
 export struct TabSwitcher {
 
+  aboutToAppear(): void {
+    // 覆盖层展示中暂停主页整窗截图（会把本覆盖层截进快照）
+    tabsVM.homeSnapshotPaused = true
+  }
+
+  aboutToDisappear(): void {
+    tabsVM.homeSnapshotPaused = false
+  }
+
   private switchTo(tab: TabInfo): void {
     tabsVM.switchTab(tab.id)
     browserVM.showTabSwitcher = false
@@ -42,9 +51,16 @@ export struct TabSwitcher {
         }
         .width('100%')
 
-        // 卡片体：URL 或主页
+        // 卡片体：窗口快照 / 主页图标 / URL
         Column() {
-          if (tab.isHome) {
+          if (tab.snapshot !== null) {
+            Image(tab.snapshot)
+              .width('100%')
+              .height('100%')
+              .objectFit(ImageFit.Cover)
+              .borderRadius(10)
+              .clip(true)
+          } else if (tab.isHome) {
             SymbolGlyph($r('sys.symbol.house'))
               .fontSize(28)
               .fontColor([tab.isIncognito ? Color.White : $r('sys.color.font_secondary')])
@@ -162,7 +178,8 @@ export struct TabSwitcher {
     }
     .width('100%')
     .height('100%')
-    .padding({ bottom: QhState.bottomRectHeight })
+    // 顶部避让内化为覆盖层自身内边距：背景仍全屏铺底，标题行避让状态栏
+    .padding({ top: QhState.topRectHeight, bottom: QhState.bottomRectHeight })
     .backgroundColor($r('sys.color.comp_background_primary'))
   }
 }

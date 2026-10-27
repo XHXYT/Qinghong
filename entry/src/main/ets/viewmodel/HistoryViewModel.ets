@@ -49,6 +49,15 @@ export class HistoryViewModel {
     await this.loadAll()
   }
 
+  /** 批量删除（多选编辑栏） */
+  async deleteByIds(ids: number[]): Promise<void> {
+    if (ids.length === 0) {
+      return
+    }
+    await this.getDB().deleteByIds(ids)
+    await this.loadAll()
+  }
+
   async deleteByUrl(url: string): Promise<void> {
     await this.getDB().deleteByUrl(url)
     await this.loadAll()

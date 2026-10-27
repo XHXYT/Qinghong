@@ -24,9 +24,6 @@ export class AppConstants {
   /** 数据库 */
   static readonly DB_NAME: string = 'qinghong'
 
-  /** 下载目录（沙箱内相对路径） */
-  static readonly DOWNLOAD_DIR: string = 'QingHong/Download'
-
   /** 标签页上限 */
   static readonly MAX_TABS: number = 32
 
@@ -38,5 +35,8 @@ export class AppConstants {
 
   /** 撤销关闭提示显示时长(ms) */
   static readonly UNDO_TIP_DURATION: number = 4000
+
+  /** 标签窗口快照缩略宽度（px，超出时等比降采样控内存） */
+  static readonly TAB_SNAPSHOT_WIDTH: number = 320
 
 }

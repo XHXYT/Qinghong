@@ -39,6 +39,7 @@ export class MenuEntries {
     new MenuEntry('screen_orientation', $r('app.string.screen_orientation'), $r('sys.symbol.rectangle_on_rectangle')),
     new MenuEntry('night_mode', $r('app.string.night_mode'), $r('sys.symbol.moon')),
     new MenuEntry('script', $r('app.string.script'), $r('sys.symbol.code_square')),
+    new MenuEntry('customize', $r('app.string.customize'), $r('sys.symbol.paintpalette')),
     // —— 可添加 ——
     new MenuEntry('find_in_page', $r('app.string.find_in_page'), $r('sys.symbol.doc_text_badge_magnifyingglass')),
     new MenuEntry('save', $r('app.string.save'), $r('sys.symbol.square_and_arrow_down')),
@@ -66,7 +67,7 @@ export class MenuEntries {
     'bookmarks', 'history', 'downloads', 'incognito', 'share',
     'add_bookmark', 'mark_ad', 'desktop_mode', 'toolbox', 'settings',
     'offline_page', 'translate', 'view_source', 'inspect_element', 'fullscreen', 'resource_sniff',
-    'browser_id', 'network_log', 'screen_orientation', 'night_mode', 'script'
+    'browser_id', 'network_log', 'screen_orientation', 'night_mode', 'script', 'customize'
   ]
 
   static byId(id: string): MenuEntry | undefined {

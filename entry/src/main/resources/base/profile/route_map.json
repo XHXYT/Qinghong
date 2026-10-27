@@ -36,8 +36,13 @@
       "buildFunction": "GeneralSettingsBuilder"
     },
     {
+      "name": "settings_download",
+      "pageSourceFile": "src/main/ets/view/settings/general/DownloadSettingsPage.ets",
+      "buildFunction": "DownloadSettingsBuilder"
+    },
+    {
       "name": "settings_custom",
-      "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
+      "pageSourceFile": "src/main/ets/view/settings/general/HomeCustomizePage.ets",
       "buildFunction": "SettingsCustomBuilder"
     },
     {
@@ -52,8 +57,18 @@
     },
     {
       "name": "settings_script",
-      "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
-      "buildFunction": "SettingsScriptBuilder"
+      "pageSourceFile": "src/main/ets/view/settings/general/ScriptPage.ets",
+      "buildFunction": "ScriptPageBuilder"
+    },
+    {
+      "name": "settings_script_edit",
+      "pageSourceFile": "src/main/ets/view/settings/general/ScriptEditPage.ets",
+      "buildFunction": "ScriptEditPageBuilder"
+    },
+    {
+      "name": "settings_script_code",
+      "pageSourceFile": "src/main/ets/view/settings/general/ScriptCodePage.ets",
+      "buildFunction": "ScriptCodePageBuilder"
     },
     {
       "name": "settings_toolbar",
@@ -172,7 +187,7 @@
     },
     {
       "name": "offline_page",
-      "pageSourceFile": "src/main/ets/view/settings/PlaceholderPage.ets",
+      "pageSourceFile": "src/main/ets/view/OfflinePage.ets",
       "buildFunction": "OfflinePageBuilder"
     },
     {

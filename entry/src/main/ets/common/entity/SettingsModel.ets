@@ -191,8 +191,8 @@ export class AppSettings {
   @Trace custom_uas: CustomUa[] = []
   /** 外置视频播放器 'system' | 'none' */
   @Trace video_player: string = 'system'
-  /** 退出时清除数据（逗号分隔的 key 列表） */
-  @Trace exit_clear_data: string = ''
+  /** 退出时清除数据（逗号分隔的 key 列表）；默认勾选：缓存/表单数据/应用缓存 */
+  @Trace exit_clear_data: string = 'cache,form,app_cache'
   /** 高级：无图模式（不加载网页在线图片） */
   @Trace no_image_mode: boolean = false
   /** 高级：自动展示嗅探按钮 */
@@ -252,6 +252,49 @@ export class AppSettings {
   @Trace home_page_mode: string = 'default'
   /** 主页模式为网页时的主页地址 */
   @Trace home_page_url: string = ''
+  // —— 主页定制（定制面板）——
+  /** 主页 Logo 模式：default 默认 / image 图片 / text 文字 / html 代码 / none 无 */
+  @Trace home_logo_mode: string = 'default'
+  /** 主页 Logo：自定义图片路径（logo_mode=image） */
+  @Trace home_logo_image: string = ''
+  /** 主页 Logo：自定义文字（logo_mode=text） */
+  @Trace home_logo_text: string = ''
+  /** 主页 Logo：HTML 代码（logo_mode=html，将启用本地 HTML 主页） */
+  @Trace home_logo_html: string = ''
+  /** 主页搜索框：圆角值（vp，矩形样式生效） */
+  @Trace home_search_radius: number = 23
+  /** 主页搜索框：底色不透明度（%） */
+  @Trace home_search_opacity: number = 100
+  /** 主页搜索框：描边粗细（vp，0=无边框） */
+  @Trace home_search_border_width: number = 0
+  /** 主页搜索框：描边不透明度（%） */
+  @Trace home_search_border_opacity: number = 100
+  /** 主页搜索框样式：rect 矩形 / line 线条 */
+  @Trace home_search_style: string = 'rect'
+  /** 主页背景：图片路径（空=纯色） */
+  @Trace home_bg_image: string = ''
+  /** 主页背景主题：system 跟随系统 / light 亮 / dark 暗 */
+  @Trace home_bg_theme: string = 'system'
+  /** 主页背景图片不透明度（%） */
+  @Trace home_bg_opacity: number = 100
+  /** 主页背景图片模糊（px，0=不模糊） */
+  @Trace home_bg_blur: number = 0
+  /** 主页收藏块宽度（vp，0=自适应） */
+  @Trace home_quick_width: number = 0
+  /** 主页收藏块高度（vp，0=自适应） */
+  @Trace home_quick_height: number = 0
+  /** 主页收藏块圆角值（vp） */
+  @Trace home_quick_radius: number = 24
+  /** 主页收藏图标样式：text 文字 / icon 图标优先（favicon 缓存） */
+  @Trace home_quick_icon_style: string = 'text'
+  /** 主页高级：搜索框效果 blur 模糊 / transparent 透明（底色不透明度归零） */
+  @Trace home_search_effect: string = 'blur'
+  /** 主页高级：显示搜索区域（Logo + 搜索框） */
+  @Trace home_show_search_area: boolean = true
+  /** 主页高级：自定义 CSS（非空时启用本地 HTML 主页，优先级最高） */
+  @Trace home_custom_css: string = ''
+  /** 主页高级：使用自定义 CSS（关闭则不注入，内容保留不清空） */
+  @Trace home_custom_css_enabled: boolean = true
   /** 搜索建议来源（启用项逗号分隔） */
   @Trace search_suggest_sources: string = 'favorites,bookmarks,tabs,history,engine,search_history'
   /** 搜索工具栏启用 */
@@ -268,12 +311,22 @@ export class AppSettings {
   @Trace swipe_nav_enabled: boolean = false
   /** 操作设定：使用音量键翻页（网页中一般为控制上下滚动） */
   @Trace volume_key_paging: boolean = false
+  /** 用户脚本：启用脚本总开关（脚本列表见设置-脚本页） */
+  @Trace userscript_enabled: boolean = true
+  /** 用户脚本：调试悬浮窗（页面右下角显示注入状态与 GM 调用计数） */
+  @Trace userscript_debug: boolean = false
   /** 操作设定：启用播放器手势（网页内全屏视频滑动调整进度/亮度/音量，功能预留） */
   @Trace player_gestures: boolean = true
   /** 键盘快捷键自定义（逗号分隔 id:key 覆盖项，空 = 全默认） */
   @Trace keyboard_shortcuts: string = ''
   /** 底部工具栏事件绑定（逗号分隔 事件id:动作id，未存条目 = 无操作） */
   @Trace toolbar_events: string = ''
+  /** 下载配置：HLS 分片并发下载数（1-8，代理掐连接环境下并发成倍提速） */
+  @Trace download_concurrency: number = 4
+  /** 下载配置：同时下载任务数上限（1-4，超出排队等待） */
+  @Trace download_task_limit: number = 3
+  /** 下载配置：下载进度通知 */
+  @Trace download_notify: boolean = true
 
   constructor() {
   }
@@ -281,6 +334,16 @@ export class AppSettings {
   /** 蒙版颜色的十六进制值 */
   maskColorHex(): string {
     return this.night_mask_color === 'amber' ? '#FFBD69' : '#000000'
+  }
+
+  /** 自定义 CSS 是否生效：开关开启且内容非空 */
+  customCssEnabled(): boolean {
+    return this.home_custom_css_enabled && this.home_custom_css.trim() !== ''
+  }
+
+  /** 主页定制：是否启用本地 HTML 主页（Logo 用 HTML 代码或自定义 CSS 生效中） */
+  isHomeHtmlMode(): boolean {
+    return this.home_logo_mode === 'html' || this.customCssEnabled()
   }
 
   /** 搜索建议来源是否启用 */
@@ -373,6 +436,27 @@ export class AppSettings {
       "system_password_manager": this.system_password_manager,
       "home_page_mode": this.home_page_mode,
       "home_page_url": this.home_page_url,
+      "home_logo_mode": this.home_logo_mode,
+      "home_logo_image": this.home_logo_image,
+      "home_logo_text": this.home_logo_text,
+      "home_logo_html": this.home_logo_html,
+      "home_search_radius": this.home_search_radius,
+      "home_search_opacity": this.home_search_opacity,
+      "home_search_border_width": this.home_search_border_width,
+      "home_search_border_opacity": this.home_search_border_opacity,
+      "home_search_style": this.home_search_style,
+      "home_bg_image": this.home_bg_image,
+      "home_bg_theme": this.home_bg_theme,
+      "home_bg_opacity": this.home_bg_opacity,
+      "home_bg_blur": this.home_bg_blur,
+      "home_quick_width": this.home_quick_width,
+      "home_quick_height": this.home_quick_height,
+      "home_quick_radius": this.home_quick_radius,
+      "home_quick_icon_style": this.home_quick_icon_style,
+      "home_search_effect": this.home_search_effect,
+      "home_show_search_area": this.home_show_search_area,
+      "home_custom_css": this.home_custom_css,
+      "home_custom_css_enabled": this.home_custom_css_enabled,
       "search_suggest_sources": this.search_suggest_sources,
       "search_toolbar_enabled": this.search_toolbar_enabled,
       "search_toolbar_engines": this.search_toolbar_engines,
@@ -381,9 +465,14 @@ export class AppSettings {
       "bookmark_folders": this.bookmark_folders,
       "swipe_nav_enabled": this.swipe_nav_enabled,
       "volume_key_paging": this.volume_key_paging,
+      "userscript_enabled": this.userscript_enabled,
+      "userscript_debug": this.userscript_debug,
       "player_gestures": this.player_gestures,
       "keyboard_shortcuts": this.keyboard_shortcuts,
-      "toolbar_events": this.toolbar_events
+      "toolbar_events": this.toolbar_events,
+      "download_concurrency": this.download_concurrency,
+      "download_task_limit": this.download_task_limit,
+      "download_notify": this.download_notify
     };
   }
 
@@ -443,6 +532,27 @@ export class AppSettings {
     this.system_password_manager = (json["system_password_manager"] as boolean) ?? this.system_password_manager;
     this.home_page_mode = (json["home_page_mode"] as string) ?? this.home_page_mode;
     this.home_page_url = (json["home_page_url"] as string) ?? this.home_page_url;
+    this.home_logo_mode = (json["home_logo_mode"] as string) ?? this.home_logo_mode;
+    this.home_logo_image = (json["home_logo_image"] as string) ?? this.home_logo_image;
+    this.home_logo_text = (json["home_logo_text"] as string) ?? this.home_logo_text;
+    this.home_logo_html = (json["home_logo_html"] as string) ?? this.home_logo_html;
+    this.home_search_radius = (json["home_search_radius"] as number) ?? this.home_search_radius;
+    this.home_search_opacity = (json["home_search_opacity"] as number) ?? this.home_search_opacity;
+    this.home_search_border_width = (json["home_search_border_width"] as number) ?? this.home_search_border_width;
+    this.home_search_border_opacity = (json["home_search_border_opacity"] as number) ?? this.home_search_border_opacity;
+    this.home_search_style = (json["home_search_style"] as string) ?? this.home_search_style;
+    this.home_bg_image = (json["home_bg_image"] as string) ?? this.home_bg_image;
+    this.home_bg_theme = (json["home_bg_theme"] as string) ?? this.home_bg_theme;
+    this.home_bg_opacity = (json["home_bg_opacity"] as number) ?? this.home_bg_opacity;
+    this.home_bg_blur = (json["home_bg_blur"] as number) ?? this.home_bg_blur;
+    this.home_quick_width = (json["home_quick_width"] as number) ?? this.home_quick_width;
+    this.home_quick_height = (json["home_quick_height"] as number) ?? this.home_quick_height;
+    this.home_quick_radius = (json["home_quick_radius"] as number) ?? this.home_quick_radius;
+    this.home_quick_icon_style = (json["home_quick_icon_style"] as string) ?? this.home_quick_icon_style;
+    this.home_search_effect = (json["home_search_effect"] as string) ?? this.home_search_effect;
+    this.home_show_search_area = (json["home_show_search_area"] as boolean) ?? this.home_show_search_area;
+    this.home_custom_css = (json["home_custom_css"] as string) ?? this.home_custom_css;
+    this.home_custom_css_enabled = (json["home_custom_css_enabled"] as boolean) ?? this.home_custom_css_enabled;
     this.search_suggest_sources = (json["search_suggest_sources"] as string) ?? this.search_suggest_sources;
     this.search_toolbar_enabled = (json["search_toolbar_enabled"] as boolean) ?? this.search_toolbar_enabled;
     this.search_toolbar_engines = (json["search_toolbar_engines"] as string) ?? this.search_toolbar_engines;
@@ -451,9 +561,20 @@ export class AppSettings {
     this.bookmark_folders = (json["bookmark_folders"] as string) ?? this.bookmark_folders;
     this.swipe_nav_enabled = (json["swipe_nav_enabled"] as boolean) ?? this.swipe_nav_enabled;
     this.volume_key_paging = (json["volume_key_paging"] as boolean) ?? this.volume_key_paging;
+    this.userscript_enabled = (json["userscript_enabled"] as boolean) ?? this.userscript_enabled;
+    this.userscript_debug = (json["userscript_debug"] as boolean) ?? this.userscript_debug;
     this.player_gestures = (json["player_gestures"] as boolean) ?? this.player_gestures;
     this.keyboard_shortcuts = (json["keyboard_shortcuts"] as string) ?? this.keyboard_shortcuts;
     this.toolbar_events = (json["toolbar_events"] as string) ?? this.toolbar_events;
+    const conc = json["download_concurrency"] as number;
+    if (conc !== undefined && conc >= 1 && conc <= 8) {
+      this.download_concurrency = Math.round(conc);
+    }
+    const limit = json["download_task_limit"] as number;
+    if (limit !== undefined && limit >= 1 && limit <= 4) {
+      this.download_task_limit = Math.round(limit);
+    }
+    this.download_notify = (json["download_notify"] as boolean) ?? this.download_notify;
 
     const rawUas = json["custom_uas"] as Object[];
     if (rawUas) {
@@ -490,8 +611,14 @@ export class AppSettings {
     'ignore_ssl_warning', 'web_vibration_enabled', 'web_haptic_enabled', 'show_undo_close_tip', 'auto_expand_web', 'force_enable_zoom', 'cookies_enabled', 'cookies_block_third_party', 'popup_allowed', 'site_defaults', 'ad_block_enabled', 'ad_block_builtin', 'night_mask_enabled', 'night_mask_opacity', 'night_mask_color', 'force_dark_web',
     'read_mode_address_button', 'read_mode_confirm', 'read_mode_bg_color', 'read_mode_custom_bg', 'read_mode_font_size', 'read_mode_serif', 'font_family',
     'password_save_prompt', 'system_password_manager', 'home_page_mode', 'home_page_url',
+    'home_logo_mode', 'home_logo_image', 'home_logo_text', 'home_logo_html',
+    'home_search_radius', 'home_search_opacity', 'home_search_border_width', 'home_search_border_opacity',
+    'home_search_style', 'home_bg_image', 'home_bg_theme', 'home_bg_opacity', 'home_bg_blur',
+    'home_quick_width', 'home_quick_height', 'home_quick_radius', 'home_quick_icon_style',
+    'home_search_effect', 'home_show_search_area', 'home_custom_css', 'home_custom_css_enabled',
     'search_suggest_sources',     'search_toolbar_enabled', 'search_toolbar_engines', 'menu_layout', 'long_press_menu', 'bookmark_folders',
-    'swipe_nav_enabled', 'volume_key_paging', 'player_gestures', 'keyboard_shortcuts', 'toolbar_events')
+    'swipe_nav_enabled', 'volume_key_paging', 'player_gestures', 'keyboard_shortcuts', 'toolbar_events',
+    'download_concurrency', 'download_task_limit', 'download_notify')
   public async save(): Promise<void> {
     try {
       const jsonStr: string = JSON.stringify(this.toSyncData());
@@ -522,7 +649,7 @@ export class AppSettings {
     this.ua_simplify = false;
     this.custom_uas = [];
     this.video_player = 'system';
-    this.exit_clear_data = '';
+    this.exit_clear_data = 'cache,form,app_cache';
     this.no_image_mode = false;
     this.show_sniff_button = true;
     this.allow_debug_web = true;
@@ -552,6 +679,27 @@ export class AppSettings {
     this.system_password_manager = false;
     this.home_page_mode = 'default';
     this.home_page_url = '';
+    this.home_logo_mode = 'default';
+    this.home_logo_image = '';
+    this.home_logo_text = '';
+    this.home_logo_html = '';
+    this.home_search_radius = 23;
+    this.home_search_opacity = 100;
+    this.home_search_border_width = 0;
+    this.home_search_border_opacity = 100;
+    this.home_search_style = 'rect';
+    this.home_bg_image = '';
+    this.home_bg_theme = 'system';
+    this.home_bg_opacity = 100;
+    this.home_bg_blur = 0;
+    this.home_quick_width = 0;
+    this.home_quick_height = 0;
+    this.home_quick_radius = 24;
+    this.home_quick_icon_style = 'text';
+    this.home_search_effect = 'blur';
+    this.home_show_search_area = true;
+    this.home_custom_css = '';
+    this.home_custom_css_enabled = true;
     this.search_suggest_sources = 'favorites,bookmarks,tabs,history,engine,search_history';
     this.search_toolbar_enabled = false;
     this.search_toolbar_engines = 'baidu:1,google:1,bing:1,sogou:1,so360:1,toutiao:1,shenma:1';
@@ -560,9 +708,40 @@ export class AppSettings {
     this.bookmark_folders = '[]';
     this.swipe_nav_enabled = false;
     this.volume_key_paging = false;
+    this.userscript_enabled = true;
+    this.userscript_debug = false;
     this.player_gestures = true;
     this.keyboard_shortcuts = '';
     this.toolbar_events = '';
+    this.download_concurrency = 4;
+    this.download_task_limit = 3;
+    this.download_notify = true;
+    this.save();
+  }
+
+  /** 重置主页定制项（不动 home_page_mode / home_page_url） */
+  public async resetHomeCustomize(): Promise<void> {
+    this.home_logo_mode = 'default';
+    this.home_logo_image = '';
+    this.home_logo_text = '';
+    this.home_logo_html = '';
+    this.home_search_radius = 23;
+    this.home_search_opacity = 100;
+    this.home_search_border_width = 0;
+    this.home_search_border_opacity = 100;
+    this.home_search_style = 'rect';
+    this.home_bg_image = '';
+    this.home_bg_theme = 'system';
+    this.home_bg_opacity = 100;
+    this.home_bg_blur = 0;
+    this.home_quick_width = 0;
+    this.home_quick_height = 0;
+    this.home_quick_radius = 24;
+    this.home_quick_icon_style = 'text';
+    this.home_search_effect = 'blur';
+    this.home_show_search_area = true;
+    this.home_custom_css = '';
+    this.home_custom_css_enabled = true;
     this.save();
   }
 }

@@ -37,6 +37,34 @@
       "value": "下载失败"
     },
     {
+      "name": "hls_encrypted_unsupported",
+      "value": "暂不支持下载加密视频流"
+    },
+    {
+      "name": "unknown_size",
+      "value": "未知大小"
+    },
+    {
+      "name": "retry_all_failed",
+      "value": "重试所有失败"
+    },
+    {
+      "name": "pause_all_tasks",
+      "value": "暂停所有任务"
+    },
+    {
+      "name": "resume_all_tasks",
+      "value": "继续所有任务"
+    },
+    {
+      "name": "clear_all_tasks",
+      "value": "清空所有任务"
+    },
+    {
+      "name": "clear_all_tasks_confirm",
+      "value": "确定清空所有下载记录吗？"
+    },
+    {
       "name": "refresh",
       "value": "刷新"
     },
@@ -165,6 +193,14 @@
       "value": "名称"
     },
     {
+      "name": "bookmark_field_icon",
+      "value": "图标"
+    },
+    {
+      "name": "bookmark_icon_hint",
+      "value": "点击选择图片"
+    },
+    {
       "name": "bookmark_field_url",
       "value": "网址"
     },
@@ -253,6 +289,14 @@
       "value": "移除主页快捷"
     },
     {
+      "name": "quick_added",
+      "value": "已添加"
+    },
+    {
+      "name": "quick_removed",
+      "value": "已移除"
+    },
+    {
       "name": "delete_confirm",
       "value": "确定删除该项吗？"
     },
@@ -283,6 +327,10 @@
     {
       "name": "status_failed",
       "value": "已失败"
+    },
+    {
+      "name": "status_paused",
+      "value": "已暂停"
     },
     {
       "name": "search_engine",
@@ -391,6 +439,202 @@
     {
       "name": "settings_script",
       "value": "脚本"
+    },
+    {
+      "name": "script_enable",
+      "value": "启用脚本"
+    },
+    {
+      "name": "script_section",
+      "value": "脚本"
+    },
+    {
+      "name": "script_add",
+      "value": "添加脚本"
+    },
+    {
+      "name": "script_download",
+      "value": "下载脚本"
+    },
+    {
+      "name": "script_import",
+      "value": "导入脚本"
+    },
+    {
+      "name": "script_edit",
+      "value": "编辑脚本"
+    },
+    {
+      "name": "script_update_one",
+      "value": "更新"
+    },
+    {
+      "name": "script_url_hint",
+      "value": "输入脚本链接"
+    },
+    {
+      "name": "script_url_invalid",
+      "value": "链接无效，请检查后重试"
+    },
+    {
+      "name": "script_empty",
+      "value": "暂无脚本，点击右上角「+」添加"
+    },
+    {
+      "name": "script_added",
+      "value": "脚本已添加"
+    },
+    {
+      "name": "script_replaced",
+      "value": "已更新同名脚本"
+    },
+    {
+      "name": "script_download_failed",
+      "value": "下载失败，请检查链接"
+    },
+    {
+      "name": "script_imported",
+      "value": "脚本已导入"
+    },
+    {
+      "name": "script_import_failed",
+      "value": "导入失败"
+    },
+    {
+      "name": "script_updated_n",
+      "value": "已更新 %d 个脚本"
+    },
+    {
+      "name": "script_update_none",
+      "value": "没有可更新的脚本"
+    },
+    {
+      "name": "script_update_failed",
+      "value": "更新失败"
+    },
+    {
+      "name": "script_delete_confirm",
+      "value": "确定删除该脚本吗？"
+    },
+    {
+      "name": "script_code_empty",
+      "value": "脚本内容不能为空"
+    },
+    {
+      "name": "script_code_hint",
+      "value": "输入或粘贴脚本代码"
+    },
+    {
+      "name": "script_help_title",
+      "value": "脚本帮助"
+    },
+    {
+      "name": "script_help_content",
+      "value": "Metadata 块\n脚本头部需使用如下格式：\n\n// ==UserScript==\n// @name 脚本名称\n// @match https://example.com/*\n// ==/UserScript==\n\n常用字段\n@name：脚本名称。\n@namespace：与 @name 共同构成脚本唯一 ID。\n@match/@exclude-match：定义脚本生效与排除的作用域。\n@include/@exclude：旧版本定义作用域的方式。\n@version：脚本版本。\n@description：脚本描述。\n@author：脚本作者。\n@run-at：运行时机。document-start 在页面 DOM 加载前注入，document-end 在 DOM 加载完成后注入，document-idle 在页面空闲后注入。\n@updateURL/@downloadURL：脚本更新地址（从链接下载的脚本自动记录来源）。\n\n匹配示例\n// @match https://www.google.com/*\n// @match *://*/*\n// @exclude-match https://www.google.com/not_me\n\n说明\n脚本按 @match 规则匹配页面后自动注入并生效；列表中的开关可单独启用或禁用某个脚本；从链接下载的脚本可通过右上角「更新」批量升级。"
+    },
+    {
+      "name": "script_learn_more",
+      "value": "了解更多"
+    },
+    {
+      "name": "script_unsaved_title",
+      "value": "有未保存的修改"
+    },
+    {
+      "name": "script_unsaved_message",
+      "value": "脚本已修改但尚未保存，离开后修改将会丢失"
+    },
+    {
+      "name": "script_leave",
+      "value": "仍然离开"
+    },
+    {
+      "name": "script_runtime",
+      "value": "运行时机"
+    },
+    {
+      "name": "script_runtime_default",
+      "value": "默认"
+    },
+    {
+      "name": "script_section_match",
+      "value": "匹配"
+    },
+    {
+      "name": "script_section_exclude",
+      "value": "排除"
+    },
+    {
+      "name": "script_section_advanced",
+      "value": "高级"
+    },
+    {
+      "name": "script_edit_source",
+      "value": "编辑源代码"
+    },
+    {
+      "name": "script_reset",
+      "value": "重置"
+    },
+    {
+      "name": "script_add_match",
+      "value": "添加匹配"
+    },
+    {
+      "name": "script_add_exclude",
+      "value": "添加排除"
+    },
+    {
+      "name": "script_info_title",
+      "value": "脚本信息"
+    },
+    {
+      "name": "script_info_name",
+      "value": "名称"
+    },
+    {
+      "name": "script_info_url",
+      "value": "下载链接"
+    },
+    {
+      "name": "script_info_updated",
+      "value": "更新于"
+    },
+    {
+      "name": "script_info_created",
+      "value": "创建于"
+    },
+    {
+      "name": "script_info_size",
+      "value": "大小"
+    },
+    {
+      "name": "script_no_update_url",
+      "value": "无下载链接，无法重置"
+    },
+    {
+      "name": "script_reset_confirm",
+      "value": "将从下载链接重新下载并覆盖当前脚本"
+    },
+    {
+      "name": "script_pattern_hint",
+      "value": "例如 https://example.com/*"
+    },
+    {
+      "name": "script_pattern_invalid",
+      "value": "规则不能为空"
+    },
+    {
+      "name": "script_copied",
+      "value": "已复制到剪贴板"
+    },
+    {
+      "name": "script_debug",
+      "value": "脚本调试"
+    },
+    {
+      "name": "script_debug_desc",
+      "value": "网页右下角显示脚本注入状态悬浮窗（GM 徽标，点按展开详情）"
     },
     {
       "name": "settings_sync",
@@ -643,6 +887,22 @@
     {
       "name": "edit",
       "value": "编辑"
+    },
+    {
+      "name": "done",
+      "value": "完成"
+    },
+    {
+      "name": "delete_selected_records",
+      "value": "删除所选记录"
+    },
+    {
+      "name": "history_delete_selected_confirm",
+      "value": "将删除 %d 条记录，删除后不可恢复"
+    },
+    {
+      "name": "history_opened_new_tabs",
+      "value": "已在新标签页打开 %d 条记录"
     },
     {
       "name": "clear_data",
@@ -1173,6 +1433,26 @@
       "value": "资源嗅探"
     },
     {
+      "name": "sniff_filter_all",
+      "value": "全部"
+    },
+    {
+      "name": "sniff_filter_video",
+      "value": "视频"
+    },
+    {
+      "name": "sniff_filter_audio",
+      "value": "音频"
+    },
+    {
+      "name": "sniff_filter_image",
+      "value": "图片"
+    },
+    {
+      "name": "sniff_empty",
+      "value": "页面中未发现可下载的媒体资源"
+    },
+    {
       "name": "browser_id",
       "value": "浏览器标识"
     },
@@ -1205,8 +1485,20 @@
       "value": "打印/PDF"
     },
     {
+      "name": "print_web_page",
+      "value": "打印网页"
+    },
+    {
       "name": "read_aloud",
       "value": "朗读网页"
+    },
+    {
+      "name": "read_aloud_confirm_message",
+      "value": "即将进入阅读模式并开始朗读？"
+    },
+    {
+      "name": "read_aloud_failed",
+      "value": "朗读启动失败"
     },
     {
       "name": "add_to_home",
@@ -1217,8 +1509,16 @@
       "value": "其它应用打开"
     },
     {
+      "name": "open_with_failed",
+      "value": "未找到可打开的应用"
+    },
+    {
       "name": "game_mode",
       "value": "游戏模式"
+    },
+    {
+      "name": "game_mode_exit_hint",
+      "value": "再按一次退出游戏模式"
     },
     {
       "name": "ai",
@@ -1231,6 +1531,10 @@
     {
       "name": "report_site",
       "value": "举报网站"
+    },
+    {
+      "name": "report_site_copied",
+      "value": "网址已复制，请粘贴举报"
     },
     {
       "name": "menu_item_wip",
@@ -1359,6 +1663,38 @@
     {
       "name": "download_dir",
       "value": "下载目录"
+    },
+    {
+      "name": "download_settings",
+      "value": "下载配置"
+    },
+    {
+      "name": "download_concurrency",
+      "value": "分片并发数"
+    },
+    {
+      "name": "download_concurrency_desc",
+      "value": "视频分片同时下载的连接数"
+    },
+    {
+      "name": "download_task_limit",
+      "value": "同时下载任务数"
+    },
+    {
+      "name": "download_task_limit_desc",
+      "value": "超出数量的任务排队等待"
+    },
+    {
+      "name": "download_notify",
+      "value": "下载通知"
+    },
+    {
+      "name": "download_notify_desc",
+      "value": "显示下载进度与结果通知"
+    },
+    {
+      "name": "download_records",
+      "value": "下载记录"
     },
     {
       "name": "download_dir_unsupported",
@@ -1555,6 +1891,42 @@
     {
       "name": "save_page",
       "value": "保存网页"
+    },
+    {
+      "name": "page_saved",
+      "value": "网页已保存"
+    },
+    {
+      "name": "page_save_failed",
+      "value": "网页保存失败"
+    },
+    {
+      "name": "pdf_saved",
+      "value": "已保存为 PDF"
+    },
+    {
+      "name": "pdf_save_failed",
+      "value": "PDF 保存失败"
+    },
+    {
+      "name": "save_dialog_title",
+      "value": "保存网页"
+    },
+    {
+      "name": "save_as_pdf",
+      "value": "保存为PDF"
+    },
+    {
+      "name": "offline_saved",
+      "value": "已保存离线页面"
+    },
+    {
+      "name": "offline_save_failed",
+      "value": "保存离线页面失败"
+    },
+    {
+      "name": "empty_offline",
+      "value": "暂无离线页面"
     },
     {
       "name": "page_down",
@@ -2422,6 +2794,79 @@
     { "name": "address_content_url", "value": "地址" },
     { "name": "address_content_domain", "value": "域名" },
     { "name": "action_bar_color_mode", "value": "色彩模式" },
-    { "name": "action_bar_color_mode_desc", "value": "浏览网页时操作栏自适应色彩" }
+    { "name": "action_bar_color_mode_desc", "value": "浏览网页时操作栏自适应色彩" },
+    { "name": "customize", "value": "定制" },
+    { "name": "home_customize_title", "value": "定制主页" },
+    { "name": "home_tab_logo", "value": "Logo" },
+    { "name": "home_tab_search", "value": "搜索框" },
+    { "name": "home_tab_background", "value": "背景" },
+    { "name": "home_tab_favorites", "value": "收藏" },
+    { "name": "home_tab_advanced", "value": "高级" },
+    { "name": "home_logo_mode", "value": "Logo 模式" },
+    { "name": "home_logo_default", "value": "默认" },
+    { "name": "home_logo_image", "value": "图片" },
+    { "name": "home_logo_text", "value": "文字" },
+    { "name": "home_logo_html", "value": "HTML" },
+    { "name": "home_logo_none", "value": "无" },
+    { "name": "home_pick_image", "value": "选择图片" },
+    { "name": "home_clear_image", "value": "清除图片" },
+    { "name": "home_logo_text_hint", "value": "Logo 文字" },
+    { "name": "home_logo_html_hint", "value": "输入 HTML 代码" },
+    { "name": "home_search_style", "value": "样式" },
+    { "name": "home_style_rect", "value": "矩形" },
+    { "name": "home_style_line", "value": "线条" },
+    { "name": "home_search_effect", "value": "效果" },
+    { "name": "home_effect_normal", "value": "普通" },
+    { "name": "home_effect_transparent", "value": "透明" },
+    { "name": "home_effect_blur", "value": "模糊" },
+    { "name": "home_search_radius", "value": "圆角" },
+    { "name": "home_search_opacity", "value": "底色不透明度" },
+    { "name": "home_search_border_width", "value": "描边宽度" },
+    { "name": "home_search_border_opacity", "value": "描边不透明度" },
+    { "name": "home_show_search_area", "value": "显示搜索区域" },
+    { "name": "home_bg_theme", "value": "背景主题" },
+    { "name": "home_theme_system", "value": "跟随系统" },
+    { "name": "home_theme_light", "value": "浅色" },
+    { "name": "home_theme_dark", "value": "深色" },
+    { "name": "home_bg_image", "value": "背景图片" },
+    { "name": "home_bg_opacity", "value": "不透明度" },
+    { "name": "home_bg_blur", "value": "背景模糊" },
+    { "name": "home_group_size", "value": "尺寸与圆角" },
+    { "name": "home_quick_width", "value": "图标宽度" },
+    { "name": "home_quick_height", "value": "图标高度" },
+    { "name": "home_quick_radius", "value": "图标圆角" },
+    { "name": "home_quick_icon_style", "value": "图标样式" },
+    { "name": "home_icon_text", "value": "文字" },
+    { "name": "home_icon_favicon", "value": "网站图标" },
+    { "name": "home_favorites_tip", "value": "主页快捷图标来自书签中的收藏，可在书签管理中添加或移除" },
+    { "name": "home_custom_css", "value": "自定义 CSS" },
+    { "name": "home_use_custom_css", "value": "使用自定义 CSS" },
+    { "name": "home_custom_css_hint", "value": "输入 CSS，将注入本地 HTML 主页" },
+    { "name": "home_html_tip", "value": "Logo 使用 HTML 或自定义 CSS 非空时，主页将以本地 HTML 主页渲染" },
+    { "name": "home_import_file", "value": "导入文件" },
+    { "name": "home_apply", "value": "应用" },
+    { "name": "home_reset", "value": "重置主页定制" },
+    { "name": "home_reset_message", "value": "将恢复主页全部默认外观设置" },
+    { "name": "no_quick_links", "value": "暂无快捷书签，可在书签编辑中勾选\"快捷\"" },
+    { "name": "view_certificate", "value": "查看证书" },
+    { "name": "view_cookies", "value": "查看 Cookies" },
+    { "name": "view_scripts", "value": "查看脚本" },
+    { "name": "cert_issued_to", "value": "颁发对象" },
+    { "name": "cert_common_name", "value": "公用名" },
+    { "name": "cert_organization", "value": "组织" },
+    { "name": "cert_org_unit", "value": "组织单位" },
+    { "name": "cert_issuer", "value": "颁发者" },
+    { "name": "cert_validity", "value": "有效期" },
+    { "name": "cert_issued_on", "value": "颁发日期" },
+    { "name": "cert_expires_on", "value": "截止日期" },
+    { "name": "cert_sha256", "value": "SHA-256 指纹" },
+    { "name": "cert_fp_certificate", "value": "证书" },
+    { "name": "cert_fp_public_key", "value": "公钥" },
+    { "name": "cert_unavailable", "value": "当前页面无证书信息（仅 HTTPS 页面提供）" },
+    { "name": "cookies_empty", "value": "暂无 Cookies" },
+    { "name": "script_runs_here", "value": "作用于当前页面" },
+    { "name": "no_scripts", "value": "暂无脚本" },
+    { "name": "qr_saved", "value": "已保存到图库" },
+    { "name": "save_failed", "value": "操作失败" }
   ]
 }

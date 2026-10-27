@@ -2,6 +2,7 @@ import { webview } from '@kit.ArkWeb';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { ReaderArticle } from '../../viewmodel/BrowserViewModel';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
+import { readAloudVM } from '../../viewmodel/ReadAloudViewModel';
 import { appSettings } from '../../common/entity/SettingsModel';
 import { ReaderScripts } from '../../common/utils/ReaderScripts';
 import { QhState } from '../../entryability/AppState';
@@ -141,6 +142,13 @@ export struct ReaderView {
             .textAlign(TextAlign.Center)
             .layoutWeight(1)
             .margin({ left: 12, right: 12 })
+          SymbolGlyph($r('sys.symbol.speaker_wave_2'))
+            .fontSize(22)
+            .fontColor([$r('sys.color.font_primary')])
+            .margin({ right: 20 })
+            .onClick(() => {
+              readAloudVM.startFromTab()
+            })
           Text('Aa')
             .fontSize(16)
             .fontWeight(FontWeight.Medium)

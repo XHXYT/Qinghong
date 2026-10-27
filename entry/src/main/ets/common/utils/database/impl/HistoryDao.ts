@@ -68,6 +68,14 @@ export class HistoryDao extends AutoTable<HistoryInfo> {
     return this.deleteItem(this.getPredicates().equalTo('id', id))
   }
 
+  /** 批量删除（多选编辑栏） */
+  async deleteByIds(ids: number[]): Promise<number> {
+    if (ids.length === 0) {
+      return 0
+    }
+    return this.deleteItem(this.getPredicates().in('id', ids))
+  }
+
   async deleteByUrl(url: string): Promise<number> {
     return this.deleteItem(this.getPredicates().equalTo('url', url))
   }

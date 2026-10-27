@@ -113,6 +113,23 @@ export class ReaderScripts {
   }
 
   /**
+   * 朗读网页提取脚本：复用 Readability 注入，一次提取双产物——
+   * content（HTML，供阅读模式 parseArticle 进 ReaderView）与
+   * text（innerText 纯文本，供朗读控件播报，块级换行保留）
+   */
+  static readAloudProbeJs(): string {
+    return ReaderScripts.readabilityProbeJs() +
+      ';(function(){try{' +
+      'var r=window.__qhParseArticle();' +
+      'if(!r){return "null";}' +
+      'var d=document.createElement("div");d.innerHTML=r.content;' +
+      'return JSON.stringify({title:r.title,byline:r.byline,dir:r.dir,lang:r.lang,' +
+      'siteName:r.siteName,publishedTime:r.publishedTime,content:r.content,' +
+      'text:(d.innerText||"").trim()});' +
+      '}catch(e){return "null";}})()'
+  }
+
+  /**
    * 构建阅读页 HTML：模板 + 正文 + 排版 CSS 变量 + 自定义 CSS；
    * CSP 禁脚本（提取内容直出，Readability 已剔除脚本，此处纵深防御）
    */

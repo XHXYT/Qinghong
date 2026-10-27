@@ -1,6 +1,8 @@
 import UIConstants from "../common/constants/UIConstants"
 import { QhState } from "../entryability/AppState"
 import { KeyCode } from "@kit.InputKit"
+import { SymbolGlyphModifier } from "@kit.ArkUI"
+import { ContextMenuItem } from "../common/entity/CusItemInfo"
 
 /**
  * 自定义标题栏按钮初始化参数
@@ -20,6 +22,8 @@ export interface NaviBarButtonInit {
   fontColor?: ResourceColor
   /** 背景色，默认官方图标按钮背景 */
   backgroundColor?: ResourceColor
+  /** 下拉菜单项（非空时点击弹出菜单，action 不生效） */
+  menuItems?: ContextMenuItem[]
   /** 点击事件 */
   action?: () => void
 }
@@ -35,6 +39,7 @@ export class NaviBarButton {
   height: number = 40
   fontColor: ResourceColor = $r('sys.color.font_primary')
   backgroundColor: ResourceColor = $r('sys.color.comp_background_tertiary')
+  menuItems: ContextMenuItem[] = []
   action: (() => void) | undefined = undefined
 
   constructor(init?: NaviBarButtonInit) {
@@ -46,6 +51,7 @@ export class NaviBarButton {
       if (init.height !== undefined) this.height = init.height
       if (init.fontColor !== undefined) this.fontColor = init.fontColor
       if (init.backgroundColor !== undefined) this.backgroundColor = init.backgroundColor
+      if (init.menuItems !== undefined) this.menuItems = init.menuItems
       if (init.action !== undefined) this.action = init.action
     }
   }
@@ -72,6 +78,10 @@ export struct NaviContainer {
   @Param buttons: NaviBarButton[] = []
 
   private pageStack: NavPathStack = new NavPathStack()
+
+  /** 标题栏下拉菜单显隐与内容（由带 menuItems 的按钮驱动） */
+  @Local btnMenuShow: boolean = false
+  @Local btnMenuItems: ContextMenuItem[] = []
 
   @Event onReady: (ctx: NavDestinationContext) => void
   @Event onBackPressed: () => boolean
@@ -202,26 +212,71 @@ export struct NaviContainer {
   }
 
   @Builder
-  barButton(index: number) {
-    Row() {
-      if (this.buttons[index].symbol !== undefined) {
-        SymbolGlyph(this.buttons[index].symbol)
-          .fontSize(this.buttons[index].iconSize)
-          .fontColor([this.buttons[index].fontColor])
-      } else if (this.buttons[index].text !== undefined) {
-        Text(this.buttons[index].text)
-          .fontSize(15)
-          .fontColor(this.buttons[index].fontColor)
-      }
+  barButtonContent(index: number) {
+    if (this.buttons[index].symbol !== undefined) {
+      SymbolGlyph(this.buttons[index].symbol)
+        .fontSize(this.buttons[index].iconSize)
+        .fontColor([this.buttons[index].fontColor])
+    } else if (this.buttons[index].text !== undefined) {
+      Text(this.buttons[index].text)
+        .fontSize(15)
+        .fontColor(this.buttons[index].fontColor)
     }
-    .width(this.buttons[index].width)
-    .height(this.buttons[index].height)
-    .borderRadius(this.buttons[index].height / 2)
-    .justifyContent(FlexAlign.Center)
-    .backgroundColor(this.buttons[index].backgroundColor)
-    .onClick(() => {
-      this.doAction(index)
-    })
+  }
+
+  /** 标题栏按钮下拉菜单（点击按钮弹出 menuItems） */
+  @Builder
+  btnMenuBuilder() {
+    Menu() {
+      ForEach(this.btnMenuItems, (mi: ContextMenuItem, index: number) => {
+        MenuItem({
+          content: mi.title,
+          symbolStartIcon: mi.symbol !== undefined ? new SymbolGlyphModifier(mi.symbol) : undefined
+        })
+          .contentFontColor(mi.isDanger ? Color.Red : $r('sys.color.font_primary'))
+          .onClick(() => {
+            mi.action()
+          })
+      }, (mi: ContextMenuItem, index: number) => `${index}`)
+    }
+    .backgroundColor($r('app.color.start_window_background'))
+    .borderRadius(UIConstants.BORDER_RADIUS_20)
+  }
+
+  @Builder
+  barButton(index: number) {
+    if (this.buttons[index].menuItems.length > 0) {
+      Row() {
+        this.barButtonContent(index)
+      }
+      .width(this.buttons[index].width)
+      .height(this.buttons[index].height)
+      .borderRadius(this.buttons[index].height / 2)
+      .justifyContent(FlexAlign.Center)
+      .backgroundColor(this.buttons[index].backgroundColor)
+      .onClick(() => {
+        this.btnMenuItems = this.buttons[index].menuItems
+        this.btnMenuShow = true
+      })
+      .bindContextMenu(this.btnMenuShow, this.btnMenuBuilder(), {
+        placement: Placement.BottomRight,
+        onDisappear: (): void => {
+          this.btnMenuShow = false
+        }
+      })
+    } else {
+      Row() {
+        this.barButtonContent(index)
+      }
+      .width(this.buttons[index].width)
+      .height(this.buttons[index].height)
+      .borderRadius(this.buttons[index].height / 2)
+      .justifyContent(FlexAlign.Center)
+      .backgroundColor(this.buttons[index].backgroundColor)
+      .onClick(() => {
+        this.doAction(index)
+      })
+    }
   }
 
   private doAction(index: number): void {

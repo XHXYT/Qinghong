@@ -37,6 +37,34 @@
       "value": "Download failed"
     },
     {
+      "name": "hls_encrypted_unsupported",
+      "value": "Encrypted video streams are not supported yet"
+    },
+    {
+      "name": "unknown_size",
+      "value": "Unknown size"
+    },
+    {
+      "name": "retry_all_failed",
+      "value": "Retry all failed"
+    },
+    {
+      "name": "pause_all_tasks",
+      "value": "Pause all tasks"
+    },
+    {
+      "name": "resume_all_tasks",
+      "value": "Resume all tasks"
+    },
+    {
+      "name": "clear_all_tasks",
+      "value": "Clear all tasks"
+    },
+    {
+      "name": "clear_all_tasks_confirm",
+      "value": "Clear all download records?"
+    },
+    {
       "name": "refresh",
       "value": "Refresh"
     },
@@ -165,6 +193,14 @@
       "value": "Name"
     },
     {
+      "name": "bookmark_field_icon",
+      "value": "Icon"
+    },
+    {
+      "name": "bookmark_icon_hint",
+      "value": "Tap to choose an image"
+    },
+    {
       "name": "bookmark_field_url",
       "value": "URL"
     },
@@ -253,6 +289,14 @@
       "value": "Remove from home shortcuts"
     },
     {
+      "name": "quick_added",
+      "value": "Added"
+    },
+    {
+      "name": "quick_removed",
+      "value": "Removed"
+    },
+    {
       "name": "delete_confirm",
       "value": "Delete this item?"
     },
@@ -283,6 +327,10 @@
     {
       "name": "status_failed",
       "value": "Failed"
+    },
+    {
+      "name": "status_paused",
+      "value": "Paused"
     },
     {
       "name": "search_engine",
@@ -391,6 +439,202 @@
     {
       "name": "settings_script",
       "value": "Scripts"
+    },
+    {
+      "name": "script_enable",
+      "value": "Enable scripts"
+    },
+    {
+      "name": "script_section",
+      "value": "Scripts"
+    },
+    {
+      "name": "script_add",
+      "value": "Add script"
+    },
+    {
+      "name": "script_download",
+      "value": "Download script"
+    },
+    {
+      "name": "script_import",
+      "value": "Import script"
+    },
+    {
+      "name": "script_edit",
+      "value": "Edit script"
+    },
+    {
+      "name": "script_update_one",
+      "value": "Update"
+    },
+    {
+      "name": "script_url_hint",
+      "value": "Enter script URL"
+    },
+    {
+      "name": "script_url_invalid",
+      "value": "Invalid URL. Please check and retry"
+    },
+    {
+      "name": "script_empty",
+      "value": "No scripts yet. Tap + to add one"
+    },
+    {
+      "name": "script_added",
+      "value": "Script added"
+    },
+    {
+      "name": "script_replaced",
+      "value": "Existing script updated"
+    },
+    {
+      "name": "script_download_failed",
+      "value": "Download failed. Check the URL"
+    },
+    {
+      "name": "script_imported",
+      "value": "Script imported"
+    },
+    {
+      "name": "script_import_failed",
+      "value": "Import failed"
+    },
+    {
+      "name": "script_updated_n",
+      "value": "%d script(s) updated"
+    },
+    {
+      "name": "script_update_none",
+      "value": "No updatable scripts"
+    },
+    {
+      "name": "script_update_failed",
+      "value": "Update failed"
+    },
+    {
+      "name": "script_delete_confirm",
+      "value": "Delete this script?"
+    },
+    {
+      "name": "script_code_empty",
+      "value": "Script code is empty"
+    },
+    {
+      "name": "script_code_hint",
+      "value": "Enter or paste script code"
+    },
+    {
+      "name": "script_help_title",
+      "value": "Script Help"
+    },
+    {
+      "name": "script_help_content",
+      "value": "Metadata block\nA script must start with a metadata block:\n\n// ==UserScript==\n// @name Script name\n// @match https://example.com/*\n// ==/UserScript==\n\nCommon fields\n@name: Script name.\n@namespace: Combined with @name it forms the unique ID.\n@match/@exclude-match: Define where the script runs and where it does not.\n@include/@exclude: Legacy way of defining scopes.\n@version: Script version.\n@description: Script description.\n@author: Script author.\n@run-at: Injection time. document-start injects before the page DOM loads, document-end after DOM is ready, document-idle when the page is idle.\n@updateURL/@downloadURL: Update source of the script (recorded automatically for scripts downloaded from a URL).\n\nMatch examples\n// @match https://www.google.com/*\n// @match *://*/*\n// @exclude-match https://www.google.com/not_me\n\nNotes\nScripts are injected automatically on matching pages. Use the switches in the list to enable or disable individual scripts. Scripts downloaded from a URL can be batch updated with the refresh button."
+    },
+    {
+      "name": "script_learn_more",
+      "value": "Learn more"
+    },
+    {
+      "name": "script_unsaved_title",
+      "value": "Unsaved changes"
+    },
+    {
+      "name": "script_unsaved_message",
+      "value": "The script has unsaved changes. They will be lost if you leave."
+    },
+    {
+      "name": "script_leave",
+      "value": "Leave"
+    },
+    {
+      "name": "script_runtime",
+      "value": "Run at"
+    },
+    {
+      "name": "script_runtime_default",
+      "value": "default"
+    },
+    {
+      "name": "script_section_match",
+      "value": "Includes"
+    },
+    {
+      "name": "script_section_exclude",
+      "value": "Excludes"
+    },
+    {
+      "name": "script_section_advanced",
+      "value": "Advanced"
+    },
+    {
+      "name": "script_edit_source",
+      "value": "Edit source code"
+    },
+    {
+      "name": "script_reset",
+      "value": "Reset"
+    },
+    {
+      "name": "script_add_match",
+      "value": "Add match"
+    },
+    {
+      "name": "script_add_exclude",
+      "value": "Add exclude"
+    },
+    {
+      "name": "script_info_title",
+      "value": "Script info"
+    },
+    {
+      "name": "script_info_name",
+      "value": "Name"
+    },
+    {
+      "name": "script_info_url",
+      "value": "Download URL"
+    },
+    {
+      "name": "script_info_updated",
+      "value": "Updated"
+    },
+    {
+      "name": "script_info_created",
+      "value": "Created"
+    },
+    {
+      "name": "script_info_size",
+      "value": "Size"
+    },
+    {
+      "name": "script_no_update_url",
+      "value": "No download URL, cannot reset"
+    },
+    {
+      "name": "script_reset_confirm",
+      "value": "Re-download from its URL and overwrite the current script"
+    },
+    {
+      "name": "script_pattern_hint",
+      "value": "e.g. https://example.com/*"
+    },
+    {
+      "name": "script_pattern_invalid",
+      "value": "Pattern cannot be empty"
+    },
+    {
+      "name": "script_copied",
+      "value": "Copied to clipboard"
+    },
+    {
+      "name": "script_debug",
+      "value": "Script debug"
+    },
+    {
+      "name": "script_debug_desc",
+      "value": "Show a userscript injection HUD (GM badge) at the bottom-right of web pages"
     },
     {
       "name": "settings_sync",
@@ -643,6 +887,22 @@
     {
       "name": "edit",
       "value": "Edit"
+    },
+    {
+      "name": "done",
+      "value": "Done"
+    },
+    {
+      "name": "delete_selected_records",
+      "value": "Delete selected records"
+    },
+    {
+      "name": "history_delete_selected_confirm",
+      "value": "%d record(s) will be deleted and cannot be recovered"
+    },
+    {
+      "name": "history_opened_new_tabs",
+      "value": "Opened %d record(s) in new tabs"
     },
     {
       "name": "clear_data",
@@ -1173,6 +1433,26 @@
       "value": "Resource sniffing"
     },
     {
+      "name": "sniff_filter_all",
+      "value": "All"
+    },
+    {
+      "name": "sniff_filter_video",
+      "value": "Video"
+    },
+    {
+      "name": "sniff_filter_audio",
+      "value": "Audio"
+    },
+    {
+      "name": "sniff_filter_image",
+      "value": "Image"
+    },
+    {
+      "name": "sniff_empty",
+      "value": "No downloadable media found on this page"
+    },
+    {
       "name": "browser_id",
       "value": "Browser ID"
     },
@@ -1205,8 +1485,20 @@
       "value": "Print/PDF"
     },
     {
+      "name": "print_web_page",
+      "value": "Print web page"
+    },
+    {
       "name": "read_aloud",
       "value": "Read aloud"
+    },
+    {
+      "name": "read_aloud_confirm_message",
+      "value": "Enter reading mode and start reading aloud?"
+    },
+    {
+      "name": "read_aloud_failed",
+      "value": "Failed to start reading aloud"
     },
     {
       "name": "add_to_home",
@@ -1214,11 +1506,19 @@
     },
     {
       "name": "open_with",
-      "value": "Open with other apps"
+      "value": "Open with other app"
+    },
+    {
+      "name": "open_with_failed",
+      "value": "No app found to open this link"
     },
     {
       "name": "game_mode",
       "value": "Game mode"
+    },
+    {
+      "name": "game_mode_exit_hint",
+      "value": "Press back again to exit game mode"
     },
     {
       "name": "ai",
@@ -1231,6 +1531,10 @@
     {
       "name": "report_site",
       "value": "Report site"
+    },
+    {
+      "name": "report_site_copied",
+      "value": "URL copied. Paste it in the report form"
     },
     {
       "name": "menu_item_wip",
@@ -1359,6 +1663,38 @@
     {
       "name": "download_dir",
       "value": "Download folder"
+    },
+    {
+      "name": "download_settings",
+      "value": "Downloads"
+    },
+    {
+      "name": "download_concurrency",
+      "value": "Segment connections"
+    },
+    {
+      "name": "download_concurrency_desc",
+      "value": "Connections kept per video download"
+    },
+    {
+      "name": "download_task_limit",
+      "value": "Simultaneous downloads"
+    },
+    {
+      "name": "download_task_limit_desc",
+      "value": "Extra tasks wait in queue"
+    },
+    {
+      "name": "download_notify",
+      "value": "Download notifications"
+    },
+    {
+      "name": "download_notify_desc",
+      "value": "Show download progress and results"
+    },
+    {
+      "name": "download_records",
+      "value": "Download list"
     },
     {
       "name": "download_dir_unsupported",
@@ -1555,6 +1891,42 @@
     {
       "name": "save_page",
       "value": "Save page"
+    },
+    {
+      "name": "page_saved",
+      "value": "Page saved"
+    },
+    {
+      "name": "page_save_failed",
+      "value": "Failed to save page"
+    },
+    {
+      "name": "pdf_saved",
+      "value": "Saved as PDF"
+    },
+    {
+      "name": "pdf_save_failed",
+      "value": "Failed to save PDF"
+    },
+    {
+      "name": "save_dialog_title",
+      "value": "Save page"
+    },
+    {
+      "name": "save_as_pdf",
+      "value": "Save as PDF"
+    },
+    {
+      "name": "offline_saved",
+      "value": "Offline page saved"
+    },
+    {
+      "name": "offline_save_failed",
+      "value": "Failed to save offline page"
+    },
+    {
+      "name": "empty_offline",
+      "value": "No offline pages"
     },
     {
       "name": "page_down",
@@ -2422,6 +2794,79 @@
     { "name": "address_content_url", "value": "Address" },
     { "name": "address_content_domain", "value": "Domain" },
     { "name": "action_bar_color_mode", "value": "Color mode" },
-    { "name": "action_bar_color_mode_desc", "value": "Action bar adapts to webpage colors" }
+    { "name": "action_bar_color_mode_desc", "value": "Action bar adapts to webpage colors" },
+    { "name": "customize", "value": "Customize" },
+    { "name": "home_customize_title", "value": "Customize Home" },
+    { "name": "home_tab_logo", "value": "Logo" },
+    { "name": "home_tab_search", "value": "Search" },
+    { "name": "home_tab_background", "value": "Background" },
+    { "name": "home_tab_favorites", "value": "Favorites" },
+    { "name": "home_tab_advanced", "value": "Advanced" },
+    { "name": "home_logo_mode", "value": "Logo mode" },
+    { "name": "home_logo_default", "value": "Default" },
+    { "name": "home_logo_image", "value": "Image" },
+    { "name": "home_logo_text", "value": "Text" },
+    { "name": "home_logo_html", "value": "HTML" },
+    { "name": "home_logo_none", "value": "None" },
+    { "name": "home_pick_image", "value": "Pick image" },
+    { "name": "home_clear_image", "value": "Clear image" },
+    { "name": "home_logo_text_hint", "value": "Logo text" },
+    { "name": "home_logo_html_hint", "value": "Enter HTML code" },
+    { "name": "home_search_style", "value": "Style" },
+    { "name": "home_style_rect", "value": "Rectangle" },
+    { "name": "home_style_line", "value": "Underline" },
+    { "name": "home_search_effect", "value": "Effect" },
+    { "name": "home_effect_normal", "value": "Normal" },
+    { "name": "home_effect_transparent", "value": "Transparent" },
+    { "name": "home_effect_blur", "value": "Blur" },
+    { "name": "home_search_radius", "value": "Corner radius" },
+    { "name": "home_search_opacity", "value": "Background opacity" },
+    { "name": "home_search_border_width", "value": "Border width" },
+    { "name": "home_search_border_opacity", "value": "Border opacity" },
+    { "name": "home_show_search_area", "value": "Show search area" },
+    { "name": "home_bg_theme", "value": "Background theme" },
+    { "name": "home_theme_system", "value": "Follow system" },
+    { "name": "home_theme_light", "value": "Light" },
+    { "name": "home_theme_dark", "value": "Dark" },
+    { "name": "home_bg_image", "value": "Background image" },
+    { "name": "home_bg_opacity", "value": "Opacity" },
+    { "name": "home_bg_blur", "value": "Blur" },
+    { "name": "home_group_size", "value": "Size & radius" },
+    { "name": "home_quick_width", "value": "Icon width" },
+    { "name": "home_quick_height", "value": "Icon height" },
+    { "name": "home_quick_radius", "value": "Icon corner radius" },
+    { "name": "home_quick_icon_style", "value": "Icon style" },
+    { "name": "home_icon_text", "value": "Letter" },
+    { "name": "home_icon_favicon", "value": "Favicon" },
+    { "name": "home_favorites_tip", "value": "Home shortcuts come from bookmark favorites. Add or remove them in bookmark manager" },
+    { "name": "home_custom_css", "value": "Custom CSS" },
+    { "name": "home_use_custom_css", "value": "Use Custom CSS" },
+    { "name": "home_custom_css_hint", "value": "Enter CSS to inject into the local HTML home page" },
+    { "name": "home_html_tip", "value": "When Logo uses HTML or custom CSS is present, the home page renders as a local HTML page" },
+    { "name": "home_import_file", "value": "Import File" },
+    { "name": "home_apply", "value": "Apply" },
+    { "name": "home_reset", "value": "Reset home customization" },
+    { "name": "home_reset_message", "value": "This will restore all home appearance settings to default" },
+    { "name": "no_quick_links", "value": "No quick bookmarks yet. Mark a bookmark as \"Quick\" in its editor" },
+    { "name": "view_certificate", "value": "View Certificate" },
+    { "name": "view_cookies", "value": "View Cookies" },
+    { "name": "view_scripts", "value": "View Scripts" },
+    { "name": "cert_issued_to", "value": "Issued To" },
+    { "name": "cert_common_name", "value": "Common Name" },
+    { "name": "cert_organization", "value": "Organization" },
+    { "name": "cert_org_unit", "value": "Organizational Unit" },
+    { "name": "cert_issuer", "value": "Issuer" },
+    { "name": "cert_validity", "value": "Validity" },
+    { "name": "cert_issued_on", "value": "Issued On" },
+    { "name": "cert_expires_on", "value": "Expires On" },
+    { "name": "cert_sha256", "value": "SHA-256 Fingerprints" },
+    { "name": "cert_fp_certificate", "value": "Certificate" },
+    { "name": "cert_fp_public_key", "value": "Public Key" },
+    { "name": "cert_unavailable", "value": "No certificate for this page (HTTPS only)" },
+    { "name": "cookies_empty", "value": "No Cookies" },
+    { "name": "script_runs_here", "value": "Runs on this page" },
+    { "name": "no_scripts", "value": "No scripts" },
+    { "name": "qr_saved", "value": "Saved to gallery" },
+    { "name": "save_failed", "value": "Operation failed" }
   ]
 }

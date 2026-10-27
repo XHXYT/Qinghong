@@ -70,6 +70,17 @@ export default class BookmarkInfo {
   folder: string = '';
 
   /**
+   * 自定义图标文件路径（'' = 未自定义，显示 favicon 或首字头像）
+   */
+  @Column({
+    name: 'icon',
+    type: 'TEXT',
+    notNull: true,
+    defaultValue: ''
+  })
+  icon: string = '';
+
+  /**
    * 创建时间
    */
   @Column({

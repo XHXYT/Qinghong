@@ -1,6 +1,7 @@
 import { bookmarkVM } from '../../viewmodel/BookmarkViewModel';
 import BookmarkInfo from '../../common/entity/BookmarkInfo';
 import { browserVM } from '../../viewmodel/BrowserViewModel';
+import { HomeImmersive } from '../../common/utils/HomeImmersive';
 
 /**
  * 书签栏：横向书签条（合并布局启用书签栏时渲染，贴操作栏内容侧）。
@@ -113,7 +114,9 @@ export struct BookmarkBar {
       .width('100%')
       .height(33)
       .align(Alignment.Start)
-      .backgroundColor($r('sys.color.comp_background_primary'))
+      // 主页沉浸时背景透明，透出全屏主页背景层
+      .backgroundColor(HomeImmersive.active() ? Color.Transparent
+        : $r('sys.color.comp_background_primary'))
     }
   }
 }

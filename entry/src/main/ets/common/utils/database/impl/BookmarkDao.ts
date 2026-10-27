@@ -54,7 +54,7 @@ export class BookmarkDao extends AutoTable<BookmarkInfo> {
   }
 
   /**
-   * 保存或更新（按 URL 去重）
+   * 保存或更新（按 URL 去重；icon 非空时覆盖，空值保留原自定义图标）
    */
   async saveOrUpdate(bookmark: BookmarkInfo): Promise<number> {
     const existing = await this.queryByUrl(bookmark.url)
@@ -63,6 +63,9 @@ export class BookmarkDao extends AutoTable<BookmarkInfo> {
       existing.isQuick = bookmark.isQuick || existing.isQuick
       existing.orderIndex = bookmark.orderIndex
       existing.folder = bookmark.folder
+      if (bookmark.icon !== '') {
+        existing.icon = bookmark.icon
+      }
       return this.update(existing)
     }
     return this.insert(bookmark)

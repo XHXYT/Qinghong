@@ -32,21 +32,6 @@ struct PlaceholderPage {
 }
 
 @Builder
-export function SettingsCustomBuilder() {
-  PlaceholderPage({ title: $r('app.string.settings_custom') })
-}
-
-@Builder
-export function SettingsScriptBuilder() {
-  PlaceholderPage({ title: $r('app.string.settings_script') })
-}
-
-@Builder
 export function SettingsAiBuilder() {
   PlaceholderPage({ title: $r('app.string.ai_settings') })
-}
-
-@Builder
-export function OfflinePageBuilder() {
-  PlaceholderPage({ title: $r('app.string.offline_page') })
 }

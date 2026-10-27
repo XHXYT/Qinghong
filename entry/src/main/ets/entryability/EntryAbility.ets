@@ -19,7 +19,9 @@ import { animation } from '../common/utils/AnimationUtil';
 import { AppConstants } from '../common/constants/AppConstants';
 import { createLogger } from '../common/utils/Logger';
 import { siteSettingsVM } from '../viewmodel/SiteSettingsViewModel';
+import { scriptVM } from '../viewmodel/ScriptViewModel';
 import { webview } from '@kit.ArkWeb';
+import { TextReader, WindowManager } from '@kit.SpeechKit';
 
 const logger = createLogger('EntryAbility')
 
@@ -78,6 +80,12 @@ export default class EntryAbility extends UIAbility {
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
     logger.info('Lifecycle', 'EntryAbility onWindowStageCreate');
+    // 朗读控件（TextReader）前置：必须在 init 前设置窗口管理器，否则朗读控件初始化失败
+    try {
+      WindowManager.setWindowStage(windowStage);
+    } catch (error) {
+      logger.error('Lifecycle', `WindowManager.setWindowStage failed: ${error}`);
+    }
     windowStage.loadContent('pages/Index', async (err) => {
       if (err.code) {
         logger.error(`WindowStage`, `Failed to load the content., ${err}`)
@@ -94,6 +102,9 @@ export default class EntryAbility extends UIAbility {
       // 初始化广告拦截引擎与统计（规则装载到 ArkWeb 原生 AdsBlock 引擎）
       adBlockEngine.init()
       adBlockStore.load()
+      // 用户脚本列表预载（Web 组件创建时需要生成 document-start 注入项）
+      scriptVM.loadAll().then((): void => {
+      })
       // 订阅规则文件较大，延迟到主页首帧渲染后再合并装载；
       // 规则内容哈希未变化时跳过，利用内核持久化避免重复编译解析
       setTimeout((): void => {

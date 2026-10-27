@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style id="base">
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none;
+      -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg);
+    font-family: system-ui, sans-serif;
+    color: var(--fg);
+    transition: background .2s;
+  }
+  /* 系统主题变量（跟随系统时由 prefers-color-scheme 决定，强制主题由 body class 覆盖） */
+  :root {
+    --bg: #F1F3F5;
+    --fg: #1A1A1A;
+    --fg2: #66000000;
+    --sbg: rgba(0,0,0,0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121212;
+      --fg: #E6E6E6;
+      --fg2: #99FFFFFF;
+      --sbg: rgba(255,255,255,0.08);
+    }
+  }
+  body.theme-light { --bg: #F1F3F5; --fg: #1A1A1A; --fg2: #66000000; --sbg: rgba(0,0,0,0.05); }
+  body.theme-dark  { --bg: #121212; --fg: #E6E6E6; --fg2: #99FFFFFF; --sbg: rgba(255,255,255,0.08); }
+
+  #bgimg {
+    position: fixed; left: 0; top: 0; width: 100%; height: 100%;
+    object-fit: cover; z-index: 0;
+  }
+  #wrap {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column; align-items: center;
+    height: 100%; padding-top: 16px;
+  }
+  #incognito {
+    display: none; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--fg2);
+  }
+  #incognito.show { display: flex; }
+  #logo {
+    margin-top: 56px; max-width: 92vw;
+    font-size: 40px; font-weight: 700; color: var(--fg);
+    text-align: center;
+  }
+  #logo img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto; }
+
+  /* 搜索栏（Via 主页结构：.search_part > form.search_bar > #search_input + #search_submit） */
+  .search_part {
+    width: 100%; margin-top: 28px;
+    display: flex; justify-content: center;
+  }
+  .search_bar {
+    display: flex; align-items: center; gap: 4px;
+    width: 86%; max-width: 800px; height: 46px; padding: 0 16px;
+    border-radius: var(--sr, 23px);
+    background: var(--sbg2, rgba(0,0,0,0.05));
+    border: var(--sbw, 0px) solid var(--sbc, transparent);
+    position: relative;
+  }
+  .search_bar.blur { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  .search_bar.line {
+    background: transparent; border: none; border-radius: 0;
+    border-bottom: var(--sbw2, 1.5px) solid var(--sbc, transparent);
+  }
+  .search_bar svg { flex: none; width: 20px; height: 20px; }
+  #search_input {
+    flex: 1; min-width: 0;
+    border: none; outline: none; background: transparent;
+    font-size: 15px; color: var(--fg);
+    text-align: left; padding: 0;
+    -webkit-user-select: text; user-select: text;
+  }
+  /* 内嵌 flex 行：不受外层 .search_bar 被 display:table 覆盖影响，保证下拉与输入框同行 */
+  #search_row {
+    display: flex; align-items: center; gap: 4px;
+    width: 100%; min-height: 46px;
+  }
+  /* 引擎选择器（原生引擎下拉 + Logo HTML 脚本注入的 select） */
+  .search_bar select {
+    max-width: 30%;
+    border: none; outline: none; background: transparent;
+    color: var(--fg); font-size: 14px;
+  }
+  #search_bar { min-height: 46px; }
+  /* 原生引擎下拉：左对齐，与输入框同处 #search_row */
+  #engine_select {
+    flex: none; text-align: left;
+    margin: 0; height: 46px;
+    padding: 0 2px 0 6px;
+    box-sizing: border-box;
+  }
+  #search_submit { width: 0; height: 0; padding: 0; border: none; visibility: hidden; }
+
+  /* 快捷图标（Via 主页结构：#box_container > .box > .title + .label） */
+  #box_container {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: 12px; width: 90%; margin-top: 28px;
+  }
+  .box {
+    width: 72px; padding: 4px 0;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .box .title {
+    width: var(--qw, 48px); height: var(--qh, 48px);
+    border-radius: var(--qr, 12px);
+    background: var(--accent, #007DFF);
+    color: #fff; font-size: var(--qfs, 20px); font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .box .title img { width: 100%; height: 100%; object-fit: cover; }
+  .box .label {
+    margin-top: 6px; font-size: 11px; color: var(--fg);
+    max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #empty { height: 72px; }
+</style>
+<style id="custom"></style>
+</head>
+<body>
+<div id="wrap">
+  <div id="incognito">&#128737; <span id="incognitoText"></span></div>
+  <div id="logo"></div>
+  <div class="search_part" id="search_part">
+    <form class="search_bar" id="search_bar"><div id="search_row"><select id="engine_select"></select><input id="search_input" type="text" autocomplete="off" enterkeyhint="search"><input id="search_submit" type="submit" value=""></div>
+    </form>
+  </div>
+  <div id="box_container"></div>
+  <div id="empty"></div>
+</div>
+<script>
+(function () {
+  var cfg = null;
+  var domReadyDispatched = false;
+
+  function el(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  /* localStorage 不可用环境（resource:// 源）兜底为内存实现，避免注入脚本访问报错 */
+  function ensureLocalStorage() {
+    try {
+      localStorage.setItem('__qh_t', '1');
+      localStorage.removeItem('__qh_t');
+    } catch (e) {
+      try {
+        var mem = {};
+        Object.defineProperty(window, 'localStorage', {
+          configurable: true,
+          value: {
+            getItem: function (k) { return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null; },
+            setItem: function (k, v) { mem[k] = String(v); },
+            removeItem: function (k) { delete mem[k]; }
+          }
+        });
+      } catch (e2) { }
+    }
+  }
+
+  /* 执行 Logo HTML 中的脚本（innerHTML 注入的 <script> 不会执行，需手动重建） */
+  function execScripts(root) {
+    ensureLocalStorage();
+    var list = root.querySelectorAll('script');
+    for (var i = 0; i < list.length; i++) {
+      var old = list[i];
+      try {
+        var s = document.createElement('script');
+        if (old.src) { s.src = old.src; }
+        else { s.text = old.textContent; }
+        document.body.appendChild(s);
+      } catch (e) { }
+    }
+    /* 注入发生在页面加载后，等待 DOMContentLoaded 的脚本已错过事件，补发一次（仅一次，避免重复注册） */
+    if (!domReadyDispatched) {
+      domReadyDispatched = true;
+      try { document.dispatchEvent(new Event('DOMContentLoaded')); } catch (e) { }
+    }
+  }
+
+  /* 全局搜索（Via 主页协议：读取 #search_input 的值并打开；可被注入脚本包装实现多引擎） */
+  window.search = function () {
+    var a = document.getElementById('search_input');
+    var v = (a.value || '').trim();
+    if (v) {
+      a.value = '';
+      a.blur();
+      qhBridge.openUrl(v);
+    }
+    return false;
+  };
+
+  function applyTheme() {
+    document.body.className = cfg.theme === 'dark' ? 'theme-dark'
+      : (cfg.theme === 'light' ? 'theme-light' : '');
+  }
+  /* 已应用的背景图缓存：路径没变时仅更新透明度/模糊，不重建元素 */
+  var appliedBg = '';
+  function bgBlurCss() {
+    if (!cfg.bgBlur) { return 'none'; }
+    return 'blur(' + cfg.bgBlur + 'px)';
+  }
+  function applyBg() {
+    var src = cfg.bgImage ? 'file://' + cfg.bgImage : '';
+    var cur = document.getElementById('bgimg');
+    if (src === appliedBg) {
+      if (cur) {
+        cur.style.opacity = cfg.bgOpacity / 100;
+        cur.style.filter = bgBlurCss();
+      }
+      return;
+    }
+    appliedBg = src;
+    if (cur) { cur.remove(); }
+    if (src) {
+      var img = document.createElement('img');
+      img.id = 'bgimg';
+      img.src = src;
+      img.style.opacity = cfg.bgOpacity / 100;
+      img.style.filter = bgBlurCss();
+      document.body.insertBefore(img, document.getElementById('wrap'));
+    }
+  }
+  /* 已注入的 Logo HTML 缓存：内容没变时跳过重注入，避免重推配置时脚本重跑（天气卡等数据丢失） */
+  var appliedLogoHtml = '';
+  function applyLogo() {
+    var logo = el('logo');
+    if (!cfg.showSearchArea) { logo.style.display = 'none'; return; }
+    logo.style.display = '';
+    if (cfg.logoMode === 'image' && cfg.logoImage) {
+      appliedLogoHtml = '';
+      logo.innerHTML = '<img src="file://' + esc(cfg.logoImage) + '">';
+    } else if (cfg.logoMode === 'text') {
+      appliedLogoHtml = '';
+      logo.textContent = cfg.logoText || cfg.appName;
+    } else if (cfg.logoMode === 'html') {
+      if (cfg.logoHtml === appliedLogoHtml && logo.childElementCount > 0) { return; }
+      appliedLogoHtml = cfg.logoHtml;
+      logo.innerHTML = '';
+      logo.innerHTML = cfg.logoHtml;
+      execScripts(logo);
+    } else if (cfg.logoMode === 'none') {
+      logo.style.display = 'none';
+    } else {
+      appliedLogoHtml = '';
+      logo.textContent = cfg.appName;
+    }
+  }
+
+  /* 原生下发过的默认词缓存：注入脚本自定义过 placeholder 后不再覆盖（脚本优先） */
+  var appliedHint = '';
+  function applySearch() {
+    var s = el('search_bar');
+    var r = document.documentElement.style;
+    var dark = cfg.theme === 'dark' || (cfg.theme !== 'light' && window.matchMedia
+      && matchMedia('(prefers-color-scheme: dark)').matches);
+    var base = dark ? '255,255,255' : '0,0,0';
+    r.setProperty('--sbc', 'rgba(' + base + ',' + (cfg.searchBorderOpacity / 100 * (dark ? 0.6 : 0.4)) + ')');
+    var input = el('search_input');
+    if (input.placeholder === appliedHint) {
+      appliedHint = cfg.hint || '';
+      input.placeholder = appliedHint;
+    }
+    if (!cfg.showSearchArea) { el('search_part').style.display = 'none'; return; }
+    el('search_part').style.display = '';
+    s.className = 'search_bar';
+    if (cfg.searchStyle === 'line') {
+      s.classList.add('line');
+      r.setProperty('--sbw2', (cfg.searchBorderWidth > 0 ? cfg.searchBorderWidth : 1.5) + 'px');
+    } else {
+      if (cfg.searchEffect === 'blur') { s.classList.add('blur'); }
+      r.setProperty('--sr', cfg.searchRadius + 'px');
+      r.setProperty('--sbw', cfg.searchBorderWidth + 'px');
+      if (cfg.searchEffect === 'transparent') {
+        r.setProperty('--sbg2', 'transparent');
+      } else {
+        r.setProperty('--sbg2', 'rgba(' + base + ',' + (cfg.searchOpacity / 100 * 0.08) + ')');
+      }
+    }
+  }
+
+  function applyQuick() {
+    var box = el('box_container');
+    var r = document.documentElement.style;
+    r.setProperty('--qw', (cfg.quickWidth > 0 ? cfg.quickWidth : 48) + 'px');
+    r.setProperty('--qh', (cfg.quickHeight > 0 ? cfg.quickHeight : 48) + 'px');
+    r.setProperty('--qr', cfg.quickRadius + 'px');
+    r.setProperty('--qfs', Math.max(12, Math.min(28, (cfg.quickHeight > 0 ? cfg.quickHeight : 48) * 0.42)) + 'px');
+    r.setProperty('--accent', cfg.accent);
+    box.innerHTML = '';
+    for (var i = 0; i < cfg.items.length; i++) {
+      var it = cfg.items[i];
+      var d = document.createElement('div');
+      d.className = 'box';
+      d.dataset.url = it.url;
+      var ava = '<div class="title">';
+      if (cfg.quickIconStyle === 'icon' && it.icon) {
+        ava += '<img src="file://' + esc(it.icon) + '">';
+      } else {
+        ava += esc(it.title ? it.title.charAt(0) : '?');
+      }
+      ava += '</div>';
+      d.innerHTML = ava + '<div class="label">' + esc(it.title) + '</div>';
+      bindQuick(d, it);
+      box.appendChild(d);
+    }
+  }
+
+  var pressTimer = null;
+  function bindQuick(d, it) {
+    d.addEventListener('click', function () {
+      if (pressTimer) { return; }
+      qhBridge.openUrl(it.url);
+    });
+    d.addEventListener('touchstart', function () {
+      pressTimer = setTimeout(function () {
+        pressTimer = null;
+        qhBridge.removeQuick(it.url, it.title);
+        pressTimer = 'blocked';
+        setTimeout(function () { pressTimer = null; }, 400);
+      }, 500);
+    }, { passive: true });
+    d.addEventListener('touchend', function () {
+      if (pressTimer && pressTimer !== 'blocked') { clearTimeout(pressTimer); pressTimer = null; }
+    });
+    d.addEventListener('touchmove', function () {
+      if (pressTimer && pressTimer !== 'blocked') { clearTimeout(pressTimer); pressTimer = null; }
+    });
+  }
+
+  /* 表单提交（回车/提交按钮）走全局 search */
+  el('search_bar').addEventListener('submit', function (e) {
+    e.preventDefault();
+    window.search();
+  });
+
+  /* 输入法确认键（搜索/回车）直接触发全局 search（阻止默认提交避免二次触发） */
+  el('search_input').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      window.search();
+    }
+  });
+
+  /* 原生引擎下拉：选项来自应用引擎列表，切换即改应用当前搜索引擎 */
+  function applyEngines() {
+    var sel = el('engine_select');
+    if (!cfg.engines || !cfg.engines.length) {
+      sel.style.display = 'none';
+      return;
+    }
+    sel.style.display = '';
+    var opts = [];
+    for (var i = 0; i < cfg.engines.length; i++) {
+      opts.push('<option value="' + esc(cfg.engines[i].id) + '">' + esc(cfg.engines[i].name) + '</option>');
+    }
+    sel.innerHTML = opts.join('');
+    sel.value = cfg.engineId || cfg.engines[0].id;
+    sel.onchange = function () {
+      qhBridge.setEngine(this.value);
+    };
+  }
+
+  window.renderHome = function (data) {
+    cfg = data;
+    el('incognitoText').textContent = cfg.incognitoText || '';
+    el('incognito').className = cfg.incognito ? 'show' : '';
+    applyTheme();
+    applyBg();
+    applySearch();
+    applyEngines();
+    applyQuick();
+    /* 自定义 CSS 先于 Logo 脚本生效（注入脚本会读取计算样式） */
+    el('custom').textContent = cfg.customCss || '';
+    applyLogo();
+  };
+
+  /* 原生在 document start 注入的预载配置：页面内联脚本执行到此 DOM 已就绪，
+     首帧同步渲染最终样式，免去 onPageEnd 后 runJavaScript 触发的二次重绘 */
+  if (window.__QH_CFG__) {
+    window.renderHome(window.__QH_CFG__);
+  }
+})();
+</script>
+</body>
+</html>

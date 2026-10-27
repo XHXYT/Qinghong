@@ -1,4 +1,6 @@
 import { webview } from '@kit.ArkWeb';
+import { image } from '@kit.ImageKit';
+import { BusinessError } from '@kit.BasicServicesKit';
 import { QhState } from '../entryability/AppState';
 import { AppConstants } from '../common/constants/AppConstants';
 import { kvDbUtil } from '../common/utils/KVdbUtil';
@@ -65,6 +67,8 @@ export class TabInfo {
   @Trace nativeView: string = ''
   /** 原生视图参数（网络日志 = 源标签 id） */
   nativeParam: string = ''
+  /** 窗口内容快照（标签管理卡片缩略图；无痕标签恒为 null） */
+  @Trace snapshot: image.PixelMap | null = null
   /** 打开本标签的标签 id（-1=无；返回键标签栈回退用，不持久化） */
   openerTabId: number = -1
   /** Web 控制器（非 UI 状态，不参与观察） */
@@ -89,6 +93,8 @@ export class TabsViewModel {
 
   private nextId: number = 1
   private saveTimer: number = -1
+  /** 标签管理覆盖层展示中（暂停主页整窗截图，避免把覆盖层截进快照） */
+  homeSnapshotPaused: boolean = false
 
   constructor() {
   }
@@ -257,6 +263,8 @@ export class TabsViewModel {
     // 标签栈：记录打开者，返回键耗尽网页历史后关闭本标签回退到它
     tab.openerTabId = this.activeTabId
     this.tabs.push(tab)
+    // 离开当前标签前截取其窗口快照
+    this.captureActiveSnapshot()
     this.activeTabId = tab.id
     if (url) {
       this.navigate(tab, url)
@@ -328,6 +336,8 @@ export class TabsViewModel {
    */
   toggleIncognito(tab: TabInfo): void {
     tab.isIncognito = !tab.isIncognito
+    // 无痕态切换：清理明文网页快照（隐私）
+    this.clearSnapshot(tab)
     if (tab.isHome) {
       return
     }
@@ -392,6 +402,8 @@ export class TabsViewModel {
       tab.url = target
       tab.title = target
       tab.isHome = false
+      // 主页态转网页态：清掉可能残留的旧快照（新内容在切走时重新截取）
+      this.clearSnapshot(tab)
       // 离开主页即消耗/失效 lastWebUrl，前进态归位
       tab.lastWebUrl = ''
       tab.canForward = false
@@ -433,6 +445,8 @@ export class TabsViewModel {
       // 记录离开主页前的页面，主页态"前进"可返回该页
       tab.lastWebUrl = tab.url
     }
+    // 回到主页态：清理网页快照，标签卡片回退 house 图标
+    this.clearSnapshot(tab)
     tab.isHome = true
     tab.url = ''
     tab.title = '轻鸿'
@@ -448,8 +462,92 @@ export class TabsViewModel {
    * 切换标签
    */
   switchTab(id: number): void {
+    if (this.activeTabId !== id) {
+      // 离开当前标签前截取其窗口快照（标签管理卡片展示）
+      this.captureActiveSnapshot()
+    }
     this.activeTabId = id
     this.saveSessionDebounced()
+  }
+
+  /**
+   * 截取当前活动标签的窗口内容快照（须在标签仍可见时调用）：
+   * 组件截图 → 等比降采样控内存 → 存入 TabInfo.snapshot
+   * 网页标签截标签内容容器；主页标签背景由 Index 全屏背景层绘制（不在内容子树内），
+   * 改截整窗根组件（mainRoot，背景+内容一次包全）
+   * 无痕标签不截取（隐私）；标签管理覆盖层展示期间暂停主页整窗截图（会把覆盖层自身截进去）
+   */
+  captureActiveSnapshot(): void {
+    const tab = this.activeTab
+    if (tab === null || tab.isIncognito) {
+      return
+    }
+    if (tab.isHome && this.homeSnapshotPaused) {
+      return
+    }
+    const ui = toastUtil.UIContext
+    if (!ui) {
+      return
+    }
+    const targetId = tab.isHome ? 'mainRoot' : `tabc_${tab.id}`
+    ui.getComponentSnapshot().get(targetId)
+      .then((pm: image.PixelMap) => {
+        this.shrinkSnapshot(tab, pm)
+      })
+      .catch((e: BusinessError) => {
+        logger.error('captureActiveSnapshot', `标签 ${tab.id} 截图失败: ${e.code} ${e.message}`)
+      })
+  }
+
+  /**
+   * 快照降采样后入库（超过目标宽度等比缩小）
+   */
+  private shrinkSnapshot(tab: TabInfo, pm: image.PixelMap): void {
+    pm.getImageInfo()
+      .then((info: image.ImageInfo) => {
+        const w = info.size.width
+        const ratio = w > 0 ? AppConstants.TAB_SNAPSHOT_WIDTH / w : 1
+        if (ratio > 0 && ratio < 1) {
+          pm.scale(ratio, ratio)
+            .then(() => {
+              this.storeSnapshot(tab, pm)
+            })
+            .catch((e: BusinessError) => {
+              logger.error('shrinkSnapshot', `标签 ${tab.id} 缩放失败: ${e.code} ${e.message}`)
+            })
+        } else {
+          this.storeSnapshot(tab, pm)
+        }
+      })
+      .catch((e: BusinessError) => {
+        logger.error('shrinkSnapshot', `标签 ${tab.id} 读取图片信息失败: ${e.code} ${e.message}`)
+      })
+  }
+
+  /**
+   * 快照入库：替换旧快照并释放其原生内存；标签已关闭或已转无痕则直接释放
+   */
+  private storeSnapshot(tab: TabInfo, pm: image.PixelMap): void {
+    if (!this.hasTab(tab.id) || tab.isIncognito) {
+      pm.release()
+      return
+    }
+    const old = tab.snapshot
+    tab.snapshot = pm
+    if (old !== null) {
+      old.release()
+    }
+  }
+
+  /**
+   * 清理标签快照（回到主页/切换无痕等态变更时释放原生内存并回退卡片图标/URL 样式）
+   */
+  private clearSnapshot(tab: TabInfo): void {
+    const old = tab.snapshot
+    tab.snapshot = null
+    if (old !== null) {
+      old.release()
+    }
   }
 
   /** 是否存在指定标签 */
@@ -514,7 +612,13 @@ export class TabsViewModel {
     this.undoTipTimer = setTimeout(() => {
       this.undoTipTimer = -1
       this.showUndoTip = false
+      // 撤销期结束未被恢复：释放孤儿标签的快照原生内存
+      const orphan = this.recentClosed
       this.recentClosed = null
+      if (orphan !== null && !this.hasTab(orphan.id) && orphan.snapshot !== null) {
+        orphan.snapshot.release()
+        orphan.snapshot = null
+      }
     }, AppConstants.UNDO_TIP_DURATION)
   }
 
@@ -557,6 +661,11 @@ export class TabsViewModel {
   closeAll(): void {
     for (const t of this.tabs) {
       t.controller = null
+      // 释放快照原生内存
+      if (t.snapshot !== null) {
+        t.snapshot.release()
+        t.snapshot = null
+      }
     }
     this.clearUndoTip()
     this.tabs = []

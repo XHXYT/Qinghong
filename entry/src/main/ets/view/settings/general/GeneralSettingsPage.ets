@@ -280,10 +280,7 @@ struct GeneralSettingsPage {
     groups.push(g)
     // 下载与数据
     g = new SettingsSection('data', $r('app.string.general_group_data'))
-    g.items.push(this.textItem('download_dir', $r('app.string.download_dir'), AppConstants.DOWNLOAD_DIR, (): void => {
-      toastUtil.showToast({ message: $r('app.string.download_dir_unsupported') })
-    }))
-    g.items.push(this.routerItem('downloads', $r('app.string.downloads'), 'downloads'))
+    g.items.push(this.routerItem('download_settings', $r('app.string.download_settings'), 'settings_download'))
     g.items.push(this.textItem('clear_data', $r('app.string.clear_data'), '', (): void => {
       this.clearDataDialog?.open()
     }))

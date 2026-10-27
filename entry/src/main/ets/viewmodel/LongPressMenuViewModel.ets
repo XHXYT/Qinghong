@@ -46,7 +46,7 @@ export class LongPressMenuViewModel {
         break
       case 'save_image':
       case 'download_image':
-        downloadVM.download(ctx.imageUrl)
+        downloadVM.download(ctx.imageUrl, ctx.pageUrl)
         break
       case 'share_image':
         this.share(ctx.imageUrl !== '' ? ctx.imageUrl : ctx.pageUrl)

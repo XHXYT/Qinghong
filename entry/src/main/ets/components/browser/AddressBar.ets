@@ -1,10 +1,13 @@
 import { QhState } from '../../entryability/AppState';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
 import { browserVM } from '../../viewmodel/BrowserViewModel';
-import { searchVM, SuggestItem, SuggestType } from '../../viewmodel/SearchViewModel';
-import { UrlUtils, SearchToolbarEngines, ToolbarEngineEntry } from '../../common/constants/SearchEngines';
 import { appSettings, UISettings } from '../../common/entity/SettingsModel';
+import { UrlUtils, SearchToolbarEngines, ToolbarEngineEntry } from '../../common/constants/SearchEngines';
 import { ActionBarColor } from '../../common/utils/ActionBarColor';
+import { HomeImmersive } from '../../common/utils/HomeImmersive';
+import { homeHtmlRefresh } from '../../common/utils/HomeHtmlRefresh';
+import { hitokoto } from '../../common/utils/Hitokoto';
+import { menuVM } from '../../viewmodel/MenuViewModel';
 
 /**
  * 地址栏显示文本（按地址栏内容设置：标题/地址/域名，标题为空回退域名）
@@ -20,34 +23,108 @@ export function addressDisplayText(url: string, title: string): string {
 }
 
 /**
- * 顶部地址栏（网页态显示，点击进入编辑）
+ * 顶部地址栏：内联输入，回车直达 URL 或搜索引擎（无独立搜索页）
+ * 最左图标：主页态=搜索图标，网页态=盾牌；点按=全宽顶弹面板（路由入口/页面信息），
+ * 长按=切换搜索引擎菜单
  */
 @ComponentV2
 export struct AddressBar {
+  /** 编辑中（聚焦时展示完整地址，失焦回退显示文本） */
+  @Local editing: boolean = false
+  @Local editText: string = ''
+
+  /** 主页态监测：回到主页时重置编辑状态，地址栏恢复默认展示 */
+  @Computed
+  get inHomeMode(): boolean {
+    const tab = tabsVM.activeTab
+    return tab === null || tab.isHome
+  }
+
+  @Monitor('inHomeMode')
+  onHomeModeChange(): void {
+    this.editing = false
+    this.editText = ''
+  }
+
+  /** 长按菜单：切换搜索引擎 */
+  @Builder
+  engineMenuBuilder() {
+    Menu() {
+      ForEach(SearchToolbarEngines.enabledEngines(), (e: ToolbarEngineEntry) => {
+        MenuItem({ content: e.name })
+          .contentFontColor(appSettings.search_engine_id === e.id
+            ? QhState.currentThemeColor
+            : $r('sys.color.font_primary'))
+          .onClick(() => {
+            appSettings.search_engine_id = e.id
+            // 同步刷新 HTML 主页的引擎下拉显示
+            homeHtmlRefresh.request()
+          })
+      }, (e: ToolbarEngineEntry) => e.id)
+    }
+    .backgroundColor($r('app.color.start_window_background'))
+    .borderRadius(16)
+  }
+
+  /** 最左图标：主页态搜索图标 / 网页态盾牌 */
+  private entryIcon(): Resource {
+    const tab = tabsVM.activeTab
+    if (tab !== null && !tab.isHome) {
+      return $r('sys.symbol.checkmark_shield')
+    }
+    return $r('sys.symbol.magnifyingglass')
+  }
+
+  /** 地址栏最左图标：点按=全宽顶弹面板，长按=搜索引擎菜单 */
+  @Builder
+  searchIconEntry() {
+    SymbolGlyph(this.entryIcon())
+      .fontSize(19)
+      .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'))])
+      .onClick(() => {
+        this.getUIContext().animateTo({ duration: 220, curve: Curve.Friction }, (): void => {
+          browserVM.showPageMenu = true
+        })
+      })
+      .bindContextMenu(this.engineMenuBuilder(), ResponseType.LongPress)
+  }
 
   build() {
     Column() {
       if (tabsVM.activeTab && !tabsVM.activeTab.isHome) {
-        Row() {
-          // 可点击进入编辑的域名区
-          Row({ space: 8 }) {
-            SymbolGlyph(tabSecureIcon(tabsVM.activeTab.url))
-              .fontSize(16)
-              .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'))])
-            Text(addressDisplayText(tabsVM.activeTab.url, tabsVM.activeTab.title))
-              .fontSize(15)
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .fontColor(ActionBarColor.fg($r('sys.color.font_primary')))
-              .layoutWeight(1)
-          }
-          .layoutWeight(1)
-          .height(44)
-          .padding({ left: 16 })
-          .alignItems(VerticalAlign.Center)
-          .onClick(() => {
-            browserVM.isEditingAddress = true
+        Row({ space: 8 }) {
+          this.searchIconEntry()
+          TextInput({
+            text: this.editing ? this.editText
+              : addressDisplayText(tabsVM.activeTab.url, tabsVM.activeTab.title),
+            placeholder: $r('app.string.search_hint')
           })
+            .fontSize(15)
+            .fontColor(ActionBarColor.fg($r('sys.color.font_primary')))
+            .placeholderColor(ActionBarColor.fg($r('sys.color.font_secondary')))
+            .caretColor(ActionBarColor.fg($r('sys.color.font_primary')))
+            .layoutWeight(1)
+            .height(44)
+            .backgroundColor(Color.Transparent)
+            .padding({ left: 8, right: 0 })
+            .borderRadius(0)
+            .enterKeyType(EnterKeyType.Search)
+            .onFocus(() => {
+              this.editing = true
+              this.editText = tabsVM.activeTab !== null ? tabsVM.activeTab.url : ''
+            })
+            .onChange((v: string) => {
+              this.editText = v
+            })
+            .onBlur(() => {
+              this.editing = false
+            })
+            .onSubmit(() => {
+              browserVM.submitAddress(this.editText)
+              this.editing = false
+              this.editText = ''
+              this.getUIContext().getFocusController().clearFocus()
+            })
 
           // 阅读模式按钮：页面检测为适合阅读时自动出现，点击二次确认后进入
           if (appSettings.read_mode_address_button && tabsVM.activeTab.readerable
@@ -55,15 +132,24 @@ export struct AddressBar {
             SymbolGlyph($r('sys.symbol.doc_plaintext'))
               .fontSize(20)
               .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'))])
-              .margin({ right: 14 })
               .onClick(() => {
                 browserVM.enterReaderWithConfirm()
               })
           }
+
+          // 刷新按钮（阅读模式入口右侧）
+          SymbolGlyph($r('sys.symbol.arrow_2_circlepath'))
+            .fontSize(19)
+            .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'))])
+            .margin({ right: 14 })
+            .onClick(() => {
+              browserVM.refresh()
+            })
         }
         .width('100%')
         .height(44)
         .alignItems(VerticalAlign.Center)
+        .padding({ left: 16 })
 
         // 进度条
         if (tabsVM.activeTab.progress < 100) {
@@ -73,177 +159,47 @@ export struct AddressBar {
             .color(ActionBarColor.fg(QhState.currentThemeColor))
             .backgroundColor(Color.Transparent)
         }
-      }
-    }
-    .width('100%')
-    .backgroundColor(ActionBarColor.bg($r('sys.color.comp_background_primary')))
-  }
-}
-
-function tabSecureIcon(url: string): Resource {
-  if (url.startsWith('https://')) {
-    return $r('sys.symbol.lock')
-  }
-  return $r('sys.symbol.website')
-}
-
-function suggestIcon(type: SuggestType): Resource {
-  if (type === SuggestType.SEARCH_HISTORY) {
-    return $r('sys.symbol.clock')
-  }
-  if (type === SuggestType.NETWORK_SUGGEST) {
-    return $r('sys.symbol.magnifyingglass')
-  }
-  if (type === SuggestType.BOOKMARK) {
-    return $r('sys.symbol.bookmark')
-  }
-  if (type === SuggestType.FAVORITES) {
-    return $r('sys.symbol.star')
-  }
-  if (type === SuggestType.TAB) {
-    return $r('sys.symbol.square_grid_2x2')
-  }
-  return $r('sys.symbol.website')
-}
-
-/**
- * 地址编辑态全屏覆盖层（输入 + 联想列表）
- */
-@ComponentV2
-export struct AddressEditOverlay {
-  @Local inputText: string = ''
-
-  aboutToAppear(): void {
-    // 初始内容：主页态留空，网页态带当前域名便于继续输入
-    const tab = tabsVM.activeTab
-    this.inputText = tab && !tab.isHome ? UrlUtils.hostOf(tab.url) : ''
-    this.refresh()
-  }
-
-  private refresh(): void {
-    const tab = tabsVM.activeTab
-    searchVM.updateSuggestions(this.inputText, tab ? tab.isIncognito : false)
-  }
-
-  private close(): void {
-    browserVM.isEditingAddress = false
-    searchVM.clear()
-  }
-
-  @Builder
-  engineMenuBuilder() {
-    Menu() {
-      ForEach(SearchToolbarEngines.enabledEngines(), (e: ToolbarEngineEntry) => {
-        MenuItem({ content: e.name })
-          .contentFontColor($r('sys.color.font_primary'))
-          .onClick(() => {
-            const text = this.inputText.trim()
-            if (text) {
-              browserVM.submitAddressWithEngine(text, e.id)
-            } else {
-              // 未输入时仅切换当前搜索引擎
-              appSettings.search_engine_id = e.id
-            }
-          })
-      }, (e: ToolbarEngineEntry) => e.id)
-    }
-    .backgroundColor($r('app.color.start_window_background'))
-    .borderRadius(16)
-  }
-
-  build() {
-    Column() {
-      // 输入行
-      Row({ space: 10 }) {
-        if (appSettings.search_toolbar_enabled && SearchToolbarEngines.enabledEngines().length > 0) {
-          // 搜索工具菜单入口（最左侧图标）
-          SymbolGlyph($r('sys.symbol.magnifyingglass'))
-            .fontSize(20)
-            .fontColor([$r('sys.color.font_secondary')])
-            .bindMenu(this.engineMenuBuilder())
-        } else {
-          SymbolGlyph($r('sys.symbol.magnifyingglass'))
-            .fontSize(20)
-            .fontColor([$r('sys.color.font_secondary')])
-        }
-        TextInput({ text: this.inputText, placeholder: $r('app.string.search_hint') })
-          .layoutWeight(1)
-          .height(40)
-          .fontSize(16)
-          .backgroundColor(Color.Transparent)
-          .padding({ left: 0, right: 0 })
-          .borderRadius(0)
-          .enterKeyType(EnterKeyType.Search)
-          .defaultFocus(true)
-          .onChange((v: string) => {
-            this.inputText = v
-            this.refresh()
-          })
-          .onSubmit(() => {
-            browserVM.submitAddress(this.inputText)
-          })
-        Text($r('app.string.cancel'))
-          .fontSize(15)
-          .fontColor(QhState.currentThemeColor)
-          .onClick(() => {
-            this.close()
-          })
-      }
-      .width('100%')
-      .height(52)
-      .padding({ left: 16, right: 16 })
-      .alignItems(VerticalAlign.Center)
-
-      // 联想列表
-      List() {
-        ForEach(searchVM.suggestions, (s: SuggestItem, idx: number) => {
-          ListItem() {
-            Row({ space: 12 }) {
-              SymbolGlyph(suggestIcon(s.type))
-                .fontSize(18)
-                .fontColor([$r('sys.color.font_secondary')])
-              Text(s.text)
-                .fontSize(15)
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-                .fontColor($r('sys.color.font_primary'))
-                .layoutWeight(1)
-              if (s.url) {
-                Text(UrlUtils.hostOf(s.url))
-                  .fontSize(12)
-                  .maxLines(1)
-                  .fontColor($r('sys.color.font_secondary'))
-              }
-            }
-            .width('100%')
-            .height(48)
-            .padding({ left: 16, right: 16 })
-            .alignItems(VerticalAlign.Center)
-            .onClick(() => {
-              if (s.tabId >= 0) {
-                tabsVM.switchTab(s.tabId)
-                this.close()
-                return
-              }
-              if (s.url) {
-                browserVM.openUrl(s.url)
-              } else {
-                browserVM.submitAddress(s.text)
-              }
+      } else if (tabsVM.activeTab && tabsVM.activeTab.isHome) {
+        // 主页态：地址栏直接输入搜索或直达
+        Row({ space: 8 }) {
+          this.searchIconEntry()
+          TextInput({ text: this.editText, placeholder: hitokoto.quote !== '' ? hitokoto.quote : $r('app.string.search_hint') })
+            .fontSize(15)
+            .fontColor(ActionBarColor.fg($r('sys.color.font_primary')))
+            .placeholderColor(ActionBarColor.fg($r('sys.color.font_secondary')))
+            .caretColor(ActionBarColor.fg($r('sys.color.font_primary')))
+            .layoutWeight(1)
+            .height(44)
+            .backgroundColor(Color.Transparent)
+            .padding({ left: 8, right: 0 })
+            .borderRadius(0)
+            .enterKeyType(EnterKeyType.Search)
+            .onChange((v: string) => {
+              this.editText = v
             })
-          }
-        }, (s: SuggestItem, idx: number) => `${s.type}_${s.text}_${idx}`)
+            .onSubmit(() => {
+              browserVM.submitAddress(this.editText)
+              this.editText = ''
+              this.getUIContext().getFocusController().clearFocus()
+            })
+
+          // 扫码入口（菜单项同款）
+          SymbolGlyph($r('sys.symbol.line_viewfinder'))
+            .fontSize(19)
+            .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'))])
+            .onClick(() => {
+              menuVM.startScan()
+            })
+        }
+        .width('100%')
+        .height(44)
+        .alignItems(VerticalAlign.Center)
+        .padding({ left: 16, right: 16 })
       }
-      .layoutWeight(1)
-      .scrollBar(BarState.Off)
-      .divider({ strokeWidth: 0.5, color: $r('sys.color.comp_divider'), startMargin: 16, endMargin: 16 })
     }
     .width('100%')
-    .height('100%')
-    .padding({ bottom: QhState.bottomRectHeight })
-    .backgroundColor($r('sys.color.comp_background_primary'))
-    .onClick(() => {
-      this.close()
-    })
+    // 主页沉浸时背景透明，透出全屏主页背景层
+    .backgroundColor(HomeImmersive.active() ? Color.Transparent
+      : ActionBarColor.bg($r('sys.color.comp_background_primary')))
   }
 }

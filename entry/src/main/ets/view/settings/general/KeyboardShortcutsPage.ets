@@ -1,11 +1,11 @@
 import { CustomContentDialog } from '@kit.ArkUI';
-import { KeyCode } from '@kit.InputKit';
 import { NaviBarButton } from '../../../components/NaviContainer';
 import { SettingsScaffold, SettingsCard } from '../../../components/SettingsScaffold';
 import { QhState } from '../../../entryability/AppState';
 import { appSettings } from '../../../common/entity/SettingsModel';
 import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
 import { toastUtil } from '../../../common/utils/ToastUtils';
+import { KB_SHORTCUTS, kbKeyNameOf, kbIsModifierCode } from '../../../common/constants/KbShortcuts';
 
 
 @Builder
@@ -34,45 +34,7 @@ export class KbShortcut {
   }
 }
 
-/** 按键码转显示名（字母/数字/F1-F12/Tab/方向键/空格） */
-function keyNameOf(code: number): string {
-  if (code >= KeyCode.KEYCODE_A && code <= KeyCode.KEYCODE_Z) {
-    return String.fromCharCode(65 + code - KeyCode.KEYCODE_A)
-  }
-  if (code >= KeyCode.KEYCODE_0 && code <= KeyCode.KEYCODE_9) {
-    return String.fromCharCode(48 + code - KeyCode.KEYCODE_0)
-  }
-  if (code >= KeyCode.KEYCODE_F1 && code <= KeyCode.KEYCODE_F12) {
-    return `F${code - KeyCode.KEYCODE_F1 + 1}`
-  }
-  if (code === KeyCode.KEYCODE_TAB) {
-    return 'Tab'
-  }
-  if (code === KeyCode.KEYCODE_DPAD_LEFT) {
-    return '←'
-  }
-  if (code === KeyCode.KEYCODE_DPAD_RIGHT) {
-    return '→'
-  }
-  if (code === KeyCode.KEYCODE_DPAD_UP) {
-    return '↑'
-  }
-  if (code === KeyCode.KEYCODE_DPAD_DOWN) {
-    return '↓'
-  }
-  if (code === KeyCode.KEYCODE_SPACE) {
-    return 'Space'
-  }
-  return ''
-}
-
-/** 是否修饰键（Ctrl/Shift/Alt/Meta 左右键） */
-function isModifierCode(code: number): boolean {
-  return code === KeyCode.KEYCODE_CTRL_LEFT || code === KeyCode.KEYCODE_CTRL_RIGHT
-    || code === KeyCode.KEYCODE_SHIFT_LEFT || code === KeyCode.KEYCODE_SHIFT_RIGHT
-    || code === KeyCode.KEYCODE_ALT_LEFT || code === KeyCode.KEYCODE_ALT_RIGHT
-    || code === KeyCode.KEYCODE_META_LEFT || code === KeyCode.KEYCODE_META_RIGHT
-}
+/** 按键码转显示名与修饰键判定见 common/constants/KbShortcuts.ets */
 
 @ComponentV2
 struct KeyboardShortcutsPage {
@@ -88,24 +50,13 @@ struct KeyboardShortcutsPage {
     this.initDialogs()
   }
 
-  /** 默认快捷键表（顺序即显示顺序） */
+  /** 默认快捷键表（顺序即显示顺序，定义共享自 common/constants/KbShortcuts.ets） */
   private defaultShortcuts(): KbShortcut[] {
-    return [
-      new KbShortcut('new_tab', $r('app.string.new_tab'), ['Ctrl'], '', 'T'),
-      new KbShortcut('next_tab', $r('app.string.next_tab'), ['Ctrl'], '', 'Tab'),
-      new KbShortcut('prev_tab', $r('app.string.previous_tab'), ['Ctrl', 'Shift'], '', 'Tab'),
-      new KbShortcut('go_back', $r('app.string.web_back'), ['Alt'], '', '←'),
-      new KbShortcut('go_forward', $r('app.string.web_forward'), ['Alt'], '', '→'),
-      new KbShortcut('close_tab', $r('app.string.close_tab'), ['Ctrl'], '', 'W'),
-      new KbShortcut('menu', $r('app.string.menu'), ['Alt'], '', 'F'),
-      new KbShortcut('bookmarks', $r('app.string.bookmarks'), ['Ctrl', 'Shift'], '', 'B'),
-      new KbShortcut('history', $r('app.string.history'), ['Ctrl'], '', 'H'),
-      new KbShortcut('find_in_page', $r('app.string.find_in_page'), ['Ctrl'], '', 'F'),
-      new KbShortcut('enter_url', $r('app.string.enter_url'), ['Ctrl'], '', '1'),
-      new KbShortcut('refresh', $r('app.string.refresh_page'), ['Ctrl'], 'F5', 'R'),
-      new KbShortcut('view_source', $r('app.string.view_source'), ['Ctrl'], '', 'U'),
-      new KbShortcut('add_bookmark', $r('app.string.add_bookmark'), ['Ctrl'], '', 'D')
-    ]
+    const list: KbShortcut[] = []
+    for (const d of KB_SHORTCUTS) {
+      list.push(new KbShortcut(d.id, d.label, d.mods, d.fixedCombo, d.defKeyName))
+    }
+    return list
   }
 
   /** 应用已保存的自定义按键覆盖项 */
@@ -275,10 +226,10 @@ struct KeyboardShortcutsPage {
       if (this.editingId !== s.id || e.type !== KeyType.Down) {
         return
       }
-      if (isModifierCode(e.keyCode)) {
+      if (kbIsModifierCode(e.keyCode)) {
         return
       }
-      const name: string = keyNameOf(e.keyCode)
+      const name: string = kbKeyNameOf(e.keyCode)
       if (name === '') {
         return
       }

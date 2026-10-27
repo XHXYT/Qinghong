@@ -195,6 +195,7 @@ export struct CustomListItem {
         })
     )
     .bindContextMenu(this.showCtxMenu!!, this.ctxMenuBuilder(), {
+      placement: this.item.contextMenuPlacement,
       onDisappear: (): void => {
         this.showCtxMenu = false
       }

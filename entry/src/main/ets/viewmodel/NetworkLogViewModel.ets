@@ -45,6 +45,10 @@ export class NetworkLogViewModel {
   private static readonly CSS_EXTS: string[] = ['.css']
   private static readonly IMAGE_EXTS: string[] =
     ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.svg', '.ico', '.avif']
+  private static readonly VIDEO_EXTS: string[] =
+    ['.mp4', '.m3u8', '.webm', '.flv', '.mkv', '.mov', '.ts', '.avi', '.m4v']
+  private static readonly AUDIO_EXTS: string[] =
+    ['.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg', '.opus', '.amr']
 
   /** 记录一条请求（onInterceptRequest 内调用，必须轻量）；主文档请求重置该标签日志 */
   recordRequest(tabId: number, request: WebResourceRequest, isMain: boolean): void {
@@ -64,7 +68,11 @@ export class NetworkLogViewModel {
         accept = h.headerValue
       }
     }
-    this.append(tabId, url, isMain ? 'main' : NetworkLogViewModel.kindOf(url, dest, accept), 'load')
+    const kind: string = isMain ? 'main' : NetworkLogViewModel.kindOf(url, dest, accept)
+    if (kind === 'video' || kind === 'audio') {
+      console.info(`[QhSniff] req ${kind} ${url}`)
+    }
+    this.append(tabId, url, kind, 'load')
   }
 
   /** 标记加载失败（onErrorReceive） */
@@ -93,6 +101,22 @@ export class NetworkLogViewModel {
         this.append(tabId, url, NetworkLogViewModel.kindOf(url), 'blocked')
       }
     }
+  }
+
+  /**
+   * 补记嗅探到的媒体地址（文档开始钩子脚本经 __qhNative.sniffMedia 上报）：
+   * 弥补内核媒体栈取流、iframe 播放器请求不经 onInterceptRequest 的盲区，
+   * 悬浮按钮（hasMedia）与嗅探面板随网络日志实时生效；同 URL 已记录则跳过
+   */
+  recordSniffed(tabId: number, url: string, kind: string): void {
+    if (kind !== 'video' && kind !== 'audio') {
+      return
+    }
+    if (this.findLast(tabId, url) !== null) {
+      return
+    }
+    console.info(`[QhSniff] rec ${kind} ${url}`)
+    this.append(tabId, url, kind, 'load')
   }
 
   /** 清空指定标签的请求记录（新主文档导航时） */
@@ -223,6 +247,12 @@ export class NetworkLogViewModel {
     if (kind === 'image') {
       return 'IMG'
     }
+    if (kind === 'video') {
+      return 'VID'
+    }
+    if (kind === 'audio') {
+      return 'AUD'
+    }
     return 'OTHER'
   }
 
@@ -287,9 +317,21 @@ export class NetworkLogViewModel {
     if (dest === 'document') {
       return 'main'
     }
+    if (dest === 'video') {
+      return 'video'
+    }
+    if (dest === 'audio') {
+      return 'audio'
+    }
     const a: string = accept.trim().toLowerCase()
     if (a.startsWith('image/')) {
       return 'image'
+    }
+    if (a.startsWith('video/')) {
+      return 'video'
+    }
+    if (a.startsWith('audio/')) {
+      return 'audio'
     }
     if (a.startsWith('text/css')) {
       return 'css'
@@ -312,6 +354,16 @@ export class NetworkLogViewModel {
     for (const ext of NetworkLogViewModel.IMAGE_EXTS) {
       if (lower.endsWith(ext)) {
         return 'image'
+      }
+    }
+    for (const ext of NetworkLogViewModel.VIDEO_EXTS) {
+      if (lower.endsWith(ext)) {
+        return 'video'
+      }
+    }
+    for (const ext of NetworkLogViewModel.AUDIO_EXTS) {
+      if (lower.endsWith(ext)) {
+        return 'audio'
       }
     }
     return 'other'

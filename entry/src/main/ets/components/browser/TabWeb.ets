@@ -24,6 +24,9 @@ import { LongPressMenuItem, LongPressMenuItems, LongPressTarget } from '../../co
 import { longPressVM, LongPressContext } from '../../viewmodel/LongPressMenuViewModel';
 import { netLogVM } from '../../viewmodel/NetworkLogViewModel';
 import { inspectorVM } from '../../viewmodel/InspectorViewModel';
+import { faviconCache, FaviconCache } from '../../viewmodel/FaviconCache';
+import { scriptVM } from '../../viewmodel/ScriptViewModel';
+import { GmValueRaw, GmDeleteValueRaw, GmOpenTabRaw, GmClipboardRaw, GmNotifyRaw, GmDownloadRaw, GmMenuRaw, GmMenuIdRaw } from '../../common/utils/GmRuntime';
 
 /** 网页选区矩形（CSS px，相对视口；由注入脚本返回的 JSON 解析而来） */
 interface SelectionRect {
@@ -35,10 +38,11 @@ interface SelectionRect {
 }
 
 /**
- * 剪贴板 + 密码 + 审查 JS 代理对象（window.__qhNative）：
+ * 剪贴板 + 密码 + 审查 + 媒体嗅探 JS 代理对象（window.__qhNative）：
  * 网页 navigator.clipboard 文本读写转发原生按站点策略处理；
  * 登录表单凭据捕获上报原生弹保存提示；
- * 元素审查页内选点回传（__qhNative.inspectEvent）
+ * 元素审查页内选点回传（__qhNative.inspectEvent）；
+ * 媒体嗅探钩子上报（__qhNative.sniffMedia）记入网络日志
  */
 class ClipboardBridge {
   private readonly handler: (action: string, cbId: number, text: string) => void
@@ -46,17 +50,23 @@ class ClipboardBridge {
   private readonly inspectHandler: (payload: string) => void
   private readonly scrollHandler: (hidden: boolean) => void
   private readonly tapToggleHandler: () => void
+  private readonly gmHandler: (api: string, json: string) => void
+  private readonly sniffHandler: (url: string, kind: string) => void
 
   constructor(handler: (action: string, cbId: number, text: string) => void,
     passwordHandler: (username: string, password: string) => void,
     inspectHandler: (payload: string) => void,
     scrollHandler: (hidden: boolean) => void,
-    tapToggleHandler: () => void) {
+    tapToggleHandler: () => void,
+    gmHandler: (api: string, json: string) => void,
+    sniffHandler: (url: string, kind: string) => void) {
     this.handler = handler
     this.passwordHandler = passwordHandler
     this.inspectHandler = inspectHandler
     this.scrollHandler = scrollHandler
     this.tapToggleHandler = tapToggleHandler
+    this.gmHandler = gmHandler
+    this.sniffHandler = sniffHandler
   }
 
   clipboardRequest(action: string, cbId: number, text: string): void {
@@ -79,6 +89,16 @@ class ClipboardBridge {
   /** 点击切换操作栏（仅 tap 模式生效） */
   actionBarTapToggle(): void {
     this.tapToggleHandler()
+  }
+
+  /** GM_* API 桥（__qhNative.gmRequest）：脚本沙箱转发原生执行 */
+  gmRequest(api: string, json: string): void {
+    this.gmHandler(api, json)
+  }
+
+  /** 媒体嗅探钩子上报（__qhNative.sniffMedia）：记录网络日志驱动悬浮按钮/嗅探面板 */
+  sniffMedia(url: string, kind: string): void {
+    this.sniffHandler(url, kind)
   }
 }
 
@@ -117,13 +137,17 @@ export struct TabWeb {
   }, (hidden: boolean): void => {
     // 滑动显隐：仅 slide 模式生效
     if (UISettings.auto_hide_action_bar === 'slide') {
-      this.tab.actionBarHidden = hidden
+      this.setBarHiddenAnimated(hidden)
     }
   }, (): void => {
     // 点击切换：仅 tap 模式生效
     if (UISettings.auto_hide_action_bar === 'tap') {
-      this.tab.actionBarHidden = !this.tab.actionBarHidden
+      this.setBarHiddenAnimated(!this.tab.actionBarHidden)
     }
+  }, (api: string, json: string): void => {
+    this.handleGmRequest(api, json)
+  }, (url: string, kind: string): void => {
+    this.handleSniffMedia(url, kind)
   })
 
   /** 保存密码提示弹窗 */
@@ -152,6 +176,16 @@ export struct TabWeb {
   private webHeightVp: number = 0
   /** 看图模式：全屏查看的图片地址（'' = 关闭） */
   @Local imageViewerUrl: string = ''
+
+  /** 操作栏显隐切换：布局与栏滑入滑出统一走 250ms 动画（同值不重复触发） */
+  private setBarHiddenAnimated(hidden: boolean): void {
+    if (this.tab.actionBarHidden === hidden) {
+      return
+    }
+    this.getUIContext().animateTo({ duration: 250, curve: Curve.Friction }, (): void => {
+      this.tab.actionBarHidden = hidden
+    })
+  }
   /** 看图模式：捏合缩放倍数 */
   @Local viewerScale: number = 1
   private viewerBaseScale: number = 1
@@ -260,16 +294,112 @@ export struct TabWeb {
   }
 
   /** 文档加载前注入脚本：隐私脚本 + 剪贴板接管 + 长按菜单辅助 + 振动禁用（全局关闭时）+ 密码管理器 */
+  /** 用户脚本：@run-at document-end/idle，按 URL 匹配后注入 */
+  private injectUserScripts(url: string): void {
+    const code: string = scriptVM.onPageEndCode(url)
+    if (code !== '') {
+      tabsVM.ensureController(this.tab).runJavaScript(code)
+        .catch((): void => {
+        })
+    }
+  }
+
+  /**
+   * GM_* API 原生执行（__qhNative.gmRequest）：
+   * 值读写持久化+跨标签广播、跨域请求（@connect 校验）、菜单命令注册、
+   * 打开标签/剪贴板/通知/下载转发对应模块
+   */
+  private handleGmRequest(api: string, json: string): void {
+    try {
+      switch (api) {
+        case 'setValue': {
+          const raw: GmValueRaw = JSON.parse(json) as GmValueRaw
+          scriptVM.gmSetValue(raw.scriptId, raw.key, raw.valueRaw, this.tab.id)
+          break
+        }
+        case 'deleteValue': {
+          const raw: GmDeleteValueRaw = JSON.parse(json) as GmDeleteValueRaw
+          scriptVM.gmDeleteValue(raw.scriptId, raw.key, this.tab.id)
+          break
+        }
+        case 'xhr':
+          scriptVM.gmXhr(json, this.tab)
+          break
+        case 'xhrAbort':
+          scriptVM.gmXhrAbort(json)
+          break
+        case 'openTab': {
+          const raw: GmOpenTabRaw = JSON.parse(json) as GmOpenTabRaw
+          if (raw.url !== '') {
+            tabsVM.newTab(raw.url, this.tab.isIncognito)
+          }
+          break
+        }
+        case 'clipboard': {
+          const raw: GmClipboardRaw = JSON.parse(json) as GmClipboardRaw
+          const data: pasteboard.PasteData =
+            pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, raw.text)
+          pasteboard.getSystemPasteboard().setData(data)
+            .catch((): void => {
+            })
+          break
+        }
+        case 'notify': {
+          const raw: GmNotifyRaw = JSON.parse(json) as GmNotifyRaw
+          if (raw.text !== '') {
+            toastUtil.showToast({ message: raw.text })
+          }
+          break
+        }
+        case 'download': {
+          const raw: GmDownloadRaw = JSON.parse(json) as GmDownloadRaw
+          if (raw.url !== '') {
+            downloadVM.download(raw.url, this.tab.url)
+          }
+          break
+        }
+        case 'registerMenu': {
+          const raw: GmMenuRaw = JSON.parse(json) as GmMenuRaw
+          scriptVM.gmRegisterMenu(this.tab.id, raw.scriptId, raw.menuId, raw.name)
+          break
+        }
+        case 'unregisterMenu': {
+          const raw: GmMenuIdRaw = JSON.parse(json) as GmMenuIdRaw
+          scriptVM.gmUnregisterMenu(raw.menuId)
+          break
+        }
+        default:
+          break
+      }
+    } catch (e) {
+      console.warn(`[TabWeb] gmRequest ${api} 失败: ${e}`)
+    }
+  }
+
+  /** 媒体嗅探上报（__qhNative.sniffMedia 钩子脚本）：记入网络日志；无痕模式不记录 */
+  private handleSniffMedia(url: string, kind: string): void {
+    if (this.tab.isIncognito) {
+      return
+    }
+    console.info(`[QhSniff] hook ${kind} ${url}`)
+    netLogVM.recordSniffed(this.tab.id, url, kind)
+  }
+
   private documentStartScripts(): Array<ScriptItem> {
     const scripts: Array<ScriptItem> = WebScripts.privacyScripts()
     scripts.push(WebScripts.clipboardScript())
     scripts.push(WebScripts.contextMenuScript())
     scripts.push(WebScripts.actionBarScript())
+    scripts.push(WebScripts.sniffMediaScript())
     if (!appSettings.web_vibration_enabled) {
       scripts.push(WebScripts.vibrationBlockScript())
     }
     if (!appSettings.system_password_manager) {
       scripts.push(WebScripts.passwordScript())
+    }
+    // 用户脚本：@run-at document-start（@match 规则做 URL 预过滤）
+    for (const item of scriptVM.docStartScriptItems()) {
+      scripts.push(item)
     }
     return scripts
   }
@@ -1357,7 +1487,8 @@ export struct TabWeb {
         .javaScriptProxy({
           object: this.clipboardBridge,
           name: '__qhNative',
-          methodList: ['clipboardRequest', 'passwordSubmit', 'inspectEvent'],
+          methodList: ['clipboardRequest', 'passwordSubmit', 'inspectEvent', 'actionBarScroll',
+            'actionBarTapToggle', 'gmRequest', 'sniffMedia'],
           controller: tabsVM.ensureController(this.tab)
         })
         .copyOptions(this.policy.clipboardMode === 'block' ? CopyOptions.None : CopyOptions.LocalDevice)
@@ -1450,6 +1581,8 @@ export struct TabWeb {
           this.closeCtxMenu()
           // 元素审查：绑定标签导航时清选点与选中态（面板保留）
           inspectorVM.resetForNavigation(this.tab.id)
+          // 用户脚本：清空本标签已注册的 GM 菜单命令（新页面由脚本重新注册）
+          scriptVM.clearMenuCommands(this.tab.id)
           // 源码视图：无站点策略应用（about:blank），跳过
           if (this.tab.viewSourceHtml !== '') {
             return
@@ -1472,10 +1605,16 @@ export struct TabWeb {
           this.tab.progress = 100
           this.applyBackForwardCache()
           this.autofillPassword()
+          this.injectUserScripts(event.url)
           this.detectReadability()
           this.detectThemeColor()
           browserVM.onPageEnded(this.tab, event.url)
           browserVM.updateNavState(this.tab)
+        })
+        // 页面 favicon 回调：按 host 缓存（书签列表/桌面快捷方式展示用）
+        .onFaviconReceived((event: OnFaviconReceivedEvent) => {
+          console.info(`[TabWeb] onFaviconReceived url=${this.tab.url}`)
+          faviconCache.saveFromPixelMap(FaviconCache.hostOf(this.tab.url), event.favicon)
         })
         .onProgressChange((event: OnProgressChangeEvent) => {
           this.tab.progress = event.newProgress
@@ -1518,7 +1657,7 @@ export struct TabWeb {
           }
         } as EditMenuOptions)
         .onDownloadStart((event: OnDownloadStartEvent) => {
-          downloadVM.download(event.url)
+          downloadVM.download(event.url, this.tab.url)
         })
 
       // 夜间模式：网页蒙版滤镜
@@ -1554,6 +1693,31 @@ export struct TabWeb {
         this.webHeightVp = h
       }
     })
+    // 滑动导航：并行横滑手势（不阻断网页触摸），大幅横向滑动触发前进/后退
+    .parallelGesture(PanGesture({ fingers: 1, direction: PanDirection.Horizontal, distance: 12 })
+      .onActionEnd((event: GestureEvent) => {
+        this.handleSwipeNav(event.offsetX, event.offsetY)
+      }))
+  }
+
+  /**
+   * 滑动导航判定（操作设定-滑动屏幕前进后退开启时）：
+   * 位移超阈值且横向主导——右滑后退、左滑前进；
+   * 看图/长按菜单覆盖层展示中不触发
+   */
+  private handleSwipeNav(dx: number, dy: number): void {
+    if (!appSettings.swipe_nav_enabled || this.tab.isHome
+      || this.imageViewerUrl !== '' || this.ctxMenuVisible) {
+      return
+    }
+    if (Math.abs(dx) < 90 || Math.abs(dx) < Math.abs(dy) * 1.2) {
+      return
+    }
+    if (dx > 0) {
+      browserVM.goBack()
+    } else {
+      browserVM.goForward()
+    }
   }
 
   /** 长按/右键自定义菜单覆盖层：透明捕获层 + 浮动文字面板 */

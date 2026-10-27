@@ -6,6 +6,7 @@ import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemIn
 import { ToolbarAction, findToolbarAction, getToolbarEventAction } from '../../../common/entity/ToolbarEvent';
 import { ResourceUtils } from '../../../common/utils/ResourceUtil';
 import { toastUtil } from '../../../common/utils/ToastUtils';
+import { volumeKeyPaging } from '../../../common/utils/VolumeKeyPaging';
 
 
 @Builder
@@ -44,6 +45,7 @@ struct OperationSettingsPage {
         value: appSettings.volume_key_paging,
         onChange: (v: string | boolean | number): void => {
           appSettings.volume_key_paging = v === true
+          volumeKeyPaging.sync()
         }
       }),
       new CustomItemInfo({
