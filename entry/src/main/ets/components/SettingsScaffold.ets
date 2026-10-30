@@ -3,12 +3,14 @@ import { CustomItemInfo } from '../common/entity/CusItemInfo';
 import { CustomListItem } from './CusItemBuilder';
 
 /**
- * 设置分组：组头标题 + 组内条目（分组卡片渲染用）
+ * 设置分组：组头标题 + 组内条目（分组卡片渲染用）。
+ * @ObservedV2：items 数组替换/增删可被 V2 深度观测（配合 Repeat 按需重渲染）
  */
+@ObservedV2
 export class SettingsSection {
   readonly key: string
   title: ResourceStr = ''
-  items: CustomItemInfo[] = []
+  @Trace items: CustomItemInfo[] = []
   /** 无标题时卡片顶部间距（默认：首组且无 header 时 10，否则 18） */
   topMargin?: number
 

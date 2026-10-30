@@ -10,6 +10,8 @@ export default class UIConstants {
   static readonly PADDING_VALUE_16: number = 16
   static readonly PADDING_VALUE_12: number = 12
 
+  static readonly CHEVRON_SIZE: number = 21
+
   /**
    * 默认颜色
    */

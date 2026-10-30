@@ -51,6 +51,11 @@
       "buildFunction": "PrivacySettingsBuilder"
     },
     {
+      "name": "settings_privacy_report",
+      "pageSourceFile": "src/main/ets/view/settings/general/PrivacyReportPage.ets",
+      "buildFunction": "PrivacyReportBuilder"
+    },
+    {
       "name": "settings_advanced",
       "pageSourceFile": "src/main/ets/view/settings/AdvancedSettingsPage.ets",
       "buildFunction": "AdvancedSettingsBuilder"
@@ -104,6 +109,11 @@
       "name": "settings_site",
       "pageSourceFile": "src/main/ets/view/settings/general/site/SiteSettingsPage.ets",
       "buildFunction": "SettingsSiteBuilder"
+    },
+    {
+      "name": "settings_translate",
+      "pageSourceFile": "src/main/ets/view/settings/general/TranslateSettingsPage.ets",
+      "buildFunction": "SettingsTranslateBuilder"
     },
     {
       "name": "settings_site_item",
@@ -169,6 +179,21 @@
       "name": "settings_ua",
       "pageSourceFile": "src/main/ets/view/settings/general/UaPage.ets",
       "buildFunction": "SettingsUaBuilder"
+    },
+    {
+      "name": "settings_dns",
+      "pageSourceFile": "src/main/ets/view/settings/general/DnsPage.ets",
+      "buildFunction": "DnsSettingsBuilder"
+    },
+    {
+      "name": "settings_proxy",
+      "pageSourceFile": "src/main/ets/view/settings/general/ProxyPage.ets",
+      "buildFunction": "ProxySettingsBuilder"
+    },
+    {
+      "name": "settings_hosts",
+      "pageSourceFile": "src/main/ets/view/settings/general/HostsPage.ets",
+      "buildFunction": "HostsPageBuilder"
     },
     {
       "name": "settings_operations",

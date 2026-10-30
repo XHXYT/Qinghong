@@ -211,6 +211,7 @@ struct UaPage {
     this.picker.onSelect = (v: string): void => {
       appSettings.ua_desktop = v
       appSettings.save()
+      UaUtils.applyToAll()
       this.desktopItem.value = ResourceUtils.getString(UaUtils.presetName(v))
     }
     this.pickerHeight = pickerSheetHeight(options.length)

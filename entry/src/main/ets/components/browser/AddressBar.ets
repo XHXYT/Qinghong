@@ -66,13 +66,29 @@ export struct AddressBar {
     .borderRadius(16)
   }
 
-  /** 最左图标：主页态搜索图标 / 网页态盾牌 */
+  /** 最左图标：主页态搜索图标 / 网页态按连接安全状态切换（勾盾/警示盾/锁盾） */
   private entryIcon(): Resource {
     const tab = tabsVM.activeTab
     if (tab !== null && !tab.isHome) {
-      return $r('sys.symbol.checkmark_shield')
+      const state: string = UrlUtils.secureStateOf(tab.url)
+      if (state === 'insecure') {
+        return $r('sys.symbol.exclamationmark_shield_fill')
+      }
+      if (state === 'secure') {
+        return $r('sys.symbol.checkmark_shield')
+      }
+      return $r('sys.symbol.lock_shield')
     }
     return $r('sys.symbol.magnifyingglass')
+  }
+
+  /** 最左图标颜色：HTTP 不安全=警示红，其余跟随次级前景 */
+  private entryIconColor(): ResourceColor {
+    const tab = tabsVM.activeTab
+    if (tab !== null && !tab.isHome && UrlUtils.secureStateOf(tab.url) === 'insecure') {
+      return '#E84026'
+    }
+    return ActionBarColor.fg($r('sys.color.font_secondary'))
   }
 
   /** 地址栏最左图标：点按=全宽顶弹面板，长按=搜索引擎菜单 */
@@ -80,7 +96,7 @@ export struct AddressBar {
   searchIconEntry() {
     SymbolGlyph(this.entryIcon())
       .fontSize(19)
-      .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'))])
+      .fontColor([this.entryIconColor()])
       .onClick(() => {
         this.getUIContext().animateTo({ duration: 220, curve: Curve.Friction }, (): void => {
           browserVM.showPageMenu = true

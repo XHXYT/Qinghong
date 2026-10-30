@@ -2,6 +2,9 @@ import { SettingsScaffold, SettingsSection } from '../../components/SettingsScaf
 import { appSettings } from '../../common/entity/SettingsModel';
 import { CustomItemInfo, ItemActionType } from '../../common/entity/CusItemInfo';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
+import { AdvancedSecurityUtils } from '../../common/utils/AdvancedSecurityUtils';
+import { SitePolicy, SiteSettingsViewModel, siteSettingsVM } from '../../viewmodel/SiteSettingsViewModel';
+import { QhState } from '../../entryability/AppState';
 
 @Builder
 export function PrivacySettingsBuilder() {
@@ -15,6 +18,15 @@ struct PrivacySettingsPage {
 
   aboutToAppear(): void {
     const items: CustomItemInfo[] = []
+    items.push(new CustomItemInfo({
+      id: 'privacy_report',
+      title: $r('app.string.privacy_report'),
+      subtitle: $r('app.string.privacy_report_desc'),
+      type: ItemActionType.ROUTER,
+      onChange: (v: string | boolean | number): void => {
+        QhState.pushPage('settings_privacy_report', null)
+      }
+    }))
     items.push(new CustomItemInfo({
       id: 'do_not_track',
       title: $r('app.string.do_not_track'),
@@ -34,15 +46,20 @@ struct PrivacySettingsPage {
       onChange: (v: string | boolean | number): void => {
         const target = v === true
         appSettings.intelligent_tracking_prevention = target
-        // 全局开关变化：向所有已创建 Web 实例重新应用（新标签在挂载时应用）
+        // 全局开关变化：向所有已创建 Web 实例重新应用（站点开了「允许跨站跟踪」豁免的除外；
+        // resolvePolicy 有缓存，此处按各标签站点策略重算；新标签在挂载时应用）
         for (const tab of tabsVM.tabs) {
           const c = tab.controller
           if (c) {
-            try {
-              c.enableIntelligentTrackingPrevention(target)
-            } catch (e) {
-              console.error(`[PrivacySettings] enableIntelligentTrackingPrevention 失败: ${e}`)
-            }
+            const host: string = SiteSettingsViewModel.hostOf(tab.url)
+            siteSettingsVM.resolvePolicy(host).then((p: SitePolicy): void => {
+              const on: boolean = target && !p.allowCrossSiteTracking
+              try {
+                c.enableIntelligentTrackingPrevention(on)
+              } catch (e) {
+                console.error(`[PrivacySettings] enableIntelligentTrackingPrevention 失败: ${e}`)
+              }
+            })
           }
         }
       }
@@ -55,6 +72,17 @@ struct PrivacySettingsPage {
       value: appSettings.disable_webrtc,
       onChange: (v: string | boolean | number): void => {
         appSettings.disable_webrtc = v as boolean
+      }
+    }))
+    items.push(new CustomItemInfo({
+      id: 'disable_webrtc_udp',
+      title: $r('app.string.disable_webrtc_udp'),
+      subtitle: $r('app.string.disable_webrtc_udp_desc'),
+      type: ItemActionType.TOGGLE,
+      value: appSettings.disable_webrtc_udp,
+      onChange: (v: string | boolean | number): void => {
+        appSettings.disable_webrtc_udp = v === true
+        AdvancedSecurityUtils.apply()
       }
     }))
     items.push(new CustomItemInfo({

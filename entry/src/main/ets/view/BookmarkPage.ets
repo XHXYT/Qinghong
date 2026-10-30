@@ -16,6 +16,144 @@ import { BookmarkEditor } from '../components/browser/BookmarkEditor';
 import { shortcutVM } from '../viewmodel/ShortcutViewModel';
 import { faviconCache, FaviconCache } from '../viewmodel/FaviconCache';
 
+/** 编辑态行基准几何（拖拽命中计算用，onAreaChange 持续更新） */
+class RowGeom {
+  top: number = 0
+  height: number = 0
+
+  constructor(top: number, height: number) {
+    this.top = top
+    this.height = height
+  }
+}
+
+/** 编辑（多选）模式列表行：@ObservedV2 深度观测，行内勾选/文案/拖拽预览变化精准刷新单行 */
+@ObservedV2
+class EditRowInfo {
+  @Trace title: string = ''
+  @Trace subtitle: string = ''
+  @Trace checked: boolean = false
+  /** 拖拽中：原行隐藏（ghost 顶替） */
+  @Trace dragging: boolean = false
+  /** 书签拖到本文件夹行上：放大接收反馈 */
+  @Trace receiving: boolean = false
+  /** 排序插入避让位移（0 / ±被拖行高） */
+  @Trace shift: number = 0
+  readonly key: string
+  readonly isFolder: boolean
+  readonly folderPath: string
+  readonly bookmark: BookmarkInfo | null
+
+  constructor(key: string, isFolder: boolean, folderPath: string,
+    bookmark: BookmarkInfo | null) {
+    this.key = key
+    this.isFolder = isFolder
+    this.folderPath = folderPath
+    this.bookmark = bookmark
+  }
+}
+
+/** 普通模式行（统一交错序）：预构 CustomItemInfo，文件夹/书签共用一套渲染 */
+class NormalRow {
+  readonly key: string
+  readonly isFolder: boolean
+  readonly folderPath: string
+  readonly bookmark: BookmarkInfo | null
+  readonly item: CustomItemInfo
+
+  constructor(key: string, isFolder: boolean, folderPath: string,
+    bookmark: BookmarkInfo | null, item: CustomItemInfo) {
+    this.key = key
+    this.isFolder = isFolder
+    this.folderPath = folderPath
+    this.bookmark = bookmark
+    this.item = item
+  }
+}
+
+/**
+ * 编辑模式行组件。行内不放任何手势识别器（onTouch 判定单击），
+ * 否则会按"更深节点手势优先"规则拦截父级 ListItem 上的长按拖拽手势组。
+ */
+@ComponentV2
+struct EditRowItem {
+  @Require @Param row: EditRowInfo
+  @BuilderParam avatar: CustomBuilder
+  @Event onToggle: (row: EditRowInfo) => void = (row: EditRowInfo): void => {
+  }
+  /** 手指抬起（无论是否点击）：拖拽结束信号 */
+  @Event onRelease: () => void = (): void => {
+  }
+
+  private downTime: number = 0
+  private downX: number = 0
+  private downY: number = 0
+
+  build() {
+    Row({ space: 12 }) {
+      if (this.row.isFolder) {
+        SymbolGlyph($r('sys.symbol.folder'))
+          .fontSize(24)
+          .fontColor([this.row.receiving ? QhState.currentThemeColor : $r('sys.color.icon_emphasize')])
+      } else {
+        if (this.avatar) {
+          this.avatar()
+        }
+      }
+      Column({ space: 2 }) {
+        Text(this.row.title)
+          .fontSize(16)
+          .fontColor($r('sys.color.font_primary'))
+        if (this.row.subtitle !== '') {
+          Text(this.row.subtitle)
+            .fontSize(12)
+            .fontColor($r('sys.color.font_secondary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      Checkbox()
+        .select(this.row.checked)
+        .hitTestBehavior(HitTestMode.None)
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+    .alignItems(VerticalAlign.Center)
+    .borderRadius(12)
+    .backgroundColor(this.row.receiving ? $r('sys.color.comp_background_tertiary') : Color.Transparent)
+    .border(this.row.receiving ? { width: 2, color: QhState.currentThemeColor } : { width: 0, color: Color.Transparent })
+    .opacity(this.row.dragging ? 0 : 1)
+    .scale(this.row.receiving ? { x: 1.08, y: 1.08 } : { x: 1, y: 1 })
+    .translate({ y: this.row.shift })
+    .animation({ duration: 160, curve: Curve.EaseOut })
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.downTime = new Date().getTime()
+        const down: TouchObject | undefined = event.touches[0]
+        this.downX = down === undefined ? 0 : down.x
+        this.downY = down === undefined ? 0 : down.y
+        return
+      }
+      if (event.type === TouchType.Up) {
+        const up: TouchObject | undefined = event.changedTouches[0]
+        const upX: number = up === undefined ? this.downX : up.x
+        const upY: number = up === undefined ? this.downY : up.y
+        const duration: number = new Date().getTime() - this.downTime
+        const distance: number = Math.abs(upX - this.downX) + Math.abs(upY - this.downY)
+        // 短按且无明显位移才算点击；长按/滑动留给拖拽排序与列表滚动
+        if (duration < 400 && distance < 20) {
+          this.row.checked = !this.row.checked
+          this.onToggle(this.row)
+        }
+        this.onRelease()
+      }
+    })
+  }
+}
+
 @Builder
 export function BookmarkBuilder() {
   BookmarkPage()
@@ -34,6 +172,20 @@ struct BookmarkPage {
   @Local showMoreMenu: boolean = false
   /** 书签页自建编辑器 sheet（添加书签 / 编辑书签 / 编辑文件夹复用） */
   @Local showEditorSheet: boolean = false
+  /** 编辑模式统一行列表（文件夹 + 书签，供拖拽排序） */
+  @Local editRows: EditRowInfo[] = []
+  /** 编辑态自绘拖拽：当前被拖行（null = 未拖拽）；ghost 跟手 Y（相对内容 Stack 顶部） */
+  @Local dragRow: EditRowInfo | null = null
+  @Local ghostY: number = 0
+  private dragFromIndex: number = -1
+  private dragHeight: number = 0
+  private grabOffsetY: number = 0
+  /** 内容 Stack 顶部全局 Y（ghost 坐标换算基准） */
+  private stackTopY: number = 0
+  private dropFolderRow: EditRowInfo | null = null
+  private dropFinal: number = -1
+  /** 行基准几何：key → 全局 top / height（onAreaChange 持续更新） */
+  private rowGeom: Map<string, RowGeom> = new Map()
 
   aboutToAppear(): void {
     bookmarkVM.loadAll()
@@ -90,6 +242,7 @@ struct BookmarkPage {
   private enterSelect(key: string): void {
     this.selectMode = true
     this.selectedKeys = [key]
+    this.buildEditRows()
   }
 
   private exitSelectMode(): void {
@@ -99,22 +252,6 @@ struct BookmarkPage {
 
   private isSelected(key: string): boolean {
     return this.selectedKeys.includes(key)
-  }
-
-  private toggleKey(key: string): void {
-    if (this.isSelected(key)) {
-      const next: string[] = []
-      for (const k of this.selectedKeys) {
-        if (k !== key) {
-          next.push(k)
-        }
-      }
-      this.selectedKeys = next
-      return
-    }
-    const next: string[] = this.selectedKeys.slice(0)
-    next.push(key)
-    this.selectedKeys = next
   }
 
   private selectedFolderPaths(): string[] {
@@ -156,6 +293,246 @@ struct BookmarkPage {
     const everySelected: boolean = all.length > 0 &&
       all.every((k: string): boolean => this.isSelected(k))
     this.selectedKeys = everySelected ? [] : all
+    // 行勾选态由 @Trace 深度观测精准刷新，无需重建列表
+    for (const row of this.editRows) {
+      row.checked = this.isSelected(row.key)
+    }
+  }
+
+  private removeSelectedKey(key: string): void {
+    if (!this.isSelected(key)) {
+      return
+    }
+    const next: string[] = []
+    for (const k of this.selectedKeys) {
+      if (k !== key) {
+        next.push(k)
+      }
+    }
+    this.selectedKeys = next
+  }
+
+  /** 编辑模式统一行列表：文件夹与书签按统一布局交错排列 */
+  private buildEditRows(): void {
+    this.rowGeom.clear()
+    const rows: EditRowInfo[] = []
+    for (const key of menuVM.levelItemOrder(this.currentFolder)) {
+      if (key.startsWith('f_')) {
+        const p: string = key.substring(2)
+        const row: EditRowInfo = new EditRowInfo(key, true, p, null)
+        row.title = this.displayName(p)
+        row.checked = this.isSelected(row.key)
+        rows.push(row)
+        continue
+      }
+      const id: number = Number(key.substring(2))
+      const b: BookmarkInfo | null = this.findBookmarkById(id)
+      if (b !== null) {
+        const row: EditRowInfo = new EditRowInfo(key, false, '', b)
+        row.title = b.title
+        row.subtitle = b.url
+        row.checked = this.isSelected(row.key)
+        rows.push(row)
+      }
+    }
+    this.editRows = rows
+  }
+
+  /** 行内勾选变化 → 同步页面选中集（行 UI 由 @Trace 深度观测自行刷新） */
+  private syncRowToggle(row: EditRowInfo): void {
+    if (row.checked) {
+      if (!this.selectedKeys.includes(row.key)) {
+        const next: string[] = this.selectedKeys.slice(0)
+        next.push(row.key)
+        this.selectedKeys = next
+      }
+      return
+    }
+    this.removeSelectedKey(row.key)
+  }
+
+  /** 编辑态自定义拖拽：长按 500ms 启动，文件夹接收 / 排序插入两种落点 ——
+   书签停在文件夹行中段 = 接收模式（文件夹放大、无避让，抬手移入）；
+   其余位置 = 排序插入（文件夹与书签自由交错，相邻行平移避让） */
+
+  private clearDragPreview(): void {
+    for (const r of this.editRows) {
+      r.shift = 0
+      r.receiving = false
+    }
+  }
+
+  private startDrag(row: EditRowInfo, index: number, fingerY: number): void {
+    if (this.dragRow !== null) {
+      return
+    }
+    const geom: RowGeom | undefined = this.rowGeom.get(row.key)
+    if (geom === undefined) {
+      return
+    }
+    this.dragFromIndex = index
+    this.dragRow = row
+    this.dragHeight = geom.height
+    this.grabOffsetY = fingerY - geom.top
+    this.ghostY = geom.top - this.stackTopY
+    this.dropFolderRow = null
+    this.dropFinal = -1
+    row.dragging = true
+  }
+
+  private updateDrag(fingerY: number): void {
+    if (this.dragRow === null || this.dragFromIndex < 0 ||
+      this.dragFromIndex >= this.editRows.length) {
+      return
+    }
+    this.ghostY = fingerY - this.grabOffsetY - this.stackTopY
+    const from: number = this.dragFromIndex
+    const dragged: EditRowInfo = this.editRows[from]
+    // 基准几何上找命中行（translate 避让不改变布局位置，映射稳定无抖动）
+    let hitIdx: number = -1
+    let hitGeom: RowGeom | null = null
+    let belowAll: boolean = true
+    for (let j: number = 0; j < this.editRows.length; j++) {
+      if (j === from) {
+        continue
+      }
+      const g: RowGeom | undefined = this.rowGeom.get(this.editRows[j].key)
+      if (g === undefined) {
+        continue
+      }
+      belowAll = false
+      if (fingerY < g.top + g.height) {
+        if (fingerY >= g.top) {
+          hitIdx = j
+          hitGeom = g
+        }
+        break
+      }
+    }
+    // 书签拖到文件夹行中段 → 接收模式：文件夹放大，不做避让；
+    // 行的上下边缘带（各 25%）滑过 → 落入排序插入，文件夹之间也可插书签
+    if (hitIdx >= 0 && hitGeom !== null && !dragged.isFolder && this.editRows[hitIdx].isFolder) {
+      const rel: number = (fingerY - hitGeom.top) / hitGeom.height
+      if (rel > 0.25 && rel < 0.75) {
+        this.dropFinal = -1
+        const folderRow: EditRowInfo = this.editRows[hitIdx]
+        if (this.dropFolderRow !== folderRow) {
+          this.clearDragPreview()
+          this.dropFolderRow = folderRow
+          folderRow.receiving = true
+        }
+        return
+      }
+    }
+    // 排序插入（跨类自由交错）：命中行上半 = 插到其前，下半 = 插到其后
+    this.dropFolderRow = null
+    let final: number = -1
+    if (hitIdx < 0) {
+      if (belowAll) {
+        final = this.editRows.length - 1
+      } else {
+        this.dropFinal = -1
+        this.clearDragPreview()
+        return
+      }
+    } else if (hitGeom !== null) {
+      const upper: boolean = fingerY < hitGeom.top + hitGeom.height / 2
+      if (hitIdx < from) {
+        final = upper ? hitIdx : hitIdx + 1
+      } else {
+        final = upper ? hitIdx - 1 : hitIdx
+      }
+    }
+    if (final === from) {
+      this.dropFinal = -1
+      this.clearDragPreview()
+      return
+    }
+    this.dropFinal = final
+    for (let j: number = 0; j < this.editRows.length; j++) {
+      if (j === from) {
+        continue
+      }
+      const r: EditRowInfo = this.editRows[j]
+      let shift: number = 0
+      if (final > from && j > from && j <= final) {
+        shift = -this.dragHeight
+      } else if (final < from && j >= final && j < from) {
+        shift = this.dragHeight
+      }
+      r.shift = shift
+      r.receiving = false
+    }
+  }
+
+  private endDrag(): void {
+    if (this.dragRow === null) {
+      return
+    }
+    const from: number = this.dragFromIndex
+    const dragged: EditRowInfo = this.editRows[from]
+    const folderRow: EditRowInfo | null = this.dropFolderRow
+    const final: number = this.dropFinal
+    this.dragRow = null
+    this.dropFolderRow = null
+    this.dropFinal = -1
+    this.dragFromIndex = -1
+    if (folderRow !== null) {
+      // 落到文件夹行上：移入该文件夹
+      this.getUIContext().animateTo({ duration: 180, curve: Curve.EaseOut }, (): void => {
+        this.clearDragPreview()
+        dragged.dragging = false
+        this.editRows.splice(from, 1)
+      })
+      const b: BookmarkInfo | null = dragged.bookmark
+      if (b !== null && b.id !== null) {
+        this.removeSelectedKey(`b_${b.id}`)
+        bookmarkVM.moveBookmarksTo([b.id], folderRow.folderPath)
+        toastUtil.showToast({ message: $r('app.string.bookmark_moved') })
+      }
+      this.persistEditOrder()
+      return
+    }
+    if (final >= 0 && final !== from) {
+      // 排序插入
+      this.getUIContext().animateTo({ duration: 180, curve: Curve.EaseOut }, (): void => {
+        this.clearDragPreview()
+        dragged.dragging = false
+        this.editRows.splice(from, 1)
+        this.editRows.splice(final, 0, dragged)
+      })
+      this.persistEditOrder()
+      return
+    }
+    // 无有效落点：复位
+    this.getUIContext().animateTo({ duration: 180, curve: Curve.EaseOut }, (): void => {
+      this.clearDragPreview()
+      dragged.dragging = false
+    })
+  }
+
+  /** 拖拽落位后持久化统一行序：按行号收集交错槽位，文件夹走 applyFolderOrder、书签走 reorderBookmarksWithSlots */
+  private persistEditOrder(): void {
+    const folderPaths: string[] = []
+    const folderSlots: number[] = []
+    const orderedBooks: BookmarkInfo[] = []
+    const bookSlots: number[] = []
+    for (let i: number = 0; i < this.editRows.length; i++) {
+      const r: EditRowInfo = this.editRows[i]
+      if (r.isFolder) {
+        folderPaths.push(r.folderPath)
+        folderSlots.push(i)
+      } else if (r.bookmark !== null) {
+        orderedBooks.push(r.bookmark)
+        bookSlots.push(i)
+      }
+    }
+    if (folderPaths.length > 0) {
+      menuVM.applyFolderOrder(folderPaths, folderSlots)
+    }
+    if (orderedBooks.length > 0) {
+      bookmarkVM.reorderBookmarksWithSlots(orderedBooks, bookSlots)
+    }
   }
 
   /** 更多菜单可用：单文件夹 或 任意数量书签（混合/多文件夹置灰） */
@@ -181,6 +558,7 @@ struct BookmarkPage {
     for (const id of ids) {
       bookmarkVM.deleteBookmark(id)
     }
+    // deleteFolder 现已连带删除文件夹内书签
     for (const p of paths) {
       menuVM.deleteFolder(p)
     }
@@ -203,6 +581,59 @@ struct BookmarkPage {
     if (b !== null) {
       this.shareBookmark(b)
     }
+  }
+
+  // —— 左滑删除 ——
+
+  private deleteFolderSwipe(path: string): void {
+    menuVM.deleteFolder(path)
+    toastUtil.showToast({ message: $r('app.string.bookmark_deleted') })
+  }
+
+  private deleteBookmarkSwipe(b: BookmarkInfo): void {
+    if (b.id !== null) {
+      bookmarkVM.deleteBookmark(b.id)
+      toastUtil.showToast({ message: $r('app.string.bookmark_deleted') })
+    }
+  }
+
+  /** 多选模式下禁用左滑 */
+  private folderSwipeOptions(path: string): SwipeActionOptions {
+    if (this.selectMode) {
+      return {}
+    }
+    return {
+      end: (): void => {
+        this.swipeDeleteButton((): void => {
+          this.deleteFolderSwipe(path)
+        })
+      }
+    }
+  }
+
+  private bookmarkSwipeOptions(b: BookmarkInfo): SwipeActionOptions {
+    if (this.selectMode) {
+      return {}
+    }
+    return {
+      end: (): void => {
+        this.swipeDeleteButton((): void => {
+          this.deleteBookmarkSwipe(b)
+        })
+      }
+    }
+  }
+
+  @Builder
+  swipeDeleteButton(onTap: () => void) {
+    Button() {
+      SymbolGlyph($r('sys.symbol.trash'))
+        .fontSize(24)
+        .fontColor([Color.Red])
+    }
+    .backgroundColor(Color.Transparent)
+    .margin({ right: 6 })
+    .onClick(onTap)
   }
 
   // —— 单项操作 ——
@@ -311,18 +742,6 @@ struct BookmarkPage {
 
   private folderItem(path: string): CustomItemInfo {
     const key: string = `f_${path}`
-    if (this.selectMode) {
-      return new CustomItemInfo({
-        id: key,
-        symbol: $r('sys.symbol.folder'),
-        title: this.displayName(path),
-        type: ItemActionType.CHECK,
-        value: this.isSelected(key),
-        onChange: (): void => {
-          this.toggleKey(key)
-        }
-      })
-    }
     return new CustomItemInfo({
       id: key,
       symbol: $r('sys.symbol.folder'),
@@ -330,6 +749,7 @@ struct BookmarkPage {
       type: ItemActionType.ROUTER,
       value: '',
       contextMenuItems: this.folderCtxMenu(path),
+      contextMenuPlacement: Placement.BottomRight,
       onChange: (): void => {
         this.pageStack.pushPathByName('bookmarks', path)
       }
@@ -338,18 +758,6 @@ struct BookmarkPage {
 
   private bookmarkItem(b: BookmarkInfo): CustomItemInfo {
     const key: string = `b_${b.id}`
-    if (this.selectMode) {
-      return new CustomItemInfo({
-        id: key,
-        title: b.title,
-        subtitle: b.url,
-        type: ItemActionType.CHECK,
-        value: this.isSelected(key),
-        onChange: (): void => {
-          this.toggleKey(key)
-        }
-      })
-    }
     return new CustomItemInfo({
       id: key,
       title: b.title,
@@ -357,6 +765,7 @@ struct BookmarkPage {
       type: ItemActionType.ROUTER_BLANK,
       value: '',
       contextMenuItems: this.bookmarkCtxMenu(b),
+      contextMenuPlacement: Placement.BottomRight,
       onChange: (): void => {
         this.openBookmark(b)
       }
@@ -424,6 +833,13 @@ struct BookmarkPage {
   }
 
   @Builder
+  rowAvatar(row: EditRowInfo | null) {
+    if (row !== null && row.bookmark !== null) {
+      this.avatar(row.bookmark)
+    }
+  }
+
+  @Builder
   barItem(label: ResourceStr, symbol: Resource, color: ResourceColor, onTap: () => void) {
     Column({ space: 4 }) {
       SymbolGlyph(symbol)
@@ -470,7 +886,9 @@ struct BookmarkPage {
     }
     .width('100%')
     .backgroundColor($r('app.color.background_color'))
+    .borderRadius({ topLeft: 16, topRight: 16 })
     .padding({ bottom: QhState.bottomRectHeight })
+    .margin({ top: 8 })
   }
 
   /** 更多按钮：菜单直接锚定在本按钮上方 */
@@ -530,58 +948,225 @@ struct BookmarkPage {
     .borderRadius(20)
   }
 
+  /** 普通模式总行数：文件夹 + 书签，用于首末行圆角判定 */
+  private normalRowCount(): number {
+    return menuVM.childFolders(this.currentFolder).length + this.bookmarksIn(this.currentFolder).length
+  }
+
+  /** 行圆角：首行只留上圆角、末行只留下圆角、中间行无圆角；单行四角全圆 */
+  private rowCorner(globalIndex: number): BorderRadiuses {
+    const total: number = this.normalRowCount()
+    if (globalIndex === 0 && globalIndex === total - 1) {
+      return { topLeft: 16, topRight: 16, bottomLeft: 16, bottomRight: 16 }
+    }
+    if (globalIndex === 0) {
+      return { topLeft: 16, topRight: 16 }
+    }
+    if (globalIndex === total - 1) {
+      return { bottomLeft: 16, bottomRight: 16 }
+    }
+    return { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 }
+  }
+
+  /** 普通模式统一行序（文件夹与书签自由交错，布局序优先） */
+  private normalRows(): NormalRow[] {
+    const rows: NormalRow[] = []
+    for (const key of menuVM.levelItemOrder(this.currentFolder)) {
+      if (key.startsWith('f_')) {
+        const p: string = key.substring(2)
+        rows.push(new NormalRow(key, true, p, null, this.folderItem(p)))
+        continue
+      }
+      const id: number = Number(key.substring(2))
+      const b: BookmarkInfo | null = this.findBookmarkById(id)
+      if (b !== null) {
+        rows.push(new NormalRow(key, false, '', b, this.bookmarkItem(b)))
+      }
+    }
+    return rows
+  }
+
+  private rowSwipeOptions(row: NormalRow): SwipeActionOptions {
+    if (row.isFolder) {
+      return this.folderSwipeOptions(row.folderPath)
+    }
+    if (row.bookmark !== null) {
+      return this.bookmarkSwipeOptions(row.bookmark)
+    }
+    return {}
+  }
+
+  /** 行首图标：文件夹显示 folder 字形，书签显示头像 */
+  @Builder
+  normalRowAvatar(row: NormalRow) {
+    if (row.isFolder) {
+      SymbolGlyph($r('sys.symbol.folder'))
+        .fontSize(24)
+        .fontColor([$r('sys.color.icon_emphasize')])
+    } else if (row.bookmark !== null) {
+      this.avatar(row.bookmark)
+    }
+  }
+
+  /** 普通模式列表：左滑删除 + 长按菜单，无拖拽 */
+  @Builder
+  normalList() {
+    Column() {
+      List() {
+        ForEach(this.normalRows(), (row: NormalRow, index: number) => {
+          ListItem() {
+            CustomListItem({
+              item: row.item,
+              icon: (): void => {
+                this.normalRowAvatar(row)
+              },
+              itemPadding: { left: 16, right: 16, top: 12, bottom: 12 }
+            })
+          }
+          .backgroundColor($r('app.color.background_color'))
+          .borderRadius(this.rowCorner(index))
+          .swipeAction(this.rowSwipeOptions(row))
+        }, (row: NormalRow, index: number) => `${index}_${row.key}`)
+      }
+      .constraintSize({ maxHeight: '100%' })
+      .width('100%')
+      .clip(true)
+      .contentEndOffset(QhState.bottomRectHeight)
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
+    }
+    .layoutWeight(1)
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 8 })
+  }
+
+  /** 编辑（多选）模式列表：统一行模型 + 自绘拖拽（长按启动、文件夹接收 / 排序避让插入） */
+  @Builder
+  editList() {
+    Column() {
+      List() {
+        ForEach(this.editRows, (row: EditRowInfo, index: number) => {
+          ListItem() {
+            EditRowItem({
+              row: row,
+              avatar: (): void => {
+                this.rowAvatar(row)
+              },
+              onToggle: (r: EditRowInfo): void => {
+                this.syncRowToggle(r)
+              },
+              onRelease: (): void => {
+                this.endDrag()
+              }
+            })
+          }
+          .margin({ left: 16, right: 16 })
+          .zIndex(row.receiving ? 100 : 0)
+          .gesture(GestureGroup(GestureMode.Sequence,
+            LongPressGesture({ repeat: false, duration: 500 })
+              .onAction((event?: GestureEvent) => {
+                if (event !== undefined && event.fingerList.length > 0) {
+                  this.startDrag(row, index, event.fingerList[0].globalY)
+                }
+              }),
+            PanGesture({ fingers: 1, direction: PanDirection.All })
+              .onActionUpdate((event: GestureEvent) => {
+                if (event.fingerList.length > 0) {
+                  this.updateDrag(event.fingerList[0].globalY)
+                }
+              })
+          ))
+          .onAreaChange((_old: Area, newArea: Area) => {
+            const gp: Position = newArea.globalPosition
+            const gy: number = typeof gp.y === 'number' ? gp.y : 0
+            const gh: number = typeof newArea.height === 'number' ? newArea.height : 0
+            this.rowGeom.set(row.key, new RowGeom(gy, gh))
+          })
+        }, (row: EditRowInfo) => row.key)
+      }
+      .constraintSize({ maxHeight: '100%' })
+      .width('100%')
+      .clip(true)
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
+    }
+    .layoutWeight(1)
+    .width('100%')
+    .padding({ top: 8 })
+  }
+
+  /** 拖拽幽灵卡片：全宽浮层，跟手移动（dragRow 非空时显示） */
+  @Builder
+  dragGhost() {
+    Row({ space: 12 }) {
+      if (this.dragRow !== null && this.dragRow.isFolder) {
+        SymbolGlyph($r('sys.symbol.folder'))
+          .fontSize(24)
+          .fontColor([$r('sys.color.icon_emphasize')])
+      } else {
+        this.rowAvatar(this.dragRow)
+      }
+      Column({ space: 2 }) {
+        Text(this.dragRow === null ? '' : this.dragRow.title)
+          .fontSize(16)
+          .fontColor($r('sys.color.font_primary'))
+        if (this.dragRow !== null && this.dragRow.subtitle !== '') {
+          Text(this.dragRow.subtitle)
+            .fontSize(12)
+            .fontColor($r('sys.color.font_secondary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+    .alignItems(VerticalAlign.Center)
+    .backgroundColor($r('app.color.background_color'))
+    .borderRadius(16)
+    .shadow({ radius: 16, color: 'rgba(0,0,0,0.15)', offsetY: 4 })
+    .scale({ x: 1.03, y: 1.03 })
+    .position({ x: 0, y: this.ghostY })
+  }
+
   @Builder
   pageContent() {
-    Column() {
-      if (!this.selectMode && menuVM.childFolders(this.currentFolder).length === 0 &&
-        this.bookmarksIn(this.currentFolder).length === 0) {
-        Column() {
-          Text($r('app.string.empty_bookmarks'))
-            .fontSize(14)
-            .fontColor($r('sys.color.font_secondary'))
-        }
-        .layoutWeight(1)
-        .justifyContent(FlexAlign.Center)
-      } else {
-        Scroll() {
+    Stack({ alignContent: Alignment.TopStart }) {
+      Column() {
+        if (this.selectMode) {
+          this.editList()
+        } else if (menuVM.childFolders(this.currentFolder).length === 0 &&
+          this.bookmarksIn(this.currentFolder).length === 0) {
           Column() {
-            Column() {
-              ForEach(menuVM.childFolders(this.currentFolder), (path: string) => {
-                CustomListItem({
-                  item: this.folderItem(path),
-                  itemPadding: { left: 16, right: 16, top: 12, bottom: 12 }
-                })
-              }, (path: string) => `f_${path}`)
-              ForEach(this.bookmarksIn(this.currentFolder), (b: BookmarkInfo) => {
-                CustomListItem({
-                  item: this.bookmarkItem(b),
-                  icon: (): void => {
-                    this.avatar(b)
-                  },
-                  itemPadding: { left: 16, right: 16, top: 12, bottom: 12 }
-                })
-              }, (b: BookmarkInfo) => `b_${b.id}`)
-            }
-            .width('100%')
-            .borderRadius(16)
-            .backgroundColor($r('app.color.background_color'))
-            .clip(true)
+            Text($r('app.string.empty_bookmarks'))
+              .fontSize(14)
+              .fontColor($r('sys.color.font_secondary'))
           }
-          .width('100%')
-          .padding({ left: 16, right: 16, top: 8 })
+          .layoutWeight(1)
+          .justifyContent(FlexAlign.Center)
+        } else {
+          this.normalList()
         }
-        .layoutWeight(1)
-        .align(Alignment.Top)
-        .scrollBar(BarState.Off)
-        .edgeEffect(EdgeEffect.Spring)
+        if (this.selectMode) {
+          this.editBar()
+        }
       }
-      if (this.selectMode) {
-        this.editBar()
+      .width('100%')
+      .height('100%')
+
+      if (this.dragRow !== null) {
+        this.dragGhost()
       }
     }
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.background_color_accent'))
+    .onAreaChange((_old: Area, newArea: Area) => {
+      const gp: Position = newArea.globalPosition
+      this.stackTopY = typeof gp.y === 'number' ? gp.y : 0
+    })
   }
 
   /** 书签页自建编辑器 sheet（与浏览器菜单同款半模态） */

@@ -34,7 +34,7 @@ export class DataBackupViewModel {
   }
 
   /**
-   * 导出书签为 Netscape HTML 书签文件（Chrome/Firefox 通用格式）；无书签返回空串
+   * 导出书签为 Netscape HTML 书签文件（Chrome/Firefox 通用格式，含文件夹层级）；无书签返回空串
    */
   async exportBookmarksHtml(): Promise<string> {
     const all: BookmarkInfo[] = await this.getBookmarkDB().queryAll()
@@ -49,12 +49,43 @@ export class DataBackupViewModel {
       '<H1>Bookmarks</H1>',
       '<DL><p>'
     ]
-    for (const b of all) {
-      lines.push(`    <DT><A HREF="${DataBackupViewModel.escapeHtml(b.url)}" ` +
-        `ADD_DATE="${Math.floor(b.createTime / 1000)}">${DataBackupViewModel.escapeHtml(b.title)}</A>`)
-    }
+    DataBackupViewModel.writeFolderHtml(lines, '', '    ', all)
     lines.push('</DL><p>')
     return lines.join('\n')
+  }
+
+  /** 递归写出文件夹层级（先本层书签，再按出现序子文件夹） */
+  private static writeFolderHtml(lines: string[], folder: string, indent: string, all: BookmarkInfo[]): void {
+    for (const b of all) {
+      if (b.folder === folder) {
+        lines.push(`${indent}<DT><A HREF="${DataBackupViewModel.escapeHtml(b.url)}" ` +
+          `ADD_DATE="${Math.floor(b.createTime / 1000)}">${DataBackupViewModel.escapeHtml(b.title)}</A>`)
+      }
+    }
+    const emitted: string[] = []
+    for (const b of all) {
+      if (b.folder !== '' && !emitted.includes(b.folder)
+        && DataBackupViewModel.parentPathOf(b.folder) === folder) {
+        emitted.push(b.folder)
+        lines.push(`${indent}<DT><H3>${DataBackupViewModel.escapeHtml(
+          DataBackupViewModel.lastSegmentOf(b.folder))}</H3>`)
+        lines.push(`${indent}<DL><p>`)
+        DataBackupViewModel.writeFolderHtml(lines, b.folder, `${indent}    `, all)
+        lines.push(`${indent}</DL><p>`)
+      }
+    }
+  }
+
+  /** 父级路径（'' = 根） */
+  private static parentPathOf(path: string): string {
+    const idx: number = path.lastIndexOf('/')
+    return idx < 0 ? '' : path.substring(0, idx)
+  }
+
+  /** 末级名称 */
+  private static lastSegmentOf(path: string): string {
+    const idx: number = path.lastIndexOf('/')
+    return idx < 0 ? path : path.substring(idx + 1)
   }
 
   /**
@@ -65,23 +96,58 @@ export class DataBackupViewModel {
   }
 
   /**
-   * 解析 Netscape 书签 HTML 并导入（按 URL 去重），返回导入条数
+   * 按 URL 去重插入/更新，并强制覆盖 createTime 与 folder
+   * （导入场景需覆盖已有行的时间戳/文件夹以还原文件内的顺序与层级）
+   */
+  private async upsertImported(info: BookmarkInfo): Promise<void> {
+    const existing: BookmarkInfo | null = await this.getBookmarkDB().queryByUrl(info.url)
+    if (existing !== null) {
+      existing.title = info.title
+      existing.isQuick = info.isQuick || existing.isQuick
+      existing.folder = info.folder
+      existing.createTime = info.createTime
+      await this.getBookmarkDB().update(existing)
+    } else {
+      await this.getBookmarkDB().insert(info)
+    }
+  }
+
+  /**
+   * 解析 Netscape 书签 HTML 并导入（按 URL 去重，保留文件夹层级），返回导入条数
    */
   async importBookmarksFromContent(content: string): Promise<number> {
     if (!content) {
       return 0
     }
-    const re = /<A\s[^>]*HREF="([^"]*)"[^>]*>([\s\S]*?)<\/A>/gi
+    // 按出现顺序扫描：H3 文件夹名 / DL 开闭 / 书签 A 标签
+    const tokenizer: RegExp = /(?:<DT>\s*)?<H3[^>]*>([\s\S]*?)<\/H3\s*>|<DL[^>]*>|<\/DL\s*>|<A\s[^>]*HREF="([^"]*)"[^>]*>([\s\S]*?)<\/A\s*>/gi
+    const stack: string[] = []
+    let pendingFolder: string | null = null
     let count: number = 0
-    let match: RegExpExecArray | null = re.exec(content)
+    // 展示按 create_time 倒序：按文档顺序递减时间戳，保证文件内顺序与展示顺序一致
+    const baseTime: number = new Date().getTime()
+    let match: RegExpExecArray | null = tokenizer.exec(content)
     while (match !== null) {
-      const url: string = DataBackupViewModel.decodeEntities(match[1]).trim()
-      const title: string = DataBackupViewModel.decodeEntities(match[2]).trim()
-      if (url !== '') {
-        await this.getBookmarkDB().saveOrUpdate(new BookmarkInfo(title || url, url))
-        count++
+      if (match[1] !== undefined) {
+        pendingFolder = DataBackupViewModel.decodeEntities(match[1]).trim()
+      } else if (match[2] !== undefined) {
+        const url: string = DataBackupViewModel.decodeEntities(match[2]).trim()
+        if (url !== '') {
+          const title: string = DataBackupViewModel.decodeEntities(match[3]).trim()
+          const info: BookmarkInfo = new BookmarkInfo(title || url, url)
+          info.folder = stack.filter((s: string): boolean => s !== '').join('/')
+          info.createTime = baseTime - count
+          await this.upsertImported(info)
+          count++
+        }
+      } else if (match[0].substring(0, 3).toUpperCase() === '<DL') {
+        // 进入新层级：有前置 H3 则为文件夹层，否则沿用父级路径
+        stack.push(pendingFolder ?? '')
+        pendingFolder = null
+      } else if (stack.length > 0) {
+        stack.pop()
       }
-      match = re.exec(content)
+      match = tokenizer.exec(content)
     }
     return count
   }
@@ -104,6 +170,7 @@ export class DataBackupViewModel {
           'title': b.title,
           'url': b.url,
           'is_quick': b.isQuick,
+          'folder': b.folder,
           'create_time': b.createTime
         })
       }
@@ -149,6 +216,8 @@ export class DataBackupViewModel {
       const bookmarks = raw['bookmarks']
       if (bookmarks !== undefined && bookmarks !== null) {
         const arr: Object[] = bookmarks as Object[]
+        const baseTime: number = new Date().getTime()
+        let idx: number = 0
         for (const item of arr) {
           const rec: Record<string, Object> = item as Record<string, Object>
           const url: string = (rec['url'] as string) ?? ''
@@ -157,8 +226,10 @@ export class DataBackupViewModel {
           }
           const title: string = (rec['title'] as string) ?? url
           const info: BookmarkInfo = new BookmarkInfo(title, url, (rec['is_quick'] as boolean) ?? false)
-          info.createTime = (rec['create_time'] as number) ?? new Date().getTime()
-          await this.getBookmarkDB().saveOrUpdate(info)
+          info.folder = (rec['folder'] as string) ?? ''
+          info.createTime = (rec['create_time'] as number) ?? (baseTime - idx)
+          await this.upsertImported(info)
+          idx++
         }
       }
       const history = raw['history']

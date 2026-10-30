@@ -43,6 +43,28 @@ export default class PasswordInfo {
   password: string;
 
   /**
+   * HTTP 认证 realm（仅 authType='basic' 时有意义，表单登录为 ''）
+   */
+  @Column({
+    name: 'realm',
+    type: 'TEXT',
+    notNull: true,
+    defaultValue: ''
+  })
+  realm: string;
+
+  /**
+   * 凭据类型：'form' 网页表单登录 | 'basic' HTTP Basic 认证
+   */
+  @Column({
+    name: 'auth_type',
+    type: 'TEXT',
+    notNull: true,
+    defaultValue: 'form'
+  })
+  authType: string;
+
+  /**
    * 最近更新时间
    */
   @Column({
@@ -57,6 +79,8 @@ export default class PasswordInfo {
     this.host = host;
     this.username = username;
     this.password = password;
+    this.realm = '';
+    this.authType = 'form';
     this.updatedAt = updatedAt;
   }
 }

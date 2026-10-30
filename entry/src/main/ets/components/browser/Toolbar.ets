@@ -162,6 +162,11 @@ export struct BrowserToolbar {
                   menuVM.showMenu = false
                 }
               })
+              .gesture(LongPressGesture().onAction((): void => {
+                if (menuVM.onMenuEntryLongPress(e.id)) {
+                  menuVM.showMenu = false
+                }
+              }))
               }, (e: MenuEntry): string => e.id)
             }
             .rowsTemplate('1fr 1fr')

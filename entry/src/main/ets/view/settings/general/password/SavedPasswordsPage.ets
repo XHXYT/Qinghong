@@ -25,6 +25,8 @@ struct SavedPasswordsPage {
   @Local detailUsername: string = ''
   private detailPassword: string = ''
   @Local detailShowPassword: boolean = false
+  /** HTTP Basic 认证凭据的 realm（表单登录为 ''） */
+  @Local detailRealm: string = ''
 
   private detailDialog: CustomDialogController | undefined = undefined
 
@@ -72,6 +74,7 @@ struct SavedPasswordsPage {
         this.detailHost = info.host
         this.detailUsername = info.username
         this.detailPassword = info.password
+        this.detailRealm = info.authType === 'basic' ? info.realm : ''
         this.detailDialog?.open()
       }
     })
@@ -179,6 +182,21 @@ struct SavedPasswordsPage {
   @Builder
   detailContent() {
     Column({ space: 12 }) {
+      if (this.detailRealm !== '') {
+        Row() {
+          Text($r('app.string.label_realm'))
+            .fontSize(14)
+            .fontColor($r('sys.color.font_secondary'))
+            .width(64)
+          Text(this.detailRealm)
+            .fontSize(14)
+            .fontColor($r('sys.color.font_primary'))
+            .layoutWeight(1)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .width('100%')
+      }
       Row() {
         Text($r('app.string.label_username'))
           .fontSize(14)

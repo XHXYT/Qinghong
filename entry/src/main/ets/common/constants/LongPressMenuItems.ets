@@ -50,6 +50,7 @@ export class LongPressMenuItems {
     new LongPressMenuItem('text_copy', $r('app.string.text_menu_copy'), LongPressTarget.GENERAL, true),
     new LongPressMenuItem('text_select_all', $r('app.string.text_menu_select_all'), LongPressTarget.GENERAL, true),
     new LongPressMenuItem('text_search', $r('app.string.text_menu_search'), LongPressTarget.GENERAL, true),
+    new LongPressMenuItem('text_translate', $r('app.string.translate_selection'), LongPressTarget.GENERAL, true),
     new LongPressMenuItem('text_share', $r('app.string.share'), LongPressTarget.GENERAL, true),
   ]
 

@@ -19,7 +19,11 @@ import { animation } from '../common/utils/AnimationUtil';
 import { AppConstants } from '../common/constants/AppConstants';
 import { createLogger } from '../common/utils/Logger';
 import { siteSettingsVM } from '../viewmodel/SiteSettingsViewModel';
+import { hostsVM } from '../viewmodel/HostsViewModel';
+import { DnsUtils } from '../common/utils/DnsUtils';
 import { scriptVM } from '../viewmodel/ScriptViewModel';
+import { ShortcutViewModel } from '../viewmodel/ShortcutViewModel';
+import { DataClearer } from '../common/utils/DataClearer';
 import { webview } from '@kit.ArkWeb';
 import { TextReader, WindowManager } from '@kit.SpeechKit';
 
@@ -41,6 +45,9 @@ export default class EntryAbility extends UIAbility {
     } catch (error) {
       logger.error(`Init`, `Initialization failed, ${error}`);
     }
+    // 旧版散放在 files 根目录的快捷方式图标迁入专门文件夹
+    ShortcutViewModel.migrateLegacyIcons();
+    ShortcutViewModel.cleanOrphanIcons();
     // 冷启动：记录外部拉起的链接，Index 恢复会话后消费
     this.captureExternalUrl(want)
   }
@@ -75,6 +82,12 @@ export default class EntryAbility extends UIAbility {
 
   onDestroy(): void {
     syncVM.destroy()
+    // 退出时清除数据（按「退出时清除数据」设置项执行）
+    try {
+      DataClearer.clearExitData()
+    } catch (error) {
+      logger.error('Lifecycle', `退出清理失败, ${error}`)
+    }
     logger.info('Lifecycle', 'EntryAbility onDestroy');
   }
 
@@ -168,12 +181,18 @@ export default class EntryAbility extends UIAbility {
     await UISettings.load()
     // 预加载站点无痕覆盖缓存（Web 创建期过滤用，失败不阻塞启动）
     siteSettingsVM.preloadIncognitoCache()
+    // 预热域名级 UA 映射（站点 UA 覆盖冷启动即注册，首次导航即生效）
+    siteSettingsVM.syncHostUaMap()
     // 启用前进后退缓存框架（默认关闭；生效范围由各标签按站点策略配置 size=0/10）
     try {
       webview.WebviewController.enableBackForwardCache(new webview.BackForwardCacheSupportedFeatures())
     } catch (e) {
       logger.error('Lifecycle', `enableBackForwardCache 失败: ${e}`)
     }
+    // DNS 优化（DoH）与预解析加速内核配置
+    DnsUtils.applyAll()
+    // Hosts 域名 IP 指定同步内核（冷启动即生效）
+    hostsVM.syncToWeb()
     // 加载 WebDAV 同步配置
     await syncVM.loadConfig()
     // 初始化颜色工具

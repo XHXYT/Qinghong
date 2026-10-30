@@ -178,7 +178,7 @@ export struct BookmarkEditor {
       .alignItems(HorizontalAlign.Start)
       .margin({ left: 12 })
       SymbolGlyph($r('sys.symbol.chevron_right'))
-        .fontSize(14)
+        .fontSize(24)
         .fontColor([$r('sys.color.font_secondary')])
     }
     .width('100%')

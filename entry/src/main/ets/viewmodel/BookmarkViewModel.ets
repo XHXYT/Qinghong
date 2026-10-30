@@ -133,6 +133,35 @@ export class BookmarkViewModel {
     await this.loadAll()
   }
 
+  /** 拖拽排序：按槽位重写 orderIndex（槽位与文件夹顺序值同一数值空间） */
+  async reorderBookmarksWithSlots(ordered: BookmarkInfo[], slots: number[]): Promise<void> {
+    if (ordered.length === 0 || ordered.length !== slots.length) {
+      return
+    }
+    for (let i: number = 0; i < ordered.length; i++) {
+      const b: BookmarkInfo = ordered[i]
+      b.orderIndex = slots[i]
+      if (b.id !== null) {
+        await this.getDB().update(b)
+      }
+    }
+    await this.loadAll()
+  }
+
+  /** 删除文件夹内全部书签（含子文件夹归属的） */
+  async deleteFolderContents(folder: string): Promise<void> {
+    if (folder === '') {
+      return
+    }
+    const list: BookmarkInfo[] = await this.getDB().queryAll()
+    for (const b of list) {
+      if ((b.folder === folder || b.folder.startsWith(`${folder}/`)) && b.id !== null) {
+        await this.getDB().deleteById(b.id)
+      }
+    }
+    await this.loadAll()
+  }
+
   /** 文件夹路径整体改写（重命名/移动/删除文件夹时同步书签归属，dst='' 表示移回根目录） */
   async moveFolderPrefix(src: string, dst: string): Promise<void> {
     if (src === '') {

@@ -801,6 +801,190 @@
       "value": "Browser identifier"
     },
     {
+      "name": "settings_dns",
+      "value": "DNS optimization"
+    },
+    {
+      "name": "settings_proxy",
+      "value": "Proxy"
+    },
+    {
+      "name": "proxy_desc",
+      "value": "When enabled, websites go through this proxy server according to the 'Use proxy' defaults and exceptions in Site settings"
+    },
+    {
+      "name": "proxy_type",
+      "value": "Proxy type"
+    },
+    {
+      "name": "proxy_type_http",
+      "value": "HTTP"
+    },
+    {
+      "name": "proxy_type_socks",
+      "value": "SOCKS5"
+    },
+    {
+      "name": "proxy_server",
+      "value": "Proxy server"
+    },
+    {
+      "name": "proxy_server_hint",
+      "value": "IP or hostname"
+    },
+    {
+      "name": "proxy_server_invalid",
+      "value": "Enter a valid server address"
+    },
+    {
+      "name": "proxy_port",
+      "value": "Proxy port"
+    },
+    {
+      "name": "proxy_port_invalid",
+      "value": "Port must be between 1 and 65535"
+    },
+    {
+      "name": "proxy_routed_sites",
+      "value": "Sites using proxy"
+    },
+    {
+      "name": "proxy_default_on",
+      "value": "All websites use the proxy by default; exceptions connect directly"
+    },
+    {
+      "name": "proxy_default_off",
+      "value": "Only individually enabled websites use the proxy by default"
+    },
+    {
+      "name": "proxy_site_off",
+      "value": "No proxy"
+    },
+    {
+      "name": "proxy_no_sites",
+      "value": "No sites routed via proxy yet. Enable per-site in site settings"
+    },
+    {
+      "name": "proxy_add_site",
+      "value": "Add site"
+    },
+    {
+      "name": "proxy_site_hint",
+      "value": "example.com or *.example.com"
+    },
+    {
+      "name": "proxy_site_invalid",
+      "value": "Enter a valid domain"
+    },
+    {
+      "name": "site_proxy",
+      "value": "Use proxy"
+    },
+    {
+      "name": "dns_doh",
+      "value": "Encrypted DNS (DoH)"
+    },
+    {
+      "name": "dns_doh_desc",
+      "value": "Resolve domains over encrypted DNS for faster access and DNS pollution protection"
+    },
+    {
+      "name": "dns_provider",
+      "value": "DNS provider"
+    },
+    {
+      "name": "dns_provider_custom",
+      "value": "Custom"
+    },
+    {
+      "name": "dns_provider_alidns",
+      "value": "AliDNS"
+    },
+    {
+      "name": "dns_provider_dnspod",
+      "value": "DNSPod"
+    },
+    {
+      "name": "dns_provider_google",
+      "value": "Google"
+    },
+    {
+      "name": "dns_provider_cloudflare",
+      "value": "Cloudflare"
+    },
+    {
+      "name": "dns_provider_360",
+      "value": "360 Secure DNS"
+    },
+    {
+      "name": "dns_custom_url",
+      "value": "Custom DNS server"
+    },
+    {
+      "name": "dns_custom_url_hint",
+      "value": "DoH server URL starting with https://"
+    },
+    {
+      "name": "dns_custom_url_invalid",
+      "value": "URL must start with https://"
+    },
+    {
+      "name": "dns_preconnect",
+      "value": "Prefetch acceleration"
+    },
+    {
+      "name": "dns_preconnect_desc",
+      "value": "Automatically pre-connect to frequently visited sites to speed up page loading"
+    },
+    {
+      "name": "settings_hosts",
+      "value": "Hosts (domain IP mapping)"
+    },
+    {
+      "name": "hosts_desc",
+      "value": "Map domains to fixed IPs, like the system hosts file"
+    },
+    {
+      "name": "hosts_add_title",
+      "value": "Add rule"
+    },
+    {
+      "name": "hosts_edit_title",
+      "value": "Edit rule"
+    },
+    {
+      "name": "hosts_delete_title",
+      "value": "Delete rule"
+    },
+    {
+      "name": "hosts_invalid",
+      "value": "Invalid domain or IP format"
+    },
+    {
+      "name": "hosts_empty",
+      "value": "No rules yet. Tap + to add one"
+    },
+    {
+      "name": "hosts_host_hint",
+      "value": "Domain (e.g. example.com)"
+    },
+    {
+      "name": "hosts_ip_hint",
+      "value": "IP addresses, space separated (e.g. 1.2.3.4)"
+    },
+    {
+      "name": "hosts_import_title",
+      "value": "Bulk import"
+    },
+    {
+      "name": "hosts_import_hint",
+      "value": "One per line: IP domain (supports one IP with multiple domains, or multiple IPs with one domain). Text after # is a comment"
+    },
+    {
+      "name": "hosts_import_done",
+      "value": "Imported %s rules"
+    },
+    {
       "name": "ua_default",
       "value": "Default"
     },
@@ -2149,6 +2333,14 @@
       "value": "Disable WebRTC"
     },
     {
+      "name": "disable_webrtc_udp",
+      "value": "Block non-proxy UDP for WebRTC"
+    },
+    {
+      "name": "disable_webrtc_udp_desc",
+      "value": "Prevents WebRTC from bypassing the proxy tunnel via non-proxy UDP and leaking your real IP; real-time audio/video calls may fail when enabled"
+    },
+    {
       "name": "disable_webrtc_desc",
       "value": "Prevent pages from detecting your real IP address via WebRTC"
     },
@@ -2665,6 +2857,90 @@
       "value": "Password"
     },
     {
+      "name": "label_realm",
+      "value": "Realm"
+    },
+    {
+      "name": "http_auth_title",
+      "value": "Sign in required"
+    },
+    {
+      "name": "http_auth_login",
+      "value": "Sign in"
+    },
+    {
+      "name": "http_auth_failed",
+      "value": "Incorrect username or password"
+    },
+    {
+      "name": "http_auth_remember",
+      "value": "Remember password"
+    },
+    {
+      "name": "privacy_report",
+      "value": "Privacy report"
+    },
+    {
+      "name": "privacy_report_desc",
+      "value": "See who is trying to track you"
+    },
+    {
+      "name": "privacy_report_summary_hits",
+      "value": "Blocked %s tracking requests"
+    },
+    {
+      "name": "privacy_report_summary_companies",
+      "value": "%s companies are trying to track you"
+    },
+    {
+      "name": "privacy_report_tracker_stats",
+      "value": "%s tracking attempts on %s sites"
+    },
+    {
+      "name": "privacy_report_sites_title",
+      "value": "Sites seen on"
+    },
+    {
+      "name": "privacy_report_empty",
+      "value": "No tracking activity recorded"
+    },
+    {
+      "name": "privacy_report_empty_hint",
+      "value": "Trackers blocked while you browse will show up here"
+    },
+    {
+      "name": "privacy_report_clear",
+      "value": "Clear statistics"
+    },
+    {
+      "name": "privacy_report_clear_confirm",
+      "value": "This clears all tracking statistics. Ad blocking is not affected."
+    },
+    {
+      "name": "tracker_cat_ads",
+      "value": "Advertising"
+    },
+    {
+      "name": "tracker_cat_analytics",
+      "value": "Analytics"
+    },
+    {
+      "name": "tracker_cat_track",
+      "value": "Cross-site tracking"
+    },
+    {
+      "name": "tracker_cat_social",
+      "value": "Social plugin"
+    },
+    {
+      "name": "tracker_cat_fingerprint",
+      "value": "Fingerprinting"
+    },
+    {
+      "name": "site_cross_site_tracking",
+      "value": "Allow cross-site tracking"
+    },
+    {
       "name": "password_delete_confirm",
       "value": "You will be asked to save the password again the next time you sign in to this site"
     },
@@ -2849,6 +3125,8 @@
     { "name": "home_reset_message", "value": "This will restore all home appearance settings to default" },
     { "name": "no_quick_links", "value": "No quick bookmarks yet. Mark a bookmark as \"Quick\" in its editor" },
     { "name": "view_certificate", "value": "View Certificate" },
+    { "name": "site_connection_secure", "value": "Connection is secure" },
+    { "name": "site_connection_insecure", "value": "Your connection to this site is not secure" },
     { "name": "view_cookies", "value": "View Cookies" },
     { "name": "view_scripts", "value": "View Scripts" },
     { "name": "cert_issued_to", "value": "Issued To" },
@@ -2867,6 +3145,56 @@
     { "name": "script_runs_here", "value": "Runs on this page" },
     { "name": "no_scripts", "value": "No scripts" },
     { "name": "qr_saved", "value": "Saved to gallery" },
-    { "name": "save_failed", "value": "Operation failed" }
+    { "name": "save_failed", "value": "Operation failed" },
+    { "name": "copy", "value": "Copy" },
+    { "name": "translate_settings", "value": "Translation settings" },
+    { "name": "translate_target_lang", "value": "Target language" },
+    { "name": "translate_bilingual", "value": "Bilingual display" },
+    { "name": "translate_auto_group", "value": "Auto-translate" },
+    { "name": "translate_auto_desc", "value": "Automatically translate pages in these languages" },
+    { "name": "translate_engine_group", "value": "Translation service" },
+    { "name": "translate_engine", "value": "Service" },
+    { "name": "translate_engine_builtin", "value": "Built-in (Bing, free)" },
+    { "name": "translate_deepl_key", "value": "DeepL API key" },
+    { "name": "translate_libre_url", "value": "LibreTranslate server URL" },
+    { "name": "translate_libre_key", "value": "LibreTranslate API key" },
+    { "name": "translate_key_hint", "value": "Enter API key" },
+    { "name": "translate_not_set", "value": "Not set" },
+    { "name": "translate_select_target", "value": "Select target language" },
+    { "name": "translate_in_progress", "value": "Translating…" },
+    { "name": "translate_done", "value": "Translation complete" },
+    { "name": "translate_failed", "value": "Translation failed. Check network or service settings" },
+    { "name": "translate_original", "value": "Original text restored" },
+    { "name": "translate_no_text", "value": "No text selected" },
+    { "name": "translate_selection", "value": "Translate selection" },
+    { "name": "translate_lang_zh_cn", "value": "简体中文" },
+    { "name": "translate_lang_zh_tw", "value": "繁體中文" },
+    { "name": "translate_lang_en", "value": "English" },
+    { "name": "translate_lang_ja", "value": "日本語" },
+    { "name": "translate_lang_ko", "value": "한국어" },
+    { "name": "translate_lang_ru", "value": "Русский" },
+    { "name": "translate_lang_fr", "value": "Français" },
+    { "name": "translate_lang_de", "value": "Deutsch" },
+    { "name": "translate_lang_es", "value": "Español" },
+ { "name": "translate_lang_short_zh_cn", "value": "Chinese (S)" },
+ { "name": "translate_lang_short_zh_tw", "value": "Chinese (T)" },
+ { "name": "translate_lang_short_en", "value": "English" },
+ { "name": "translate_lang_short_ja", "value": "Japanese" },
+ { "name": "translate_lang_short_ko", "value": "Korean" },
+ { "name": "translate_lang_short_ru", "value": "Russian" },
+ { "name": "translate_lang_short_fr", "value": "French" },
+ { "name": "translate_lang_short_de", "value": "German" },
+ { "name": "translate_lang_short_es", "value": "Spanish" },
+ { "name": "translate_bilingual_short", "value": "Bi" },
+    { "name": "translate_engine_google", "value": "Google (free)" },
+    { "name": "translate_engine_microsoft", "value": "Microsoft Azure" },
+    { "name": "translate_engine_baidu", "value": "Baidu Translate" },
+    { "name": "translate_engine_youdao", "value": "Youdao Translate" },
+    { "name": "translate_ms_key", "value": "Microsoft Azure key" },
+    { "name": "translate_ms_key_hint", "value": "Enter Azure key, optionally key#region" },
+    { "name": "translate_baidu_appid", "value": "Baidu app ID" },
+    { "name": "translate_baidu_key", "value": "Baidu secret key" },
+    { "name": "translate_youdao_appid", "value": "Youdao app key" },
+    { "name": "translate_youdao_secret", "value": "Youdao app secret" }
   ]
 }

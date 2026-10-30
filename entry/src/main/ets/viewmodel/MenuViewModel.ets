@@ -26,6 +26,7 @@ import { downloadVM } from './DownloadViewModel';
 import { sniffVM } from './SniffViewModel';
 import { offlinePageVM } from './OfflinePageViewModel';
 import { readAloudVM } from './ReadAloudViewModel';
+import { translateVM, TranslateLang } from './TranslateViewModel';
 import { shortcutVM, ShortcutViewModel } from './ShortcutViewModel';
 import { PublicDownloadDir } from '../common/utils/PublicDownloadDir';
 import { createLogger } from '../common/utils/Logger';
@@ -42,6 +43,22 @@ export class FolderRowInfo {
   constructor(item: CustomItemInfo, indent: number) {
     this.item = item
     this.indent = indent
+  }
+}
+
+/** 旧版（无顺序值）文件夹排序基线：恒小于书签 orderIndex（≥0），保持"文件夹在前"的旧显示 */
+const LEGACY_ORDER_BASE: number = -1000000
+
+/**
+ * 文件夹注册表条目（v2）：路径 + 统一顺序值（与书签 orderIndex 同一数值空间，显示时升序交错）
+ */
+export class FolderRegEntry {
+  readonly p: string
+  readonly o: number
+
+  constructor(p: string, o: number) {
+    this.p = p
+    this.o = o
   }
 }
 
@@ -84,6 +101,8 @@ export class MenuViewModel {
   @Trace newFolderParent: string = ''
   /** 文件夹注册表（路径数组，顺序即显示顺序） */
   @Trace folderList: string[] = []
+  /** 文件夹统一顺序值：路径 → o（拖拽/新建时显式写入；加载时同步；缺失回落旧版基线） */
+  private folderOrders: Map<string, number> = new Map()
   /** 文件夹选择页行（根目录 + 树形缩进 + 选中态） */
   @Trace folderRows: FolderRowInfo[] = []
   /** 移动场景：文件夹选择页走主路由栈（书签页发起）；null = 编辑器局部栈 */
@@ -284,6 +303,7 @@ export class MenuViewModel {
       return
     }
     this.folderList = this.rewriteFolderPaths(this.computeFolderList(), old, dst)
+    this.rekeyFolderOrders(old, dst)
     this.saveFolderRegistry()
     this.rebuildFolderRows()
     bookmarkVM.moveFolderPrefix(old, dst)
@@ -307,23 +327,46 @@ export class MenuViewModel {
     }
   }
 
-  /** 加载文件夹注册表（设置存储 + 书签中出现的路径合并，注册表顺序优先） */
+  /** 加载文件夹注册表（设置存储 + 书签中出现的路径合并，注册表条目优先）；同步顺序值映射 */
   private loadFolderRegistry(): void {
     this.folderList = this.computeFolderList()
+    this.folderOrders = new Map<string, number>()
+    for (const e of this.computeFolderEntries()) {
+      this.folderOrders.set(e.p, e.o)
+    }
     this.rebuildFolderRows()
   }
 
-  /** 计算文件夹注册表（不改状态） */
+  /** 计算文件夹注册表路径列表（不改状态，条目序 = 解析序） */
   private computeFolderList(): string[] {
     const list: string[] = []
+    for (const e of this.computeFolderEntries()) {
+      list.push(e.p)
+    }
+    return list
+  }
+
+  /** 计算文件夹注册表条目（含顺序值）：v2 对象 {p,o} 与旧版字符串兼容解析；注册表缺失的文件夹按书签归属序补齐（顺序值取旧版基线） */
+  private computeFolderEntries(): FolderRegEntry[] {
+    const entries: FolderRegEntry[] = []
+    const seen: Set<string> = new Set<string>()
+    let nextLegacy: number = 0
     const raw: string = appSettings.bookmark_folders
     if (raw !== '') {
       try {
-        const parsed = JSON.parse(raw) as string[]
+        const parsed = JSON.parse(raw) as Object[]
         if (Array.isArray(parsed)) {
-          for (const p of parsed) {
-            if (typeof p === 'string' && p !== '') {
-              this.ensureFolderWithAncestors(list, p)
+          for (const e of parsed) {
+            if (typeof e === 'string' && e !== '') {
+              this.ensureEntryWithAncestors(entries, seen, e, LEGACY_ORDER_BASE + nextLegacy)
+              nextLegacy++
+            } else if (typeof e === 'object' && e !== null) {
+              const rec: Record<string, Object> = e as Record<string, Object>
+              const p: Object | undefined = rec['p']
+              const o: Object | undefined = rec['o']
+              if (typeof p === 'string' && p !== '' && typeof o === 'number') {
+                this.ensureEntryWithAncestors(entries, seen, p, o)
+              }
             }
           }
         }
@@ -333,20 +376,22 @@ export class MenuViewModel {
     }
     for (const b of bookmarkVM.bookmarks) {
       if (b.folder !== '') {
-        this.ensureFolderWithAncestors(list, b.folder)
+        this.ensureEntryWithAncestors(entries, seen, b.folder, LEGACY_ORDER_BASE + nextLegacy)
+        nextLegacy++
       }
     }
-    return list
+    return entries
   }
 
-  /** 注册文件夹（连同缺失的祖先层级） */
-  private ensureFolderWithAncestors(list: string[], path: string): void {
+  /** 注册文件夹（连同缺失的祖先层级，祖先沿用同一顺序值） */
+  private ensureEntryWithAncestors(entries: FolderRegEntry[], seen: Set<string>, path: string, o: number): void {
     const parent: string = this.parentPathOf(path)
     if (parent !== '') {
-      this.ensureFolderWithAncestors(list, parent)
+      this.ensureEntryWithAncestors(entries, seen, parent, o)
     }
-    if (!list.includes(path)) {
-      list.push(path)
+    if (!seen.has(path)) {
+      seen.add(path)
+      entries.push(new FolderRegEntry(path, o))
     }
   }
 
@@ -362,38 +407,37 @@ export class MenuViewModel {
     return idx < 0 ? path : path.substring(idx + 1)
   }
 
-  /** 树形顺序：顶层按注册次序，子级跟随父级缩进排列 */
+  /** 树形顺序：同级按顺序值升序（旧版无值时保持注册表序），子级跟随父级缩进排列 */
   private orderedFolderPaths(): string[] {
-    return this.orderedFolderList(this.folderList)
-  }
-
-  private orderedFolderList(list: string[]): string[] {
+    const entries: FolderRegEntry[] = this.computeFolderEntries()
+    entries.sort((a: FolderRegEntry, b: FolderRegEntry): number => a.o - b.o)
     const out: string[] = []
-    this.collectChildFolders('', list, out)
-    for (const p of list) {
-      if (!out.includes(p)) {
-        out.push(p)
+    this.collectChildFolders('', entries, out)
+    for (const e of entries) {
+      if (!out.includes(e.p)) {
+        out.push(e.p)
       }
     }
     return out
   }
 
-  private collectChildFolders(parent: string, list: string[], out: string[]): void {
-    for (const p of list) {
-      if (this.parentPathOf(p) === parent) {
-        out.push(p)
-        this.collectChildFolders(p, list, out)
+  private collectChildFolders(parent: string, entries: FolderRegEntry[], out: string[]): void {
+    for (const e of entries) {
+      if (this.parentPathOf(e.p) === parent) {
+        out.push(e.p)
+        this.collectChildFolders(e.p, entries, out)
       }
     }
   }
 
-  /** 指定目录的直接子文件夹（注册表顺序） */
+  /** 指定目录的直接子文件夹（顺序值升序；注册表条目先于书签归属补齐项） */
   childFolders(parent: string): string[] {
-    const list: string[] = this.computeFolderList()
+    const entries: FolderRegEntry[] = this.computeFolderEntries()
+    entries.sort((a: FolderRegEntry, b: FolderRegEntry): number => a.o - b.o)
     const out: string[] = []
-    for (const p of list) {
-      if (this.parentPathOf(p) === parent) {
-        out.push(p)
+    for (const e of entries) {
+      if (this.parentPathOf(e.p) === parent) {
+        out.push(e.p)
       }
     }
     return out
@@ -428,9 +472,27 @@ export class MenuViewModel {
     })
   }
 
-  /** 持久化文件夹注册表 */
+  /** 持久化文件夹注册表（v2：路径 + 统一顺序值；显式状态 > 已存值 > 旧版基线回落） */
   private saveFolderRegistry(): void {
-    appSettings.bookmark_folders = JSON.stringify(this.folderList)
+    const pure: Map<string, number> = new Map<string, number>()
+    for (const e of this.computeFolderEntries()) {
+      pure.set(e.p, e.o)
+    }
+    const out: FolderRegEntry[] = []
+    for (let i: number = 0; i < this.folderList.length; i++) {
+      const p: string = this.folderList[i]
+      let o: number = LEGACY_ORDER_BASE + i
+      const pureO: number | undefined = pure.get(p)
+      if (pureO !== undefined) {
+        o = pureO
+      }
+      const stateO: number | undefined = this.folderOrders.get(p)
+      if (stateO !== undefined) {
+        o = stateO
+      }
+      out.push(new FolderRegEntry(p, o))
+    }
+    appSettings.bookmark_folders = JSON.stringify(out)
   }
 
   /** 打开文件夹选择二级页 */
@@ -477,7 +539,8 @@ export class MenuViewModel {
     this.folderPickerMainStack = stack
     this.moveFolderSources = folderSources
     this.moveBookmarkIds = bookmarkIds
-    this.rebuildFolderRows()
+    // 重新加载注册表：书签页直接发起时内存 folderList 可能从未初始化
+    this.loadFolderRegistry()
     stack.pushPathByName('bookmark_select_folder', null)
   }
 
@@ -522,7 +585,16 @@ export class MenuViewModel {
     if (dst === src) {
       return true
     }
-    this.folderList = this.rewriteFolderPaths(this.computeFolderList(), src, dst)
+    // 目标下已有同名文件夹时按合并处理：改写后去重，避免注册表出现重复路径
+    const rewritten: string[] = this.rewriteFolderPaths(this.computeFolderList(), src, dst)
+    const merged: string[] = []
+    for (const p of rewritten) {
+      if (!merged.includes(p)) {
+        merged.push(p)
+      }
+    }
+    this.folderList = merged
+    this.rekeyFolderOrders(src, dst)
     this.saveFolderRegistry()
     this.rebuildFolderRows()
     bookmarkVM.moveFolderPrefix(src, dst)
@@ -541,12 +613,124 @@ export class MenuViewModel {
       return
     }
     this.folderList = this.rewriteFolderPaths(this.computeFolderList(), path, dst)
+    this.rekeyFolderOrders(path, dst)
     this.saveFolderRegistry()
     this.rebuildFolderRows()
     bookmarkVM.moveFolderPrefix(path, dst)
   }
 
-  /** 删除文件夹：注册表移除该目录及子级，内含书签移回根目录 */
+  /** 拖拽落位：文件夹统一顺序值 = 交错槽位（与书签 orderIndex 同一数值空间），写入后持久化并刷新 */
+  applyFolderOrder(paths: string[], slots: number[]): void {
+    if (paths.length === 0 || paths.length !== slots.length) {
+      return
+    }
+    for (let i: number = 0; i < paths.length; i++) {
+      this.folderOrders.set(paths[i], slots[i])
+    }
+    this.saveFolderRegistry()
+    this.loadFolderRegistry()
+  }
+
+  /** 文件夹顺序值映射改键：路径前缀 src → dst（改名/移动场景，子级跟随） */
+  private rekeyFolderOrders(src: string, dst: string): void {
+    const updated: Map<string, number> = new Map<string, number>()
+    this.folderOrders.forEach((o: number, p: string): void => {
+      if (p === src) {
+        updated.set(dst, o)
+      } else if (p.startsWith(`${src}/`)) {
+        updated.set(`${dst}${p.substring(src.length)}`, o)
+      } else {
+        updated.set(p, o)
+      }
+    })
+    this.folderOrders = updated
+  }
+
+  /** 文件夹顺序值映射清理：移除该目录及其子级 */
+  private purgeFolderOrders(prefix: string): void {
+    const kept: Map<string, number> = new Map<string, number>()
+    this.folderOrders.forEach((o: number, p: string): void => {
+      if (p !== prefix && !p.startsWith(`${prefix}/`)) {
+        kept.set(p, o)
+      }
+    })
+    this.folderOrders = kept
+  }
+
+  /** 注册新文件夹到指定父级层末尾（连同缺失祖先；顺序值 = 层内最大值 + 1） */
+  private registerFolderAtEnd(path: string): void {
+    const parent: string = this.parentPathOf(path)
+    if (parent !== '' && !this.folderList.includes(parent)) {
+      this.registerFolderAtEnd(parent)
+    }
+    if (!this.folderList.includes(path)) {
+      this.folderList.push(path)
+    }
+    this.folderOrders.set(path, this.levelEndOrder(parent))
+  }
+
+  /** 层内最大顺序值 + 1（文件夹顺序值与书签 orderIndex 同一数值空间） */
+  private levelEndOrder(parent: string): number {
+    let max: number = -1
+    for (const e of this.computeFolderEntries()) {
+      if (this.parentPathOf(e.p) === parent && e.o > max) {
+        max = e.o
+      }
+    }
+    for (const b of bookmarkVM.bookmarks) {
+      if (b.folder === parent && b.orderIndex > max) {
+        max = b.orderIndex
+      }
+    }
+    return max + 1
+  }
+
+  /** 书签页统一行序：文件夹顺序值与书签 orderIndex 同一数值空间，升序交错（同值文件夹在前，书签按查询序） */
+  levelItemOrder(parent: string): string[] {
+    const entries: FolderRegEntry[] = this.computeFolderEntries()
+    entries.sort((a: FolderRegEntry, b: FolderRegEntry): number => a.o - b.o)
+    const folderKeys: string[] = []
+    const folderOs: number[] = []
+    for (const e of entries) {
+      if (this.parentPathOf(e.p) === parent) {
+        folderKeys.push(`f_${e.p}`)
+        folderOs.push(e.o)
+      }
+    }
+    const bookKeys: string[] = []
+    const bookOs: number[] = []
+    for (const b of bookmarkVM.bookmarks) {
+      if (b.folder === parent && b.id !== null) {
+        bookKeys.push(`b_${b.id}`)
+        bookOs.push(b.orderIndex)
+      }
+    }
+    const out: string[] = []
+    let i: number = 0
+    let j: number = 0
+    while (i < folderKeys.length || j < bookKeys.length) {
+      if (i >= folderKeys.length) {
+        out.push(bookKeys[j])
+        j++
+        continue
+      }
+      if (j >= bookKeys.length) {
+        out.push(folderKeys[i])
+        i++
+        continue
+      }
+      if (folderOs[i] <= bookOs[j]) {
+        out.push(folderKeys[i])
+        i++
+        continue
+      }
+      out.push(bookKeys[j])
+      j++
+    }
+    return out
+  }
+
+  /** 删除文件夹：注册表移除该目录及子级，内含书签（含子文件夹）一并删除 */
   deleteFolder(path: string): void {
     if (path === '') {
       return
@@ -559,9 +743,10 @@ export class MenuViewModel {
       }
     }
     this.folderList = newList
+    this.purgeFolderOrders(path)
     this.saveFolderRegistry()
     this.rebuildFolderRows()
-    bookmarkVM.moveFolderPrefix(path, '')
+    bookmarkVM.deleteFolderContents(path)
   }
 
   /** 注册表路径前缀改写：path → dst，子级跟随 */
@@ -596,7 +781,7 @@ export class MenuViewModel {
       return
     }
     const path: string = this.newFolderParent === '' ? name : `${this.newFolderParent}/${name}`
-    this.ensureFolderWithAncestors(this.folderList, path)
+    this.registerFolderAtEnd(path)
     this.saveFolderRegistry()
     this.bmFolder = path
     this.folderItem.value = this.folderPathLabel(path)
@@ -735,6 +920,7 @@ export class MenuViewModel {
       || id === 'browser_id' || id === 'screen_orientation' || id === 'font_size'
       || id === 'night_mode' || id === 'desktop_mode' || id === 'read_mode'
       || id === 'add_bookmark' || id === 'add_home_favorite'
+      || id === 'translate'
   }
 
   /** 条目当前是否处于高亮状态 */
@@ -773,6 +959,10 @@ export class MenuViewModel {
     if (id === 'add_home_favorite') {
       const tab = tabsVM.activeTab
       return tab !== null && bookmarkVM.hasQuick(tab.url)
+    }
+    if (id === 'translate') {
+      const tab = tabsVM.activeTab
+      return tab !== null && translateVM.isTranslated(tab.id)
     }
     return false
   }
@@ -923,6 +1113,32 @@ export class MenuViewModel {
       return
     }
     browserVM.enterReader()
+  }
+
+  /** 翻译入口：主页/源码/阅读模式不可用；直接按当前目标语言翻译，已翻译恢复原文 */
+  openTranslate(): void {
+    const tab = tabsVM.activeTab
+    if (tab === null || tab.isHome || tab.viewSourceHtml !== ''
+      || browserVM.isReaderActive(tab.id)) {
+      return
+    }
+    if (translateVM.isTranslated(tab.id)) {
+      translateVM.restoreTab(tab).then((): void => {
+        this.announceMenuChange($r('app.string.translate'),
+          ResourceUtils.getString($r('app.string.translate_original')))
+      })
+      return
+    }
+    translateVM.translateTab(tab, appSettings.translate_target_lang)
+  }
+
+  /** 菜单项长按：翻译项直达翻译设置页 */
+  onMenuEntryLongPress(id: string): boolean {
+    if (id === 'translate') {
+      QhState.pushPage('settings_translate', null)
+      return true
+    }
+    return false
   }
 
   /** 图片模式切换后，把新档位同步到已打开页面正在使用的策略实例（无需刷新页面） */
@@ -1210,6 +1426,10 @@ export class MenuViewModel {
       case 'read_mode':
         // 阅读模式：Readability 提取正文后独立渲染，再点退出
         this.toggleReadMode()
+        return false
+      case 'translate':
+        // 翻译：直接按当前目标语言翻译当前页；已翻译恢复原文（菜单项实时反映状态）
+        this.openTranslate()
         return false
       case 'screen_orientation':
         this.openOrientationPicker()
@@ -1507,6 +1727,15 @@ export class MenuViewModel {
     }
     if (e.id === 'add_home_favorite' && this.toggleStateOf('add_home_favorite')) {
       return $r('app.string.quick_added')
+    }
+    if (e.id === 'translate' && this.toggleStateOf('translate')) {
+      // 已翻译：显示「双语·简体」/「简体」状态（双语对照按设置）
+      const short: Resource = TranslateLang.shortRes(appSettings.translate_target_lang)
+      if (appSettings.translate_bilingual) {
+        return `${ResourceUtils.getString($r('app.string.translate_bilingual_short'))}·`
+          + ResourceUtils.getString(short)
+      }
+      return short
     }
     return e.title
   }

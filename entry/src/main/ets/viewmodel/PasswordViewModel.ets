@@ -53,6 +53,16 @@ export class PasswordViewModel {
     await this.getDB().upsert(host, username, password)
   }
 
+  /** HTTP Basic 认证凭据（自动登录用），无则 null */
+  async basicCredentialFor(host: string, realm: string): Promise<PasswordInfo | null> {
+    return this.getDB().findBasic(host, realm)
+  }
+
+  /** 新增或更新 HTTP Basic 认证凭据（host + realm 唯一） */
+  async upsertBasic(host: string, realm: string, username: string, password: string): Promise<void> {
+    await this.getDB().upsertBasic(host, realm, username, password)
+  }
+
   async deleteById(id: number): Promise<void> {
     await this.getDB().deleteById(id)
   }

@@ -145,7 +145,7 @@ export struct BookmarkFolderMenu {
         .constraintSize({ maxWidth: 280 })
       }
       .constraintSize({ maxHeight: 160 })
-      .align(Alignment.Start)
+      .align(Alignment.TopStart)
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring)
     }

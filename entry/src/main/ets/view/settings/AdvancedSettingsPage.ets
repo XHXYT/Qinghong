@@ -2,6 +2,7 @@ import { webview } from '@kit.ArkWeb';
 import { CustomContentDialog } from '@kit.ArkUI';
 import { SettingsScaffold, SettingsSection } from '../../components/SettingsScaffold';
 import { appSettings } from '../../common/entity/SettingsModel';
+import { DnsUtils } from '../../common/utils/DnsUtils';
 import { CustomItemInfo, ItemActionType } from '../../common/entity/CusItemInfo';
 import { buildDialogButtons } from '../../components/dialog/AppContentDialog';
 import { toastUtil } from '../../common/utils/ToastUtils';
@@ -59,12 +60,21 @@ struct AdvancedSettingsPage {
     }))
     items.push(hapticItem)
     items.push(new CustomItemInfo({
+      id: 'dns_preconnect_enabled',
+      title: $r('app.string.dns_preconnect'),
+      subtitle: $r('app.string.dns_preconnect_desc'),
+      type: ItemActionType.TOGGLE,
+      value: appSettings.dns_preconnect_enabled,
+      onChange: (v: string | boolean | number): void => {
+        appSettings.dns_preconnect_enabled = v as boolean
+        DnsUtils.applyPreconnect()
+      }
+    }))
+    items.push(new CustomItemInfo({
       id: 'show_sniff_button',
       title: $r('app.string.show_sniff_button'),
       type: ItemActionType.TOGGLE,
       value: appSettings.show_sniff_button,
-      enabled: false,
-      disabledHint: $r('app.string.feature_not_available'),
       onChange: (v: string | boolean | number): void => {
         appSettings.show_sniff_button = v as boolean
       }

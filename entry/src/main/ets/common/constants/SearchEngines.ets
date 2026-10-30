@@ -263,6 +263,19 @@ export class UrlUtils {
   }
 
   /**
+   * 连接安全状态：https=secure / http=insecure / 其他 scheme（file:、data: 等）=unknown
+   */
+  static secureStateOf(url: string): string {
+    if (/^https:\/\//i.test(url)) {
+      return 'secure'
+    }
+    if (/^http:\/\//i.test(url)) {
+      return 'insecure'
+    }
+    return 'unknown'
+  }
+
+  /**
    * 从 URL 提取文件名（下载用）
    */
   static fileNameOf(url: string): string {

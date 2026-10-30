@@ -50,9 +50,72 @@ export class ShortcutViewModel {
     return h.toString(36)
   }
 
-  async addToDesktop(shortcutKey: string, title: string, url: string): Promise<void> {
+  /** 快捷方式图标目录（专门文件夹，避免图标散放在 files 根目录） */
+  static iconDir(): string {
+    const dir: string = `${_QhState.Context.filesDir}/shortcut_icons`
+    if (!fileIo.accessSync(dir)) {
+      fileIo.mkdirSync(dir)
+    }
+    return dir
+  }
+
+  /** 旧版图标曾散放在 files 根目录：启动时迁入专门文件夹 */
+  static migrateLegacyIcons(): void {
     try {
-      const savePath: string = `${_QhState.Context.filesDir}/shortcut_icon_${shortcutKey}.png`
+      const filesDir: string = _QhState.Context.filesDir
+      const dir: string = ShortcutViewModel.iconDir()
+      const names: string[] = fileIo.listFileSync(filesDir)
+      for (const name of names) {
+        if (name.startsWith('shortcut_icon_') && name.endsWith('.png')) {
+          fileIo.moveFileSync(`${filesDir}/${name}`, `${dir}/${name}`)
+        }
+      }
+    } catch (e) {
+      console.error(`[ShortcutViewModel] 旧图标迁移失败: ${e}`)
+    }
+  }
+
+  /** 添加快捷方式进行中标记：防止启动清理误删正在创建的图标 */
+  private static adding: boolean = false
+
+  /**
+   * 清理孤儿图标：对照桌面已固定快捷方式列表，
+   * 删除 shortcut_icons 目录中不再被引用的图标（如用户已从桌面移除的网页快捷方式残留）
+   */
+  static async cleanOrphanIcons(): Promise<void> {
+    if (ShortcutViewModel.adding) {
+      return
+    }
+    try {
+      const dir: string = ShortcutViewModel.iconDir()
+      const names: string[] = fileIo.listFileSync(dir)
+      if (names.length === 0) {
+        return
+      }
+      const pinned: Set<string> = new Set<string>()
+      // API 24+；低版本设备抛 801（不支持）直接跳过清理
+      const infos: productViewManager.PinShortcutInfo[] = await productViewManager.getPinShortcutInfos()
+      for (const info of infos) {
+        pinned.add(info.shortcutId)
+      }
+      for (const name of names) {
+        if (!name.startsWith('shortcut_icon_') || !name.endsWith('.png')) {
+          continue
+        }
+        const key: string = name.substring('shortcut_icon_'.length, name.length - '.png'.length)
+        if (!pinned.has(key)) {
+          fileIo.unlinkSync(`${dir}/${name}`)
+        }
+      }
+    } catch (e) {
+      console.error(`[ShortcutViewModel] 孤儿图标清理失败: ${e}`)
+    }
+  }
+
+  async addToDesktop(shortcutKey: string, title: string, url: string): Promise<void> {
+    ShortcutViewModel.adding = true
+    try {
+      const savePath: string = `${ShortcutViewModel.iconDir()}/shortcut_icon_${shortcutKey}.png`
       const host: string = FaviconCache.hostOf(url)
       // 优先复用 favicon 缓存（页面加载/懒加载已抓取），无缓存再按 URL 抓取站点图标
       let iconReady: boolean = faviconCache.copyTo(host, savePath)
@@ -80,6 +143,8 @@ export class ShortcutViewModel {
     } catch (e) {
       console.error(`[ShortcutViewModel] 添加至桌面失败: ${e}`)
       toastUtil.showToast({ message: $r('app.string.bookmark_desktop_failed') })
+    } finally {
+      ShortcutViewModel.adding = false
     }
   }
 }

@@ -10,12 +10,16 @@ import { appSettings, UISettings } from '../../common/entity/SettingsModel';
 import { toastUtil } from '../../common/utils/ToastUtils';
 import { ResourceUtils } from '../../common/utils/ResourceUtil';
 import { UaUtils } from '../../common/utils/UaUtils';
+import { DnsUtils } from '../../common/utils/DnsUtils';
+import { ProxyUtils } from '../../common/utils/ProxyUtils';
+import { AdvancedSecurityUtils } from '../../common/utils/AdvancedSecurityUtils';
 import { AdBlockEngine } from '../../common/utils/AdBlockEngine';
 import { adBlockStore } from '../../common/utils/AdBlockStore';
 import { WebScripts } from '../../common/utils/WebScripts';
 import { ReaderScripts } from '../../common/utils/ReaderScripts';
 import { ViewSourceScripts } from '../../common/utils/ViewSourceScripts';
 import { SitePolicy, SiteSettingsViewModel, siteSettingsVM } from '../../viewmodel/SiteSettingsViewModel';
+import { hostsVM } from '../../viewmodel/HostsViewModel';
 import { passwordVM, PasswordDecision } from '../../viewmodel/PasswordViewModel';
 import PasswordInfo from '../../common/entity/PasswordInfo';
 import { buildDialogButtons } from '../dialog/AppContentDialog';
@@ -23,9 +27,11 @@ import { _QhState } from '../../entryability/AppState';
 import { LongPressMenuItem, LongPressMenuItems, LongPressTarget } from '../../common/constants/LongPressMenuItems';
 import { longPressVM, LongPressContext } from '../../viewmodel/LongPressMenuViewModel';
 import { netLogVM } from '../../viewmodel/NetworkLogViewModel';
+import { trackerVM } from '../../viewmodel/TrackerViewModel';
 import { inspectorVM } from '../../viewmodel/InspectorViewModel';
 import { faviconCache, FaviconCache } from '../../viewmodel/FaviconCache';
 import { scriptVM } from '../../viewmodel/ScriptViewModel';
+import { translateVM } from '../../viewmodel/TranslateViewModel';
 import { GmValueRaw, GmDeleteValueRaw, GmOpenTabRaw, GmClipboardRaw, GmNotifyRaw, GmDownloadRaw, GmMenuRaw, GmMenuIdRaw } from '../../common/utils/GmRuntime';
 
 /** 网页选区矩形（CSS px，相对视口；由注入脚本返回的 JSON 解析而来） */
@@ -119,6 +125,9 @@ export struct TabWeb {
   /** 广告拦截开关已应用状态（null=未应用；避免重复 enableAdsBlock） */
   private appliedAdsBlockOn: boolean | null = null
 
+  /** 智能防跟踪已应用状态（null=未应用；避免重复 enableIntelligentTrackingPrevention） */
+  private appliedItpOn: boolean | null = null
+
   /** BFCache 开关已应用状态（null=未应用；避免重复 setBackForwardCacheOptions） */
   private appliedBfcOn: boolean | null = null
   /** 重定向询问放行后的重导航地址（避免二次询问） */
@@ -161,6 +170,21 @@ export struct TabWeb {
   /** 已提示过的凭据 key（防重复弹窗） */
   private passwordPromptKey: string = ''
 
+  /** HTTP 认证：本次导航已自动尝试过的 host|realm（防错误凭证 401 死循环，onPageBegin 清空） */
+  private authGuard: Map<string, boolean> = new Map()
+  /** HTTP 认证：待处理的核心 handler（弹窗登录/取消时消费） */
+  private pendingAuthHandler: HttpAuthHandler | null = null
+  /** HTTP 认证弹窗状态 */
+  @Local authHost: string = ''
+  @Local authRealm: string = ''
+  @Local authUsername: string = ''
+  @Local authPassword: string = ''
+  @Local authShowPwd: boolean = false
+  @Local authRemember: boolean = true
+  /** 上次自动尝试的凭证被拒（弹窗顶部提示） */
+  @Local authFailed: boolean = false
+  private httpAuthDialog: CustomDialogController | undefined = undefined
+
   /** 长按/右键菜单：是否显示 */
   @Local ctxMenuVisible: boolean = false
   /** 长按/右键菜单：条目列表 */
@@ -197,6 +221,7 @@ export struct TabWeb {
 
   aboutToAppear(): void {
     this.initPasswordDialogs()
+    this.initHttpAuthDialog()
     this.netConn = connection.createNetConnection()
     this.netConn.on('netAvailable', () => {
       this.updateWifiState()
@@ -419,11 +444,16 @@ export struct TabWeb {
     this.policy = p
     this.applyUa(p)
     this.applyAdsBlockEnable()
+    this.applyIntelligentTrackingPrevention()
     siteSettingsVM.registerLive(p.host, p)
   }
 
-  /** 应用 UA（'' 跟随应用走 UaUtils，覆盖值直接 setCustomUserAgent） */
+  /** 应用 UA（域名级模式下由内核按 host 映射处理，实例级仅能力回退旧路径使用） */
   private applyUa(p: SitePolicy): void {
+    if (UaUtils.hostUaMode()) {
+      this.appliedUa = p.uaOverride
+      return
+    }
     const c = this.tab.controller
     if (c === null) {
       return
@@ -580,12 +610,18 @@ export struct TabWeb {
   }
 
   /**
-   * 智能防跟踪应用到当前 Web 实例（ArkWeb 内核拦截跨站跟踪请求携带 Cookie）
+   * 智能防跟踪应用到当前 Web 实例（ArkWeb 内核拦截跨站跟踪请求携带 Cookie）：
+   * 全局开关 && 站点未开「允许跨站跟踪」豁免
    */
   private applyIntelligentTrackingPrevention(): void {
+    const on: boolean = appSettings.intelligent_tracking_prevention && !this.policy.allowCrossSiteTracking
+    if (this.appliedItpOn === on) {
+      return
+    }
     try {
       tabsVM.ensureController(this.tab)
-        .enableIntelligentTrackingPrevention(appSettings.intelligent_tracking_prevention)
+        .enableIntelligentTrackingPrevention(on)
+      this.appliedItpOn = on
     } catch (e) {
       console.error(`[TabWeb] enableIntelligentTrackingPrevention 失败: ${e}`)
     }
@@ -972,6 +1008,157 @@ export struct TabWeb {
     .alignItems(HorizontalAlign.Start)
   }
 
+  /** 初始化 HTTP 认证登录弹窗 */
+  private initHttpAuthDialog(): void {
+    this.httpAuthDialog = new CustomDialogController({
+      builder: CustomContentDialog({
+        primaryTitle: $r('app.string.http_auth_title'),
+        contentBuilder: (): void => {
+          this.httpAuthContent()
+        },
+        buttons: buildDialogButtons([$r('app.string.cancel'), $r('app.string.http_auth_login')], false,
+          (index: number): void => {
+            if (index === 1) {
+              this.doHttpAuthLogin()
+              return
+            }
+            this.cancelHttpAuth()
+          }),
+        contentAreaPadding: { top: 8, bottom: 8, left: 24, right: 24 }
+      }),
+      autoCancel: false,
+      alignment: DialogAlignment.Center,
+      cornerRadius: 32
+    })
+  }
+
+  /** HTTP 认证弹窗正文：站点 / realm / 失败提示 / 用户名密码输入 / 记住开关 */
+  @Builder
+  httpAuthContent() {
+    Column({ space: 12 }) {
+      if (this.authFailed) {
+        Text($r('app.string.http_auth_failed'))
+          .fontSize(14)
+          .fontColor(Color.Red)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      Text(this.authHost)
+        .fontSize(16)
+        .fontWeight(FontWeight.Medium)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      if (this.authRealm !== '') {
+        Text(this.authRealm)
+          .fontSize(14)
+          .fontColor($r('sys.color.font_secondary'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      TextInput({ placeholder: ResourceUtils.getString($r('app.string.label_username')), text: this.authUsername })
+        .height(48)
+        .fontSize(16)
+        .onChange((value: string): void => {
+          this.authUsername = value
+        })
+      Row({ space: 8 }) {
+        TextInput({
+          placeholder: ResourceUtils.getString($r('app.string.label_password')),
+          text: this.authPassword
+        })
+          .height(48)
+          .fontSize(16)
+          .type(this.authShowPwd ? InputType.Normal : InputType.Password)
+          .onChange((value: string): void => {
+            this.authPassword = value
+          })
+        SymbolGlyph(this.authShowPwd ? $r('sys.symbol.eye') : $r('sys.symbol.eye_slash'))
+          .fontSize(22)
+          .fontColor([$r('sys.color.font_secondary')])
+          .onClick((): void => {
+            this.authShowPwd = !this.authShowPwd
+          })
+      }
+      .alignItems(VerticalAlign.Center)
+      if (!this.tab.isIncognito) {
+        Row() {
+          Text($r('app.string.http_auth_remember'))
+            .fontSize(14)
+          Blank()
+          Toggle({ type: ToggleType.Switch, isOn: this.authRemember })
+            .onChange((isOn: boolean): void => {
+              this.authRemember = isOn
+            })
+        }
+        .width('100%')
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  /**
+   * HTTP 认证请求分流：非无痕且未自动尝试过 → 查密码管理器自动登录（一次）；
+   * 否则弹登录框。guard 防止错误凭证 401 死循环，onPageBegin 清空
+   */
+  private handleHttpAuth(event: OnHttpAuthRequestEvent): void {
+    const host: string = event.host
+    const realm: string = event.realm
+    const key: string = `${host}|${realm}`
+    const tried: boolean = this.authGuard.get(key) === true
+    if (!this.tab.isIncognito && !tried) {
+      passwordVM.basicCredentialFor(host, realm)
+        .then((cred: PasswordInfo | null): void => {
+          if (cred !== null && !this.authGuard.get(key)) {
+            this.authGuard.set(key, true)
+            event.handler.confirm(cred.username, cred.password)
+            return
+          }
+          this.openHttpAuthDialog(event.handler, host, realm, tried)
+        })
+        .catch((): void => {
+          this.openHttpAuthDialog(event.handler, host, realm, tried)
+        })
+      return
+    }
+    this.openHttpAuthDialog(event.handler, host, realm, tried)
+  }
+
+  /** 打开 HTTP 认证登录弹窗 */
+  private openHttpAuthDialog(handler: HttpAuthHandler, host: string, realm: string, failed: boolean): void {
+    this.pendingAuthHandler = handler
+    this.authHost = host
+    this.authRealm = realm
+    this.authUsername = ''
+    this.authPassword = ''
+    this.authShowPwd = false
+    this.authRemember = true
+    this.authFailed = failed
+    this.httpAuthDialog?.open()
+  }
+
+  /** 弹窗「登录」：确认认证，勾选记住则写入密码管理器（无痕不落库） */
+  private doHttpAuthLogin(): void {
+    const host: string = this.authHost
+    const realm: string = this.authRealm
+    const username: string = this.authUsername
+    const password: string = this.authPassword
+    this.authGuard.set(`${host}|${realm}`, true)
+    if (this.authRemember && !this.tab.isIncognito) {
+      passwordVM.upsertBasic(host, realm, username, password)
+    }
+    this.pendingAuthHandler?.confirm(username, password)
+    this.pendingAuthHandler = null
+    this.httpAuthDialog?.close()
+  }
+
+  /** 弹窗「取消」：取消本次认证 */
+  private cancelHttpAuth(): void {
+    this.pendingAuthHandler?.cancel()
+    this.pendingAuthHandler = null
+    this.httpAuthDialog?.close()
+  }
+
   /**
    * 注入脚本捕获登录凭据上报（__qhNative.passwordSubmit）：
    * 按设置与去重规则弹「保存/更新密码」提示
@@ -1259,6 +1446,8 @@ export struct TabWeb {
         this.onTextMenuSelectAll()
       } else if (id === 'text_search') {
         this.onTextMenuSearch()
+      } else if (id === 'text_translate') {
+        this.onTextMenuTranslate()
       } else if (id === 'text_share') {
         this.onTextMenuShare()
       }
@@ -1334,6 +1523,16 @@ export struct TabWeb {
     this.fetchSelectionText()
       .then((text: string): void => {
         longPressVM.shareText(text)
+      })
+      .catch((): void => {
+      })
+  }
+
+  /** 文本菜单：划词翻译（选中文本 → 引擎翻译 → 弹窗展示译文） */
+  private onTextMenuTranslate(): void {
+    this.fetchSelectionText()
+      .then((text: string): void => {
+        translateVM.translateSelection(text)
       })
       .catch((): void => {
       })
@@ -1468,7 +1667,11 @@ export struct TabWeb {
             this.loadViewSourceDoc()
             return
           }
-          UaUtils.applyTo(tabsVM.ensureController(this.tab))
+          UaUtils.onWebAttach(tabsVM.ensureController(this.tab))
+          DnsUtils.onWebAttach()
+          ProxyUtils.onWebAttach()
+          AdvancedSecurityUtils.onWebAttach()
+          hostsVM.onWebAttach()
           this.applyAdsBlockEnable()
           this.applyIntelligentTrackingPrevention()
           // 安全浏览需在页面加载前设置（onPageBegin 时首屏加载已开始）
@@ -1544,6 +1747,12 @@ export struct TabWeb {
           }
           adBlockStore.add(urls.length, bytes)
           netLogVM.markBlocked(this.tab.id, urls)
+          // 隐私报告（跟踪者视角）：无痕不记录（网站列表会暴露浏览历史）
+          if (!this.tab.isIncognito) {
+            trackerVM.recordBlocked(this.tab.url, urls)
+              .catch((): void => {
+              })
+          }
           console.info(`[TabWeb] 广告拦截命中 ${urls.length} 条: ${urls[0]}`)
         })
         .onErrorReceive((event: OnErrorReceiveEvent) => {
@@ -1576,9 +1785,16 @@ export struct TabWeb {
             event.handler.handleCancel()
           }
         })
+        // HTTP Basic 认证：返回 true 由应用接管（自动登录或弹登录框），禁止内核默认弹窗
+        .onHttpAuthRequest((event: OnHttpAuthRequestEvent): boolean => {
+          this.handleHttpAuth(event)
+          return true
+        })
         .onPageBegin((event: OnPageBeginEvent) => {
           // 导航离开时关闭可能残留的自定义菜单
           this.closeCtxMenu()
+          // HTTP 认证：进入新页面说明已通过认证，清空防死循环 guard
+          this.authGuard.clear()
           // 元素审查：绑定标签导航时清选点与选中态（面板保留）
           inspectorVM.resetForNavigation(this.tab.id)
           // 用户脚本：清空本标签已注册的 GM 菜单命令（新页面由脚本重新注册）
@@ -1589,6 +1805,8 @@ export struct TabWeb {
           }
           this.applySafeBrowsing()
           this.refreshPolicy(event.url)
+          // 翻译：导航清翻译态（新页面需重新翻译）
+          translateVM.clearTab(this.tab.id)
           this.detectSeq++
           this.tab.readerable = false
           // 色彩模式：新页面 theme-color 重新提取
@@ -1608,6 +1826,8 @@ export struct TabWeb {
           this.injectUserScripts(event.url)
           this.detectReadability()
           this.detectThemeColor()
+          // 翻译：页面语言命中「总是翻译」列表时自动翻译
+          translateVM.autoTranslate(this.tab)
           browserVM.onPageEnded(this.tab, event.url)
           browserVM.updateNavState(this.tab)
         })

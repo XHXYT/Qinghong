@@ -4,6 +4,7 @@ import { appSettings } from '../common/entity/SettingsModel';
 import { ResourceUtils } from '../common/utils/ResourceUtil';
 import { _QhState } from '../entryability/AppState';
 import { UaUtils } from '../common/utils/UaUtils';
+import { ProxyUtils, SITE_PROXY_KEY } from '../common/utils/ProxyUtils';
 
 /** 站点设置档位 */
 export class SiteOpt {
@@ -63,6 +64,8 @@ export class SitePolicy {
   jsEnabled: boolean = true
   /** 广告拦截：'app' 跟随应用 | 'on' 强制开启 | 'off' 强制关闭 */
   adBlock: string = 'app'
+  /** 允许跨站跟踪（true 时该站点豁免智能防跟踪，第三方登录/支付等场景） */
+  allowCrossSiteTracking: boolean = false
   /** UA 覆盖串（'' = 跟随应用全局 UA） */
   uaOverride: string = ''
   /** 位置权限：'app' 跟随应用 | 'allow' | 'ask' | 'block' */
@@ -155,6 +158,8 @@ export class SiteSettingsViewModel {
       ]),
       new SiteGroup('basic', $r('app.string.site_group_basic'), [
         new SiteItemConfig('site_ad_block', $r('app.string.site_ad_block'), T('on'), 'on', true),
+        new SiteItemConfig('site_cross_site_tracking', $r('app.string.site_cross_site_tracking'), T('off'), 'off', true),
+        new SiteItemConfig('site_proxy', $r('app.string.site_proxy'), T('off'), 'off', true),
         new SiteItemConfig('site_incognito', $r('app.string.site_incognito'), T('off'), 'off', true)
       ]),
       new SiteGroup('permission', $r('app.string.site_group_permission'), [
@@ -215,6 +220,14 @@ export class SiteSettingsViewModel {
     appSettings.site_defaults = JSON.stringify(raw)
     appSettings.save()
     SiteSettingsViewModel.policyCache.clear()
+    // 站点默认「电脑模式」影响应用级 UA（域名级架构下所有未覆盖站点走应用级）
+    if (key === 'site_desktop') {
+      UaUtils.syncAppUa()
+    }
+    // 「走代理」默认切换（全局走代理 ⇄ 仅例外走代理）需重算代理分流
+    if (key === SITE_PROXY_KEY) {
+      ProxyUtils.apply()
+    }
   }
 
   /** 档位标识 → 文案 */
@@ -356,6 +369,8 @@ export class SiteSettingsViewModel {
     // 广告拦截
     const ab: string = merged.get('site_ad_block') ?? ''
     policy.adBlock = ab === 'on' || ab === 'off' ? ab : 'app'
+    // 允许跨站跟踪（站点显式开启才豁免智能防跟踪）
+    policy.allowCrossSiteTracking = (merged.get('site_cross_site_tracking') ?? '') === 'on'
     // 位置/摄像头/麦克风权限
     policy.locationMode = SiteSettingsViewModel.permMode(merged.get('site_location') ?? '')
     policy.cameraMode = SiteSettingsViewModel.permMode(merged.get('site_camera') ?? '')
@@ -438,6 +453,8 @@ export class SiteSettingsViewModel {
   async setSiteEnabled(site: string, enabled: boolean): Promise<void> {
     await this.getDB().setOverride(site, SiteSettingsViewModel.SITE_ENABLED_KEY, enabled ? 'on' : 'off')
     SiteSettingsViewModel.policyCache.clear()
+    // 停用/启用影响该站点 UA 覆盖是否参与域名映射
+    this.syncHostUaMap()
   }
 
   async getOverride(site: string, key: string): Promise<string | null> {
@@ -462,6 +479,12 @@ export class SiteSettingsViewModel {
     if (key === 'site_incognito' && this.incognitoCache !== null) {
       this.incognitoCache.set(site, value)
     }
+    if (key === 'site_ua' || key === 'site_desktop') {
+      this.syncHostUaMap()
+    }
+    if (key === SITE_PROXY_KEY) {
+      ProxyUtils.apply()
+    }
   }
 
   /** 主动添加站点：仅建档启用状态，设定项按需覆盖（详情页始终渲染全量配置） */
@@ -476,6 +499,12 @@ export class SiteSettingsViewModel {
     if (key === 'site_incognito' && this.incognitoCache !== null) {
       this.incognitoCache.delete(site)
     }
+    if (key === 'site_ua' || key === 'site_desktop') {
+      this.syncHostUaMap()
+    }
+    if (key === SITE_PROXY_KEY) {
+      ProxyUtils.apply()
+    }
   }
 
   async removeSite(site: string): Promise<void> {
@@ -484,6 +513,75 @@ export class SiteSettingsViewModel {
     if (this.incognitoCache !== null) {
       this.incognitoCache.delete(site)
     }
+    // 站点删除后其 UA 覆盖不再参与域名映射
+    this.syncHostUaMap()
+    // 整站删除可能移除其"走代理"覆盖，重算代理分流
+    ProxyUtils.apply()
+  }
+
+  /** 站点 UA 域名映射重建（site_ua/site_desktop/停用/删站变更后调用；能力回退时内部空转） */
+  syncHostUaMap(): void {
+    if (!UaUtils.hostUaMode()) {
+      return
+    }
+    this.buildHostUaGroups().then((groups: Map<string, string[]>): void => {
+      UaUtils.applyHostUaMap(groups)
+    }).catch((): void => {
+    })
+  }
+
+  /**
+   * 站点 UA 域名映射构建（UA 串 → host 列表）：
+   * - site_ua 覆盖（'global' 跟随全局不注册，走应用级）
+   * - site_desktop=on（无 site_ua 覆盖时使用电脑标识）
+   * - 站点设定停用的跳过
+   */
+  async buildHostUaGroups(): Promise<Map<string, string[]>> {
+    const groups: Map<string, string[]> = new Map()
+    const addHost = (host: string, ua: string): void => {
+      if (host === '' || ua === '') {
+        return
+      }
+      const list: string[] | undefined = groups.get(ua)
+      if (list !== undefined) {
+        if (!list.includes(host)) {
+          list.push(host)
+        }
+      } else {
+        groups.set(ua, [host])
+      }
+    }
+    // 停用站点集合（一次查询构建）
+    const disabled: Set<string> = new Set()
+    const enRows: SiteSettingInfo[] = await this.listByKey(SiteSettingsViewModel.SITE_ENABLED_KEY)
+    for (const r of enRows) {
+      if (r.value === 'off') {
+        disabled.add(r.site)
+      }
+    }
+    // site_ua 覆盖
+    const hasUa: Set<string> = new Set()
+    const uaRows: SiteSettingInfo[] = await this.listByKey('site_ua')
+    for (const r of uaRows) {
+      if (disabled.has(r.site)) {
+        continue
+      }
+      const ua: string = SiteSettingsViewModel.resolveUaString(r.value)
+      if (ua === '') {
+        continue
+      }
+      hasUa.add(r.site)
+      addHost(r.site, ua)
+    }
+    // site_desktop=on（site_ua 未覆盖时）
+    const dRows: SiteSettingInfo[] = await this.listByKey('site_desktop')
+    for (const r of dRows) {
+      if (r.value !== 'on' || hasUa.has(r.site) || disabled.has(r.site)) {
+        continue
+      }
+      addHost(r.site, UaUtils.desktopUa())
+    }
+    return groups
   }
 
   /** site_incognito 覆盖缓存（host → 'on'|'off'），Web 创建期同步判定用 */
@@ -523,3 +621,6 @@ export class SiteSettingsViewModel {
 }
 
 export const siteSettingsVM: SiteSettingsViewModel = new SiteSettingsViewModel()
+
+// 域名级 UA 宿主映射构建器注入（UaUtils 全局变更时异步重建映射，避免循环依赖）
+UaUtils.hostUaMapProvider = (): Promise<Map<string, string[]>> => siteSettingsVM.buildHostUaGroups()

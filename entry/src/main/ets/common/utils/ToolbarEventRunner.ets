@@ -12,7 +12,7 @@ import { PickerOption, pickerSheetHeight } from '../../components/SheetPicker';
 /**
  * 工具栏事件执行器（设置-工具栏-工具栏事件）：
  * 5 按钮长按 + 工具栏左滑/右滑 → 读绑定动作并执行；
- * 翻译/打开AI面板暂未接线（静默不处理）
+ * 翻译转 menuVM.openTranslate；打开AI面板暂未接线（静默不处理）
  */
 class ToolbarEventRunner {
 
@@ -22,7 +22,11 @@ class ToolbarEventRunner {
     if (action === '' || action === 'none') {
       return false
     }
-    if (action === 'translate' || action === 'ai_panel') {
+    if (action === 'translate') {
+      menuVM.openTranslate()
+      return true
+    }
+    if (action === 'ai_panel') {
       return false
     }
     this.runAction(action)

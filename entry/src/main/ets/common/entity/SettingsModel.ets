@@ -165,6 +165,8 @@ export class AppSettings {
   @Trace do_not_track: boolean = true
   /** 隐私：禁用 WebRTC */
   @Trace disable_webrtc: boolean = false
+  /** 隐私：禁止 WebRTC 非代理 UDP（API 26 高级安全模式，防 WebRTC 经 UDP 绕过代理泄露真实 IP） */
+  @Trace disable_webrtc_udp: boolean = false
   /** 隐私：不出售或分享数据 */
   @Trace do_not_sell: boolean = false
   /** 隐私：智能防跟踪（跨站跟踪型网站请求不携带 Cookie，ArkWeb 内核执行） */
@@ -179,6 +181,20 @@ export class AppSettings {
   @Trace language: string = 'system'
   /** 屏幕方向 'auto' | 'portrait' | 'landscape' */
   @Trace screen_orientation: string = 'auto'
+  /** DNS 优化：使用 DoH 加密解析（加速 & 防污染） */
+  @Trace dns_doh_enabled: boolean = false
+  /** DNS 优化服务商：预置 id（alidns/dnspod/google/cloudflare/qihoo360）| 'custom' */
+  @Trace dns_doh_provider: string = 'alidns'
+  /** DNS 优化自定义 DoH 服务器地址（https:// 开头，provider=custom 时使用） */
+  @Trace dns_doh_custom: string = ''
+  /** 代理：启用代理（走代理范围由网站设定「走代理」的默认与例外决定） */
+  @Trace proxy_enabled: boolean = false
+  /** 代理协议 'http' | 'socks' */
+  @Trace proxy_type: string = 'http'
+  /** 代理服务器主机（IP 或域名） */
+  @Trace proxy_host: string = ''
+  /** 代理端口（1-65535，0 表示未设置） */
+  @Trace proxy_port: number = 0
   /** 浏览器标识（预置 id 或自定义 UA id），默认选中「默认」 */
   @Trace ua_mode: string = 'default'
   /** 电脑模式下的浏览器标识：'windows_chrome' | 'windows_ie' | 'macos' | 'custom' */
@@ -191,8 +207,8 @@ export class AppSettings {
   @Trace custom_uas: CustomUa[] = []
   /** 外置视频播放器 'system' | 'none' */
   @Trace video_player: string = 'system'
-  /** 退出时清除数据（逗号分隔的 key 列表）；默认勾选：缓存/表单数据/应用缓存 */
-  @Trace exit_clear_data: string = 'cache,form,app_cache'
+  /** 退出时清除数据（逗号分隔的 key 列表）；默认勾选：缓存/应用缓存 */
+  @Trace exit_clear_data: string = 'cache,app_cache'
   /** 高级：无图模式（不加载网页在线图片） */
   @Trace no_image_mode: boolean = false
   /** 高级：自动展示嗅探按钮 */
@@ -207,6 +223,8 @@ export class AppSettings {
   @Trace web_vibration_enabled: boolean = false
   /** 高级：保留文本长按选择的触感反馈（网页振动关闭时独立生效） */
   @Trace web_haptic_enabled: boolean = true
+  /** 高级：预解析加速（自动预连接高频访问的站点） */
+  @Trace dns_preconnect_enabled: boolean = true
   /** 显示撤销关闭标签的提示 */
   @Trace show_undo_close_tip: boolean = true
   /** 打开网页时自动展开网页中折叠的内容 */
@@ -305,7 +323,7 @@ export class AppSettings {
   @Trace menu_layout: string = ''
   /** 定制长按菜单：已启用动作项（逗号分隔 id；空 = 默认全开但「保存图片」关闭） */
   @Trace long_press_menu: string = ''
-  /** 书签文件夹注册表（JSON 字符串数组，'/' 分层，顺序即显示顺序） */
+  /** 书签文件夹注册表（JSON 条目数组：'/' 分层，条目含路径与统一顺序值） */
   @Trace bookmark_folders: string = '[]'
   /** 操作设定：滑动屏幕前进后退 */
   @Trace swipe_nav_enabled: boolean = false
@@ -327,6 +345,30 @@ export class AppSettings {
   @Trace download_task_limit: number = 3
   /** 下载配置：下载进度通知 */
   @Trace download_notify: boolean = true
+  /** 翻译：目标语言（如 zh-CN） */
+  @Trace translate_target_lang: string = 'zh-CN'
+  /** 翻译：双语对照（译文后附原文） */
+  @Trace translate_bilingual: boolean = false
+  /** 翻译：总是自动翻译的页面语言（逗号分隔，如 en,ja） */
+  @Trace translate_always: string = ''
+  /** 翻译：服务 builtin 内置免费 / deepl / libre */
+  @Trace translate_engine: string = 'builtin'
+  /** 翻译：DeepL API 密钥（free key 以 :fx 结尾） */
+  @Trace translate_deepl_key: string = ''
+  /** 翻译：LibreTranslate 服务地址 */
+  @Trace translate_libre_url: string = ''
+  /** 翻译：LibreTranslate 密钥（可空） */
+  @Trace translate_libre_key: string = ''
+  /** 翻译：微软 Azure 密钥（可附 #region，如 key#eastasia） */
+  @Trace translate_ms_key: string = ''
+  /** 翻译：百度翻译 APP ID */
+  @Trace translate_baidu_appid: string = ''
+  /** 翻译：百度翻译密钥 */
+  @Trace translate_baidu_key: string = ''
+  /** 翻译：有道智云应用 ID */
+  @Trace translate_youdao_appid: string = ''
+  /** 翻译：有道智云应用密钥 */
+  @Trace translate_youdao_secret: string = ''
 
   constructor() {
   }
@@ -393,6 +435,7 @@ export class AppSettings {
       "default_incognito": this.default_incognito,
       "do_not_track": this.do_not_track,
       "disable_webrtc": this.disable_webrtc,
+      "disable_webrtc_udp": this.disable_webrtc_udp,
       "do_not_sell": this.do_not_sell,
       "intelligent_tracking_prevention": this.intelligent_tracking_prevention,
       "ad_block_enabled": this.ad_block_enabled,
@@ -400,6 +443,13 @@ export class AppSettings {
       "geolocation_access": this.geolocation_access,
       "language": this.language,
       "screen_orientation": this.screen_orientation,
+      "dns_doh_enabled": this.dns_doh_enabled,
+      "dns_doh_provider": this.dns_doh_provider,
+      "dns_doh_custom": this.dns_doh_custom,
+      "proxy_enabled": this.proxy_enabled,
+      "proxy_type": this.proxy_type,
+      "proxy_host": this.proxy_host,
+      "proxy_port": this.proxy_port,
       "ua_mode": this.ua_mode,
       "ua_desktop": this.ua_desktop,
       "desktop_mode": this.desktop_mode,
@@ -414,6 +464,7 @@ export class AppSettings {
       "ignore_ssl_warning": this.ignore_ssl_warning,
       "web_vibration_enabled": this.web_vibration_enabled,
       "web_haptic_enabled": this.web_haptic_enabled,
+      "dns_preconnect_enabled": this.dns_preconnect_enabled,
       "show_undo_close_tip": this.show_undo_close_tip,
       "auto_expand_web": this.auto_expand_web,
       "force_enable_zoom": this.force_enable_zoom,
@@ -472,7 +523,19 @@ export class AppSettings {
       "toolbar_events": this.toolbar_events,
       "download_concurrency": this.download_concurrency,
       "download_task_limit": this.download_task_limit,
-      "download_notify": this.download_notify
+      "download_notify": this.download_notify,
+      "translate_target_lang": this.translate_target_lang,
+      "translate_bilingual": this.translate_bilingual,
+      "translate_always": this.translate_always,
+      "translate_engine": this.translate_engine,
+      "translate_deepl_key": this.translate_deepl_key,
+      "translate_libre_url": this.translate_libre_url,
+      "translate_libre_key": this.translate_libre_key,
+      "translate_ms_key": this.translate_ms_key,
+      "translate_baidu_appid": this.translate_baidu_appid,
+      "translate_baidu_key": this.translate_baidu_key,
+      "translate_youdao_appid": this.translate_youdao_appid,
+      "translate_youdao_secret": this.translate_youdao_secret
     };
   }
 
@@ -489,6 +552,7 @@ export class AppSettings {
     this.default_incognito = (json["default_incognito"] as boolean) ?? this.default_incognito;
     this.do_not_track = (json["do_not_track"] as boolean) ?? this.do_not_track;
     this.disable_webrtc = (json["disable_webrtc"] as boolean) ?? this.disable_webrtc;
+    this.disable_webrtc_udp = (json["disable_webrtc_udp"] as boolean) ?? this.disable_webrtc_udp;
     this.do_not_sell = (json["do_not_sell"] as boolean) ?? this.do_not_sell;
     this.intelligent_tracking_prevention =
       (json["intelligent_tracking_prevention"] as boolean) ?? this.intelligent_tracking_prevention;
@@ -497,6 +561,13 @@ export class AppSettings {
     this.geolocation_access = (json["geolocation_access"] as boolean) ?? this.geolocation_access;
     this.language = (json["language"] as string) ?? this.language;
     this.screen_orientation = (json["screen_orientation"] as string) ?? this.screen_orientation;
+    this.dns_doh_enabled = (json["dns_doh_enabled"] as boolean) ?? this.dns_doh_enabled;
+    this.dns_doh_provider = (json["dns_doh_provider"] as string) ?? this.dns_doh_provider;
+    this.dns_doh_custom = (json["dns_doh_custom"] as string) ?? this.dns_doh_custom;
+    this.proxy_enabled = (json["proxy_enabled"] as boolean) ?? this.proxy_enabled;
+    this.proxy_type = (json["proxy_type"] as string) ?? this.proxy_type;
+    this.proxy_host = (json["proxy_host"] as string) ?? this.proxy_host;
+    this.proxy_port = (json["proxy_port"] as number) ?? this.proxy_port;
     this.ua_mode = (json["ua_mode"] as string) ?? this.ua_mode;
     this.ua_desktop = (json["ua_desktop"] as string) ?? this.ua_desktop;
     this.desktop_mode = (json["desktop_mode"] as boolean) ?? this.desktop_mode;
@@ -510,6 +581,7 @@ export class AppSettings {
     this.ignore_ssl_warning = (json["ignore_ssl_warning"] as boolean) ?? this.ignore_ssl_warning;
     this.web_vibration_enabled = (json["web_vibration_enabled"] as boolean) ?? this.web_vibration_enabled;
     this.web_haptic_enabled = (json["web_haptic_enabled"] as boolean) ?? this.web_haptic_enabled;
+    this.dns_preconnect_enabled = (json["dns_preconnect_enabled"] as boolean) ?? this.dns_preconnect_enabled;
     this.show_undo_close_tip = (json["show_undo_close_tip"] as boolean) ?? this.show_undo_close_tip;
     this.auto_expand_web = (json["auto_expand_web"] as boolean) ?? this.auto_expand_web;
     this.force_enable_zoom = (json["force_enable_zoom"] as boolean) ?? this.force_enable_zoom;
@@ -575,6 +647,18 @@ export class AppSettings {
       this.download_task_limit = Math.round(limit);
     }
     this.download_notify = (json["download_notify"] as boolean) ?? this.download_notify;
+    this.translate_target_lang = (json["translate_target_lang"] as string) ?? this.translate_target_lang;
+    this.translate_bilingual = (json["translate_bilingual"] as boolean) ?? this.translate_bilingual;
+    this.translate_always = (json["translate_always"] as string) ?? this.translate_always;
+    this.translate_engine = (json["translate_engine"] as string) ?? this.translate_engine;
+    this.translate_deepl_key = (json["translate_deepl_key"] as string) ?? this.translate_deepl_key;
+    this.translate_libre_url = (json["translate_libre_url"] as string) ?? this.translate_libre_url;
+    this.translate_libre_key = (json["translate_libre_key"] as string) ?? this.translate_libre_key;
+    this.translate_ms_key = (json["translate_ms_key"] as string) ?? this.translate_ms_key;
+    this.translate_baidu_appid = (json["translate_baidu_appid"] as string) ?? this.translate_baidu_appid;
+    this.translate_baidu_key = (json["translate_baidu_key"] as string) ?? this.translate_baidu_key;
+    this.translate_youdao_appid = (json["translate_youdao_appid"] as string) ?? this.translate_youdao_appid;
+    this.translate_youdao_secret = (json["translate_youdao_secret"] as string) ?? this.translate_youdao_secret;
 
     const rawUas = json["custom_uas"] as Object[];
     if (rawUas) {
@@ -606,9 +690,12 @@ export class AppSettings {
   }
 
   @Monitor('search_engine_id', 'custom_engines', 'show_homepage_logo', 'restore_mode', 'default_incognito',
-    'do_not_track', 'disable_webrtc', 'do_not_sell', 'intelligent_tracking_prevention', 'geolocation_access', 'language', 'screen_orientation', 'ua_mode', 'ua_desktop', 'desktop_mode', 'ua_simplify', 'custom_uas', 'video_player',
+    'do_not_track', 'disable_webrtc', 'disable_webrtc_udp', 'do_not_sell', 'intelligent_tracking_prevention', 'geolocation_access', 'language', 'screen_orientation', 'ua_mode', 'ua_desktop', 'desktop_mode', 'ua_simplify', 'custom_uas', 'video_player',
     'exit_clear_data', 'no_image_mode', 'show_sniff_button', 'allow_debug_web', 'disable_safe_browsing',
-    'ignore_ssl_warning', 'web_vibration_enabled', 'web_haptic_enabled', 'show_undo_close_tip', 'auto_expand_web', 'force_enable_zoom', 'cookies_enabled', 'cookies_block_third_party', 'popup_allowed', 'site_defaults', 'ad_block_enabled', 'ad_block_builtin', 'night_mask_enabled', 'night_mask_opacity', 'night_mask_color', 'force_dark_web',
+    'ignore_ssl_warning', 'web_vibration_enabled', 'web_haptic_enabled', 'dns_preconnect_enabled',
+    'dns_doh_enabled', 'dns_doh_provider', 'dns_doh_custom',
+    'proxy_enabled', 'proxy_type', 'proxy_host', 'proxy_port',
+    'show_undo_close_tip', 'auto_expand_web', 'force_enable_zoom', 'cookies_enabled', 'cookies_block_third_party', 'popup_allowed', 'site_defaults', 'ad_block_enabled', 'ad_block_builtin', 'night_mask_enabled', 'night_mask_opacity', 'night_mask_color', 'force_dark_web',
     'read_mode_address_button', 'read_mode_confirm', 'read_mode_bg_color', 'read_mode_custom_bg', 'read_mode_font_size', 'read_mode_serif', 'font_family',
     'password_save_prompt', 'system_password_manager', 'home_page_mode', 'home_page_url',
     'home_logo_mode', 'home_logo_image', 'home_logo_text', 'home_logo_html',
@@ -618,7 +705,11 @@ export class AppSettings {
     'home_search_effect', 'home_show_search_area', 'home_custom_css', 'home_custom_css_enabled',
     'search_suggest_sources',     'search_toolbar_enabled', 'search_toolbar_engines', 'menu_layout', 'long_press_menu', 'bookmark_folders',
     'swipe_nav_enabled', 'volume_key_paging', 'player_gestures', 'keyboard_shortcuts', 'toolbar_events',
-    'download_concurrency', 'download_task_limit', 'download_notify')
+    'download_concurrency', 'download_task_limit', 'download_notify',
+    'translate_target_lang', 'translate_bilingual', 'translate_always', 'translate_engine',
+    'translate_deepl_key', 'translate_libre_url', 'translate_libre_key',
+    'translate_ms_key', 'translate_baidu_appid', 'translate_baidu_key',
+    'translate_youdao_appid', 'translate_youdao_secret')
   public async save(): Promise<void> {
     try {
       const jsonStr: string = JSON.stringify(this.toSyncData());
@@ -636,6 +727,7 @@ export class AppSettings {
     this.default_incognito = false;
     this.do_not_track = true;
     this.disable_webrtc = false;
+    this.disable_webrtc_udp = false;
     this.do_not_sell = false;
     this.intelligent_tracking_prevention = true;
     this.ad_block_enabled = true;
@@ -649,7 +741,7 @@ export class AppSettings {
     this.ua_simplify = false;
     this.custom_uas = [];
     this.video_player = 'system';
-    this.exit_clear_data = 'cache,form,app_cache';
+    this.exit_clear_data = 'cache,app_cache';
     this.no_image_mode = false;
     this.show_sniff_button = true;
     this.allow_debug_web = true;
@@ -657,6 +749,14 @@ export class AppSettings {
     this.ignore_ssl_warning = false;
     this.web_vibration_enabled = false;
     this.web_haptic_enabled = true;
+    this.dns_preconnect_enabled = true;
+    this.dns_doh_enabled = false;
+    this.dns_doh_provider = 'alidns';
+    this.dns_doh_custom = '';
+    this.proxy_enabled = false;
+    this.proxy_type = 'http';
+    this.proxy_host = '';
+    this.proxy_port = 0;
     this.show_undo_close_tip = true;
     this.auto_expand_web = false;
     this.force_enable_zoom = false;
@@ -716,6 +816,18 @@ export class AppSettings {
     this.download_concurrency = 4;
     this.download_task_limit = 3;
     this.download_notify = true;
+    this.translate_target_lang = 'zh-CN';
+    this.translate_bilingual = false;
+    this.translate_always = '';
+    this.translate_engine = 'builtin';
+    this.translate_deepl_key = '';
+    this.translate_libre_url = '';
+    this.translate_libre_key = '';
+    this.translate_ms_key = '';
+    this.translate_baidu_appid = '';
+    this.translate_baidu_key = '';
+    this.translate_youdao_appid = '';
+    this.translate_youdao_secret = '';
     this.save();
   }
 

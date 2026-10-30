@@ -19,11 +19,25 @@ export class UserAgentPreset {
 
 /**
  * 浏览器标识工具：预置列表、解析、简化、应用
+ * 应用链路（域名级能力可用时，API 20+）：
+ * - 全局 UA → setAppCustomUserAgent（内核应用级）
+ * - 站点 UA → setUserAgentForHosts（内核域名级，宿主列表由 provider 异步构建）
+ * - 实例级 setCustomUserAgent 全部退役（规避导航栈内设置引发的 SIGTRAP 崩溃）
+ * 能力不可用时自动回退旧路径（实例级逐标签应用）
  */
 export class UaUtils {
 
-  /** 系统默认 UA（首次 Web 附加时捕获，用于还原与简化） */
+  /** 系统默认 UA（首次 Web 附加时捕获，须在任何内核级 UA 设置之前，用于还原与简化） */
   static defaultUa: string = ''
+
+  /** 域名级 UA 能力是否可用（首次内核调用失败即置 false，永久回退实例级旧路径） */
+  private static hostUaAvailable: boolean = true
+
+  /** 已注册过域名映射的 UA 串（用于清除失效映射：不在最新分组里的旧 UA 重设空列表） */
+  private static registeredHostUas: Set<string> = new Set()
+
+  /** 域名级 UA 宿主映射构建器（由 SiteSettingsViewModel 注入，避免循环依赖；返回 UA 串 → host 列表） */
+  static hostUaMapProvider: (() => Promise<Map<string, string[]>>) | null = null
 
   static readonly PRESETS: UserAgentPreset[] = [
     new UserAgentPreset('default', $r('app.string.ua_default'),
@@ -35,7 +49,7 @@ export class UaUtils {
     new UserAgentPreset('windows_chrome', $r('app.string.ua_windows_chrome'),
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'),
     new UserAgentPreset('windows_ie', $r('app.string.ua_windows_ie'),
-      'Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko'),
+      'Mozilla/5.0 (Windows NT; WOW64; Trident/7.0; rv:11.0) like Gecko'),
     new UserAgentPreset('macos', $r('app.string.ua_macos'),
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'),
     new UserAgentPreset('iphone', $r('app.string.ua_iphone'),
@@ -111,7 +125,98 @@ export class UaUtils {
     return UaUtils.resolveUa(appSettings.ua_desktop)
   }
 
-  /** 应用 UA 到指定 Web 控制器（首次调用时捕获系统默认 UA） */
+  /** 站点设置全局默认「电脑模式」是否开启（站点设置默认值，区别于应用级电脑模式开关） */
+  private static siteDesktopDefaultOn(): boolean {
+    if (appSettings.site_defaults === '') {
+      return false
+    }
+    try {
+      const raw: Record<string, Object> = JSON.parse(appSettings.site_defaults) as Record<string, Object>
+      const v: Object | undefined = raw['site_desktop']
+      return v !== undefined && v === 'on'
+    } catch (e) {
+      return false
+    }
+  }
+
+  /** 应用级 UA：全局设置 + 站点默认电脑模式（域名级架构下所有未覆盖站点统一走此 UA） */
+  private static appUa(): string {
+    if (!appSettings.desktop_mode && UaUtils.siteDesktopDefaultOn()) {
+      return UaUtils.desktopUa()
+    }
+    return UaUtils.effectiveUa()
+  }
+
+  /** 域名级 UA 能力是否可用（TabWeb 据此决定是否走实例级旧路径） */
+  static hostUaMode(): boolean {
+    return UaUtils.hostUaAvailable
+  }
+
+  /** Web 附加入口：首次捕获系统默认 UA（须早于任何内核级 UA 设置）→ 同步应用级 UA */
+  static onWebAttach(controller: webview.WebviewController): void {
+    if (UaUtils.defaultUa === '') {
+      try {
+        UaUtils.defaultUa = controller.getUserAgent()
+      } catch (e) {
+        return
+      }
+    }
+    UaUtils.syncAppUa()
+  }
+
+  /** 应用级 UA 同步（setAppCustomUserAgent；能力不可用回退实例级旧路径） */
+  static syncAppUa(): void {
+    if (UaUtils.hostUaAvailable) {
+      const ua: string = UaUtils.appUa()
+      if (ua === '') {
+        return
+      }
+      try {
+        webview.WebviewController.setAppCustomUserAgent(ua)
+        return
+      } catch (e) {
+        // 801 能力不支持等 → 永久回退实例级路径
+        UaUtils.hostUaAvailable = false
+      }
+    }
+    for (const tab of tabsVM.tabs) {
+      const c = tab.controller
+      if (c) {
+        UaUtils.applyTo(c)
+      }
+    }
+  }
+
+  /** 域名级 UA 注册：按 UA 串分组设置宿主列表；不再使用的旧 UA 重设空列表清除映射 */
+  static applyHostUaMap(groups: Map<string, string[]>): void {
+    if (!UaUtils.hostUaAvailable) {
+      return
+    }
+    const seen: Set<string> = new Set()
+    groups.forEach((hosts: string[], ua: string): void => {
+      seen.add(ua)
+      try {
+        webview.WebviewController.setUserAgentForHosts(ua, hosts)
+        UaUtils.registeredHostUas.add(ua)
+      } catch (e) {
+      }
+    })
+    const stale: string[] = []
+    UaUtils.registeredHostUas.forEach((ua: string): void => {
+      if (!seen.has(ua)) {
+        stale.push(ua)
+      }
+    })
+    for (const ua of stale) {
+      try {
+        webview.WebviewController.setUserAgentForHosts(ua, [])
+        UaUtils.registeredHostUas.delete(ua)
+      } catch (e) {
+      }
+    }
+  }
+
+  /** 应用 UA 到指定 Web 控制器（旧路径：实例级 setCustomUserAgent，仅能力回退时使用） */
   static applyTo(controller: webview.WebviewController): void {
     if (UaUtils.defaultUa === '') {
       try {
@@ -130,13 +235,15 @@ export class UaUtils {
     }
   }
 
-  /** 应用 UA 到所有已创建的 Web 控制器 */
+  /** 全局 UA 变更统一入口：应用级重设 + 域名映射重建（能力回退时退化为实例级遍历） */
   static applyToAll(): void {
-    for (const tab of tabsVM.tabs) {
-      const c = tab.controller
-      if (c) {
-        UaUtils.applyTo(c)
-      }
+    UaUtils.syncAppUa()
+    const provider = UaUtils.hostUaMapProvider
+    if (provider !== null) {
+      provider().then((groups: Map<string, string[]>): void => {
+        UaUtils.applyHostUaMap(groups)
+      }).catch((): void => {
+      })
     }
   }
 }

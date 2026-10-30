@@ -17,6 +17,8 @@ import { UserScriptEngine } from '../../common/utils/UserScriptEngine';
 import { toastUtil } from '../../common/utils/ToastUtils';
 import BookmarkInfo from '../../common/entity/BookmarkInfo';
 import UserScriptInfo from '../../common/entity/UserScriptInfo';
+import UIConstants from '../../common/constants/UIConstants';
+import { UrlUtils } from '../../common/constants/SearchEngines';
 
 /** Cookie 行（fetchCookieSync 拆解） */
 class CookieRow {
@@ -398,7 +400,7 @@ export struct TopMenuPanel {
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .layoutWeight(1)
       SymbolGlyph($r('sys.symbol.chevron_right'))
-        .fontSize(13)
+        .fontSize(UIConstants.CHEVRON_SIZE)
         .fontColor([$r('sys.color.font_tertiary')])
     }
     .height(46)
@@ -440,7 +442,7 @@ export struct TopMenuPanel {
         .constraintSize({ maxHeight: 300 })
         .scrollBar(BarState.Off)
         .edgeEffect(EdgeEffect.Spring)
-        .align(Alignment.Start)
+        .align(Alignment.TopStart)
       }
     }
     .width('100%')
@@ -451,7 +453,7 @@ export struct TopMenuPanel {
   @Builder
   pagePanel() {
     Column() {
-      // 行 1：站点信息（标题 + 完整网址 + 历史/二维码按钮）
+      // 行 1：站点信息（标题 + 完整网址 + 安全标识 + 历史/二维码按钮）
       Row({ space: 10 }) {
         Column({ space: 3 }) {
           Text(this.siteTitle())
@@ -465,6 +467,21 @@ export struct TopMenuPanel {
             .fontColor($r('sys.color.font_secondary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
+          if (this.connectionState() !== 'unknown') {
+            Row({ space: 4 }) {
+              SymbolGlyph(this.securityIcon())
+                .fontSize(13)
+                .fontColor([this.securityColor()])
+              Text(this.connectionState() === 'secure'
+                ? $r('app.string.site_connection_secure')
+                : $r('app.string.site_connection_insecure'))
+                .fontSize(12)
+                .fontColor(this.securityColor())
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+            }
+            .alignItems(VerticalAlign.Center)
+          }
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
@@ -484,7 +501,7 @@ export struct TopMenuPanel {
         .color($r('sys.color.comp_divider'))
         .margin({ left: 16, right: 16 })
 
-      this.infoRow($r('sys.symbol.checkmark_shield'), $r('app.string.view_certificate'), (): void => {
+      this.infoRow(this.securityIcon(), $r('app.string.view_certificate'), (): void => {
         this.openSheet('cert')
       })
       this.infoRow($r('sys.symbol.tracking_cookie_interception'), $r('app.string.view_cookies'), (): void => {
@@ -510,6 +527,28 @@ export struct TopMenuPanel {
       return tab.title
     }
     return SiteSettingsViewModel.hostOf(tab.url)
+  }
+
+  /** 当前站点连接安全状态（https=secure / http=insecure / 其他=unknown） */
+  private connectionState(): string {
+    return UrlUtils.secureStateOf(this.currentUrl())
+  }
+
+  /** 安全标识图标：安全=勾盾 / 不安全=警示盾 / 其他 scheme=锁盾 */
+  private securityIcon(): Resource {
+    const state: string = this.connectionState()
+    if (state === 'insecure') {
+      return $r('sys.symbol.exclamationmark_shield_fill')
+    }
+    if (state === 'secure') {
+      return $r('sys.symbol.checkmark_shield')
+    }
+    return $r('sys.symbol.lock_shield')
+  }
+
+  /** 安全标识颜色：安全=绿 / 不安全=警示红 */
+  private securityColor(): ResourceColor {
+    return this.connectionState() === 'secure' ? '#66BB6A' : '#E84026'
   }
 
   /** 二维码半模态：码图 + 网址 + 保存按钮 */
@@ -630,7 +669,7 @@ export struct TopMenuPanel {
     .height('100%')
     .scrollBar(BarState.Off)
     .edgeEffect(EdgeEffect.Spring)
-    .align(Alignment.Start)
+    .align(Alignment.TopStart)
   }
 
   /** Cookies 半模态 */
@@ -705,7 +744,7 @@ export struct TopMenuPanel {
         .layoutWeight(1)
         .scrollBar(BarState.Off)
         .edgeEffect(EdgeEffect.Spring)
-        .align(Alignment.Start)
+        .align(Alignment.TopStart)
       }
     }
     .width('100%')

@@ -801,6 +801,190 @@
       "value": "浏览器标识"
     },
     {
+      "name": "settings_dns",
+      "value": "DNS 优化"
+    },
+    {
+      "name": "settings_proxy",
+      "value": "代理"
+    },
+    {
+      "name": "proxy_desc",
+      "value": "开启后，按网站设定中「走代理」的默认与例外，让对应网站经过此代理服务器"
+    },
+    {
+      "name": "proxy_type",
+      "value": "代理类型"
+    },
+    {
+      "name": "proxy_type_http",
+      "value": "HTTP"
+    },
+    {
+      "name": "proxy_type_socks",
+      "value": "SOCKS5"
+    },
+    {
+      "name": "proxy_server",
+      "value": "代理服务器"
+    },
+    {
+      "name": "proxy_server_hint",
+      "value": "IP 或域名"
+    },
+    {
+      "name": "proxy_server_invalid",
+      "value": "请输入有效的服务器地址"
+    },
+    {
+      "name": "proxy_port",
+      "value": "代理端口"
+    },
+    {
+      "name": "proxy_port_invalid",
+      "value": "端口范围为 1-65535"
+    },
+    {
+      "name": "proxy_routed_sites",
+      "value": "走代理的网站"
+    },
+    {
+      "name": "proxy_default_on",
+      "value": "所有网站默认走代理，例外网站直连"
+    },
+    {
+      "name": "proxy_default_off",
+      "value": "默认仅单独开启的网站走代理"
+    },
+    {
+      "name": "proxy_site_off",
+      "value": "不走代理"
+    },
+    {
+      "name": "proxy_no_sites",
+      "value": "暂无走代理的站点，可在站点设置中单独开启"
+    },
+    {
+      "name": "proxy_add_site",
+      "value": "添加站点"
+    },
+    {
+      "name": "proxy_site_hint",
+      "value": "example.com 或 *.example.com"
+    },
+    {
+      "name": "proxy_site_invalid",
+      "value": "请输入有效的域名"
+    },
+    {
+      "name": "site_proxy",
+      "value": "走代理"
+    },
+    {
+      "name": "dns_doh",
+      "value": "加密 DNS（DoH）"
+    },
+    {
+      "name": "dns_doh_desc",
+      "value": "使用加密 DNS 解析域名，加速访问并防止污染"
+    },
+    {
+      "name": "dns_provider",
+      "value": "DNS 服务商"
+    },
+    {
+      "name": "dns_provider_custom",
+      "value": "自定义"
+    },
+    {
+      "name": "dns_provider_alidns",
+      "value": "阿里云公共 DNS"
+    },
+    {
+      "name": "dns_provider_dnspod",
+      "value": "腾讯 DNSPod"
+    },
+    {
+      "name": "dns_provider_google",
+      "value": "Google"
+    },
+    {
+      "name": "dns_provider_cloudflare",
+      "value": "Cloudflare"
+    },
+    {
+      "name": "dns_provider_360",
+      "value": "360 安全 DNS"
+    },
+    {
+      "name": "dns_custom_url",
+      "value": "自定义 DNS 地址"
+    },
+    {
+      "name": "dns_custom_url_hint",
+      "value": "https:// 开头的 DoH 服务器地址"
+    },
+    {
+      "name": "dns_custom_url_invalid",
+      "value": "地址需以 https:// 开头"
+    },
+    {
+      "name": "dns_preconnect",
+      "value": "预解析加速"
+    },
+    {
+      "name": "dns_preconnect_desc",
+      "value": "自动预连接高频访问的站点，加快打开速度"
+    },
+    {
+      "name": "settings_hosts",
+      "value": "域名 IP 指定"
+    },
+    {
+      "name": "hosts_desc",
+      "value": "为指定域名指定解析 IP，类似系统 hosts"
+    },
+    {
+      "name": "hosts_add_title",
+      "value": "添加规则"
+    },
+    {
+      "name": "hosts_edit_title",
+      "value": "编辑规则"
+    },
+    {
+      "name": "hosts_delete_title",
+      "value": "删除规则"
+    },
+    {
+      "name": "hosts_invalid",
+      "value": "域名或 IP 格式不正确"
+    },
+    {
+      "name": "hosts_empty",
+      "value": "暂无规则，点击右上角添加"
+    },
+    {
+      "name": "hosts_host_hint",
+      "value": "域名（如 example.com）"
+    },
+    {
+      "name": "hosts_ip_hint",
+      "value": "IP 地址，多个用空格分隔（如 1.2.3.4）"
+    },
+    {
+      "name": "hosts_import_title",
+      "value": "批量导入"
+    },
+    {
+      "name": "hosts_import_hint",
+      "value": "每行一条：IP 域名（支持单 IP 多域名、多 IP 单域名），# 后为注释"
+    },
+    {
+      "name": "hosts_import_done",
+      "value": "成功导入 %s 条规则"
+    },
+    {
       "name": "ua_default",
       "value": "默认"
     },
@@ -2149,6 +2333,14 @@
       "value": "禁用 WebRTC"
     },
     {
+      "name": "disable_webrtc_udp",
+      "value": "禁止 WebRTC 非代理 UDP"
+    },
+    {
+      "name": "disable_webrtc_udp_desc",
+      "value": "阻止 WebRTC 通过非代理 UDP 绕过代理隧道、泄露真实 IP；开启后实时音视频通话可能无法建立"
+    },
+    {
       "name": "disable_webrtc_desc",
       "value": "防止网页通过 WebRTC 探测你的真实 IP 地址"
     },
@@ -2665,6 +2857,90 @@
       "value": "密码"
     },
     {
+      "name": "label_realm",
+      "value": "Realm"
+    },
+    {
+      "name": "http_auth_title",
+      "value": "需要登录"
+    },
+    {
+      "name": "http_auth_login",
+      "value": "登录"
+    },
+    {
+      "name": "http_auth_failed",
+      "value": "用户名或密码错误"
+    },
+    {
+      "name": "http_auth_remember",
+      "value": "记住密码"
+    },
+    {
+      "name": "privacy_report",
+      "value": "隐私报告"
+    },
+    {
+      "name": "privacy_report_desc",
+      "value": "查看谁在试图跟踪你"
+    },
+    {
+      "name": "privacy_report_summary_hits",
+      "value": "已拦截 %s 次跟踪请求"
+    },
+    {
+      "name": "privacy_report_summary_companies",
+      "value": "%s 家公司在试图跟踪你"
+    },
+    {
+      "name": "privacy_report_tracker_stats",
+      "value": "尝试跟踪 %s 次 · 出现在 %s 个网站"
+    },
+    {
+      "name": "privacy_report_sites_title",
+      "value": "出现的网站"
+    },
+    {
+      "name": "privacy_report_empty",
+      "value": "暂无跟踪记录"
+    },
+    {
+      "name": "privacy_report_empty_hint",
+      "value": "浏览网页后，这里会展示被拦截的跟踪者"
+    },
+    {
+      "name": "privacy_report_clear",
+      "value": "清除统计"
+    },
+    {
+      "name": "privacy_report_clear_confirm",
+      "value": "将清除全部跟踪统计数据，不影响广告拦截功能"
+    },
+    {
+      "name": "tracker_cat_ads",
+      "value": "广告投放"
+    },
+    {
+      "name": "tracker_cat_analytics",
+      "value": "统计分析"
+    },
+    {
+      "name": "tracker_cat_track",
+      "value": "跨站追踪"
+    },
+    {
+      "name": "tracker_cat_social",
+      "value": "社交插件"
+    },
+    {
+      "name": "tracker_cat_fingerprint",
+      "value": "指纹识别"
+    },
+    {
+      "name": "site_cross_site_tracking",
+      "value": "允许跨站跟踪"
+    },
+    {
       "name": "password_delete_confirm",
       "value": "删除后，再次登录该网站时会重新提示保存密码"
     },
@@ -2849,6 +3125,8 @@
     { "name": "home_reset_message", "value": "将恢复主页全部默认外观设置" },
     { "name": "no_quick_links", "value": "暂无快捷书签，可在书签编辑中勾选\"快捷\"" },
     { "name": "view_certificate", "value": "查看证书" },
+    { "name": "site_connection_secure", "value": "连接是安全的" },
+    { "name": "site_connection_insecure", "value": "与此网站的连接不安全" },
     { "name": "view_cookies", "value": "查看 Cookies" },
     { "name": "view_scripts", "value": "查看脚本" },
     { "name": "cert_issued_to", "value": "颁发对象" },
@@ -2867,6 +3145,56 @@
     { "name": "script_runs_here", "value": "作用于当前页面" },
     { "name": "no_scripts", "value": "暂无脚本" },
     { "name": "qr_saved", "value": "已保存到图库" },
-    { "name": "save_failed", "value": "操作失败" }
+    { "name": "save_failed", "value": "操作失败" },
+    { "name": "copy", "value": "复制" },
+    { "name": "translate_settings", "value": "翻译设置" },
+    { "name": "translate_target_lang", "value": "目标语言" },
+    { "name": "translate_bilingual", "value": "双语对照" },
+    { "name": "translate_auto_group", "value": "自动翻译" },
+    { "name": "translate_auto_desc", "value": "打开以下语言的网页时自动翻译" },
+    { "name": "translate_engine_group", "value": "翻译服务" },
+    { "name": "translate_engine", "value": "服务" },
+    { "name": "translate_engine_builtin", "value": "内置免费（必应）" },
+    { "name": "translate_deepl_key", "value": "DeepL 密钥" },
+    { "name": "translate_libre_url", "value": "LibreTranslate 服务地址" },
+    { "name": "translate_libre_key", "value": "LibreTranslate 密钥" },
+    { "name": "translate_key_hint", "value": "输入 API 密钥" },
+    { "name": "translate_not_set", "value": "未设置" },
+    { "name": "translate_select_target", "value": "选择目标语言" },
+    { "name": "translate_in_progress", "value": "正在翻译…" },
+    { "name": "translate_done", "value": "翻译完成" },
+    { "name": "translate_failed", "value": "翻译失败，请检查网络或翻译服务" },
+    { "name": "translate_original", "value": "已恢复原文" },
+    { "name": "translate_no_text", "value": "未选中文字" },
+    { "name": "translate_selection", "value": "划词翻译" },
+    { "name": "translate_lang_zh_cn", "value": "简体中文" },
+    { "name": "translate_lang_zh_tw", "value": "繁體中文" },
+    { "name": "translate_lang_en", "value": "English" },
+    { "name": "translate_lang_ja", "value": "日本語" },
+    { "name": "translate_lang_ko", "value": "한국어" },
+    { "name": "translate_lang_ru", "value": "Русский" },
+    { "name": "translate_lang_fr", "value": "Français" },
+    { "name": "translate_lang_de", "value": "Deutsch" },
+    { "name": "translate_lang_es", "value": "Español" },
+ { "name": "translate_lang_short_zh_cn", "value": "简体" },
+ { "name": "translate_lang_short_zh_tw", "value": "繁體" },
+ { "name": "translate_lang_short_en", "value": "英语" },
+ { "name": "translate_lang_short_ja", "value": "日语" },
+ { "name": "translate_lang_short_ko", "value": "韩语" },
+ { "name": "translate_lang_short_ru", "value": "俄语" },
+ { "name": "translate_lang_short_fr", "value": "法语" },
+ { "name": "translate_lang_short_de", "value": "德语" },
+ { "name": "translate_lang_short_es", "value": "西语" },
+ { "name": "translate_bilingual_short", "value": "双语" },
+    { "name": "translate_engine_google", "value": "谷歌（免费）" },
+    { "name": "translate_engine_microsoft", "value": "微软 Azure" },
+    { "name": "translate_engine_baidu", "value": "百度翻译" },
+    { "name": "translate_engine_youdao", "value": "有道智云" },
+    { "name": "translate_ms_key", "value": "微软密钥" },
+    { "name": "translate_ms_key_hint", "value": "输入 Azure 密钥，可附 #区域" },
+    { "name": "translate_baidu_appid", "value": "百度 APP ID" },
+    { "name": "translate_baidu_key", "value": "百度密钥" },
+    { "name": "translate_youdao_appid", "value": "有道应用 ID" },
+    { "name": "translate_youdao_secret", "value": "有道应用密钥" }
   ]
 }

@@ -1,4 +1,3 @@
-import { webview } from '@kit.ArkWeb';
 import { CustomContentDialog } from '@kit.ArkUI';
 import { picker } from '@kit.CoreFileKit';
 import { defaultAppManager, Want } from '@kit.AbilityKit';
@@ -7,8 +6,6 @@ import { SettingsScaffold, SettingsSection } from '../../../components/SettingsS
 import { QhState } from '../../../entryability/AppState';
 import { appSettings } from '../../../common/entity/SettingsModel';
 import { historyVM } from '../../../viewmodel/HistoryViewModel';
-import { searchHistoryVM } from '../../../viewmodel/SearchViewModel';
-import { tabsVM } from '../../../viewmodel/TabsViewModel';
 import { bookmarkVM } from '../../../viewmodel/BookmarkViewModel';
 import { dataBackupVM, DataBackupViewModel } from '../../../viewmodel/DataBackupViewModel';
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
@@ -16,10 +13,11 @@ import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../.
 import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
 import { toastUtil } from '../../../common/utils/ToastUtils';
 import { ResourceUtils } from '../../../common/utils/ResourceUtil';
+import { DataClearer } from '../../../common/utils/DataClearer';
 import { SettingsUtils } from '../../../common/utils/SettingsUtils';
 import { AppConstants } from '../../../common/constants/AppConstants';
 
-const CLEAR_KEYS: string[] = ['cache', 'form', 'history', 'search_history', 'closed_tabs', 'web_storage', 'cookies', 'app_cache'];
+const CLEAR_KEYS: string[] = DataClearer.KEYS;
 
 function parseExitClear(v: string): boolean[] {
   const parts: string[] = v ? v.split(',') : [];
@@ -149,7 +147,7 @@ struct GeneralSettingsPage {
   @Local showPicker: boolean = false
   @Local pickerHeight: number = pickerSheetHeight(3)
 
-  @Local clearSel: boolean[] = [false, false, false, false, false, false, false, false]
+  @Local clearSel: boolean[] = [false, false, false, false, false, false, false]
   @Local exitSel: boolean[] = parseExitClear('')
   @Local exportSel: boolean[] = [false, false, false]
   @Local inputUrl: string = ''
@@ -257,8 +255,11 @@ struct GeneralSettingsPage {
     // 网页浏览
     g = new SettingsSection('browsing', $r('app.string.general_group_browsing'))
     g.items.push(this.routerItem('ua', $r('app.string.settings_ua'), 'settings_ua'))
+    g.items.push(this.routerItem('dns', $r('app.string.settings_dns'), 'settings_dns'))
+    g.items.push(this.routerItem('proxy', $r('app.string.settings_proxy'), 'settings_proxy'))
     g.items.push(this.routerItem('ad_block', $r('app.string.ad_block'), 'settings_adblock'))
     g.items.push(this.routerItem('site_settings', $r('app.string.site_settings'), 'settings_site'))
+    g.items.push(this.routerItem('translate_settings', $r('app.string.translate_settings'), 'settings_translate'))
     // 外置视频播放器：功能未接线，置灰待后续实现
     const videoPlayerItem: CustomItemInfo = this.textItem('video_player', $r('app.string.video_player'),
       ResourceUtils.getString(videoPlayerLabel(appSettings.video_player)), (): void => {
@@ -320,8 +321,8 @@ struct GeneralSettingsPage {
       alignment: DialogAlignment.Center,
       cornerRadius: 32,
       onWillAppear: (): void => {
-        // 默认勾选：缓存/表单数据/历史记录/网页存储
-        this.clearSel = [true, true, true, false, false, true, false, false]
+        // 默认勾选：缓存/历史记录/网页存储
+        this.clearSel = [true, true, false, false, true, false, false]
       }
     })
     this.exitClearDialog = new CustomDialogController({
@@ -492,25 +493,13 @@ struct GeneralSettingsPage {
   }
 
   private doClearData(): void {
-    if (this.clearSel[0]) {
-      const tab = tabsVM.activeTab
-      if (tab && tab.controller) {
-        try {
-          (tab.controller as webview.WebviewController).removeCache(true)
-        } catch (e) {
-          console.error(`[GeneralSettings] 清除缓存失败: ${e}`)
-        }
+    const keys: string[] = []
+    for (let i = 0; i < this.clearSel.length && i < CLEAR_KEYS.length; i++) {
+      if (this.clearSel[i]) {
+        keys.push(CLEAR_KEYS[i])
       }
     }
-    if (this.clearSel[2]) {
-      historyVM.clearAll()
-    }
-    if (this.clearSel[3]) {
-      searchHistoryVM.clearAll()
-    }
-    if (this.clearSel[6]) {
-      webview.WebCookieManager.clearAllCookiesSync()
-    }
+    DataClearer.clearByKeys(keys)
     toastUtil.showToast({ message: $r('app.string.cleared') })
   }
 
@@ -717,20 +706,18 @@ struct GeneralSettingsPage {
     Column() {
       CheckRow({ label: $r('app.string.clear_cache_label'), checked: this.clearSel[0],
         onToggle: (v: boolean): void => { this.clearSel[0] = v } })
-      CheckRow({ label: $r('app.string.clear_form_data'), checked: this.clearSel[1],
+      CheckRow({ label: $r('app.string.clear_history_label'), checked: this.clearSel[1],
         onToggle: (v: boolean): void => { this.clearSel[1] = v } })
-      CheckRow({ label: $r('app.string.clear_history_label'), checked: this.clearSel[2],
+      CheckRow({ label: $r('app.string.clear_search_history_label'), checked: this.clearSel[2],
         onToggle: (v: boolean): void => { this.clearSel[2] = v } })
-      CheckRow({ label: $r('app.string.clear_search_history_label'), checked: this.clearSel[3],
+      CheckRow({ label: $r('app.string.clear_closed_tabs'), checked: this.clearSel[3],
         onToggle: (v: boolean): void => { this.clearSel[3] = v } })
-      CheckRow({ label: $r('app.string.clear_closed_tabs'), checked: this.clearSel[4],
+      CheckRow({ label: $r('app.string.clear_web_storage'), checked: this.clearSel[4],
         onToggle: (v: boolean): void => { this.clearSel[4] = v } })
-      CheckRow({ label: $r('app.string.clear_web_storage'), checked: this.clearSel[5],
+      CheckRow({ label: $r('app.string.clear_cookies_login'), checked: this.clearSel[5],
         onToggle: (v: boolean): void => { this.clearSel[5] = v } })
-      CheckRow({ label: $r('app.string.clear_cookies_login'), checked: this.clearSel[6],
+      CheckRow({ label: $r('app.string.clear_app_cache'), checked: this.clearSel[6],
         onToggle: (v: boolean): void => { this.clearSel[6] = v } })
-      CheckRow({ label: $r('app.string.clear_app_cache'), checked: this.clearSel[7],
-        onToggle: (v: boolean): void => { this.clearSel[7] = v } })
     }
     .width('100%')
   }
@@ -740,20 +727,18 @@ struct GeneralSettingsPage {
     Column() {
       CheckRow({ label: $r('app.string.clear_cache_label'), checked: this.exitSel[0],
         onToggle: (v: boolean): void => { this.exitSel[0] = v } })
-      CheckRow({ label: $r('app.string.clear_form_data'), checked: this.exitSel[1],
+      CheckRow({ label: $r('app.string.clear_history_label'), checked: this.exitSel[1],
         onToggle: (v: boolean): void => { this.exitSel[1] = v } })
-      CheckRow({ label: $r('app.string.clear_history_label'), checked: this.exitSel[2],
+      CheckRow({ label: $r('app.string.clear_search_history_label'), checked: this.exitSel[2],
         onToggle: (v: boolean): void => { this.exitSel[2] = v } })
-      CheckRow({ label: $r('app.string.clear_search_history_label'), checked: this.exitSel[3],
+      CheckRow({ label: $r('app.string.clear_closed_tabs'), checked: this.exitSel[3],
         onToggle: (v: boolean): void => { this.exitSel[3] = v } })
-      CheckRow({ label: $r('app.string.clear_closed_tabs'), checked: this.exitSel[4],
+      CheckRow({ label: $r('app.string.clear_web_storage'), checked: this.exitSel[4],
         onToggle: (v: boolean): void => { this.exitSel[4] = v } })
-      CheckRow({ label: $r('app.string.clear_web_storage'), checked: this.exitSel[5],
+      CheckRow({ label: $r('app.string.clear_cookies_login'), checked: this.exitSel[5],
         onToggle: (v: boolean): void => { this.exitSel[5] = v } })
-      CheckRow({ label: $r('app.string.clear_cookies_login'), checked: this.exitSel[6],
+      CheckRow({ label: $r('app.string.clear_app_cache'), checked: this.exitSel[6],
         onToggle: (v: boolean): void => { this.exitSel[6] = v } })
-      CheckRow({ label: $r('app.string.clear_app_cache'), checked: this.exitSel[7],
-        onToggle: (v: boolean): void => { this.exitSel[7] = v } })
     }
     .width('100%')
   }

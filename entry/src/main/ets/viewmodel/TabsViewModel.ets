@@ -644,9 +644,9 @@ export class TabsViewModel {
   }
 
   /**
-   * 清除撤销关闭状态
+   * 清除撤销关闭状态（清除数据「已关闭标签」项亦调用）
    */
-  private clearUndoTip(): void {
+  clearUndoTip(): void {
     if (this.undoTipTimer >= 0) {
       clearTimeout(this.undoTipTimer)
       this.undoTipTimer = -1

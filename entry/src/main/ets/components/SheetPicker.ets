@@ -84,7 +84,7 @@ export struct SheetPicker {
         .width('100%')
       }
       .constraintSize({ maxHeight: 520 })
-      .align(Alignment.Start)
+      .align(Alignment.TopStart)
       .scrollBar(BarState.Auto)
     }
     .width('100%')
