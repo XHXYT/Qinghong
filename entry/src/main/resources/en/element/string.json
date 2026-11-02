@@ -1849,6 +1849,14 @@
       "value": "Download folder"
     },
     {
+      "name": "download_confirm_title",
+      "value": "Download file"
+    },
+    {
+      "name": "download_action",
+      "value": "Download"
+    },
+    {
       "name": "download_settings",
       "value": "Downloads"
     },
@@ -1895,6 +1903,138 @@
     {
       "name": "vp_system",
       "value": "System player"
+    },
+    {
+      "name": "video_settings",
+      "value": "Video Settings"
+    },
+    {
+      "name": "video_settings_group_player",
+      "value": "Player"
+    },
+    {
+      "name": "video_settings_group_web",
+      "value": "Web Video"
+    },
+    {
+      "name": "video_control",
+      "value": "Video Controls"
+    },
+    {
+      "name": "video_control_desc",
+      "value": "Double-tap seek, swipe, long-press speed & keyboard shortcuts"
+    },
+    {
+      "name": "video_control_group_gestures",
+      "value": "Gestures"
+    },
+    {
+      "name": "video_control_group_keyboard",
+      "value": "Keyboard Shortcuts"
+    },
+    {
+      "name": "video_gesture_enable",
+      "value": "Enable video gestures"
+    },
+    {
+      "name": "video_gesture_enable_desc",
+      "value": "Control web videos with touch gestures"
+    },
+    {
+      "name": "video_gesture_disabled_hint",
+      "value": "Enable video gestures first"
+    },
+    {
+      "name": "video_gesture_double_tap",
+      "value": "Double-tap seek"
+    },
+    {
+      "name": "video_gesture_double_tap_desc",
+      "value": "Double-tap left to rewind 10s, right to forward 10s"
+    },
+    {
+      "name": "video_gesture_swipe_seek",
+      "value": "Swipe to seek"
+    },
+    {
+      "name": "video_gesture_swipe_seek_desc",
+      "value": "Hold and swipe horizontally on the video, release to apply"
+    },
+    {
+      "name": "video_gesture_side_slide",
+      "value": "Slide for brightness & volume"
+    },
+    {
+      "name": "video_gesture_side_slide_desc",
+      "value": "In fullscreen, slide vertically on the left for brightness, right for volume"
+    },
+    {
+      "name": "video_gesture_tap_toggle",
+      "value": "Tap to play/pause"
+    },
+    {
+      "name": "video_gesture_tap_toggle_desc",
+      "value": "Tap the video area to toggle playback"
+    },
+    {
+      "name": "video_gesture_long_press",
+      "value": "Long-press speed boost"
+    },
+    {
+      "name": "video_gesture_long_press_desc",
+      "value": "Hold the video for 3x speed, release to restore"
+    },
+    {
+      "name": "video_keyboard_shortcuts",
+      "value": "Common keyboard shortcuts"
+    },
+    {
+      "name": "video_keyboard_shortcuts_desc",
+      "value": "Enable keyboard shortcuts for web videos; keys are customizable below"
+    },
+    {
+      "name": "video_kb_play",
+      "value": "Play/Pause"
+    },
+    {
+      "name": "video_kb_back5",
+      "value": "Rewind 5s"
+    },
+    {
+      "name": "video_kb_fwd5",
+      "value": "Forward 5s"
+    },
+    {
+      "name": "video_kb_back10",
+      "value": "Rewind 10s"
+    },
+    {
+      "name": "video_kb_fwd10",
+      "value": "Forward 10s"
+    },
+    {
+      "name": "video_kb_volup",
+      "value": "Volume up"
+    },
+    {
+      "name": "video_kb_voldown",
+      "value": "Volume down"
+    },
+    {
+      "name": "video_kb_mute",
+      "value": "Toggle mute"
+    },
+    {
+      "name": "video_kb_fullscreen",
+      "value": "Toggle fullscreen"
+    },
+    {
+      "name": "video_kb_reset",
+      "value": "Reset keys to default"
+    },
+    {
+      "name": "video_kb_reset_done",
+      "value": "Keys reset to default"
     },
     {
       "name": "exit_clear_data",
@@ -2385,8 +2525,92 @@
       "value": "Skip loading online images to save data"
     },
     {
-      "name": "show_sniff_button",
-      "value": "Show sniff button automatically"
+      "name": "web_assistant",
+      "value": "Web assistant"
+    },
+    {
+      "name": "web_assistant_desc",
+      "value": "Show a floating button when a page has playing video or downloadable resources"
+    },
+    {
+      "name": "resource_sniff_desc",
+      "value": "Show this menu item in Web assistant when downloadable resources are detected"
+    },
+    {
+      "name": "video_hosting",
+      "value": "Video hosting"
+    },
+    {
+      "name": "video_hosting_start",
+      "value": "Taking over video playback..."
+    },
+    {
+      "name": "video_hosting_not_found",
+      "value": "No playable video detected"
+    },
+    {
+      "name": "video_hosting_scale_label",
+      "value": "Aspect Ratio"
+    },
+    {
+      "name": "video_hosting_scale_fit",
+      "value": "Fit (letterbox)"
+    },
+    {
+      "name": "video_hosting_scale_crop",
+      "value": "Fill (crop)"
+    },
+    {
+      "name": "video_hosting_scale_stretch",
+      "value": "Stretch"
+    },
+    {
+      "name": "video_hosting_loop",
+      "value": "Loop"
+    },
+    {
+      "name": "video_hosting_brightness",
+      "value": "Brightness"
+    },
+    {
+      "name": "video_hosting_volume",
+      "value": "Volume"
+    },
+    {
+      "name": "video_hosting_buffering",
+      "value": "Buffering..."
+    },
+    {
+      "name": "video_hosting_retry",
+      "value": "Tap to retry"
+    },
+    {
+      "name": "video_hosting_boost",
+      "value": ">> 2X speed"
+    },
+    {
+      "name": "video_hosting_rewind",
+      "value": "<< 2X rewinding"
+    },
+    {
+      "name": "video_hosting_seek_fwd",
+      "value": "Forward %d s"
+    },
+    {
+      "name": "video_hosting_seek_back",
+      "value": "Rewind %d s"
+    },
+    {
+      "name": "video_host_play_failed",
+      "value": "Playback failed"
+    },
+    {
+      "name": "cast_play",
+      "value": "Cast playback"
+    },
+    {
+      "name": "download_video",
+      "value": "Download video"
     },
     {
       "name": "feature_not_available",
@@ -2719,6 +2943,14 @@
     {
       "name": "popup_allowed_desc",
       "value": "Sites can show pop-up windows directly"
+    },
+    {
+      "name": "site_popup_desc",
+      "value": "Allow: sites open pop-ups directly; Ask: confirm before opening; Block: prevent pop-ups"
+    },
+    {
+      "name": "popup_blocked_toast",
+      "value": "Pop-up window blocked"
     },
     {
       "name": "popup_permission_title",

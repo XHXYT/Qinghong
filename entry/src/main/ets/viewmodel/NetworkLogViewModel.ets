@@ -119,6 +119,45 @@ export class NetworkLogViewModel {
     this.append(tabId, url, kind, 'load')
   }
 
+  /**
+   * 指定标签最新可播视频直链（下载菜单/快速接管兜底）：
+   * 原生网络日志 + iframe 嗅探上报（recordSniffed）双源合并，覆盖跨域 iframe 与
+   * MSE/hls.js（DOM src 为 blob: 无法直接读取）场景；
+   * m3u8（HLS 清单，AVPlayer 原生支持）> mp4 > 其它视频扩展，同类取最新；剔除 .ts 分片与拦截条目
+   */
+  latestVideoUrl(tabId: number): string {
+    let m3u8: string = ''
+    let mp4: string = ''
+    let other: string = ''
+    for (const e of this.entries) {
+      if (e.tabId !== tabId || e.kind !== 'video' || e.status === 'blocked') {
+        continue
+      }
+      const url: string = e.url
+      if (!url.startsWith('http')) {
+        continue
+      }
+      const path: string = url.split('?')[0].split('#')[0].toLowerCase()
+      if (path.endsWith('.ts')) {
+        continue
+      }
+      if (path.endsWith('.m3u8')) {
+        m3u8 = url
+      } else if (path.endsWith('.mp4')) {
+        mp4 = url
+      } else {
+        other = url
+      }
+    }
+    if (m3u8 !== '') {
+      return m3u8
+    }
+    if (mp4 !== '') {
+      return mp4
+    }
+    return other
+  }
+
   /** 清空指定标签的请求记录（新主文档导航时） */
   clearTab(tabId: number): void {
     this.entries = this.entries.filter((e: NetLogEntry): boolean => e.tabId !== tabId)

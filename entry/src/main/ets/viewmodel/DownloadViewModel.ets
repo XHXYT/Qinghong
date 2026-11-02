@@ -1,4 +1,5 @@
 import { fileIo } from '@kit.CoreFileKit';
+import { BusinessError } from '@kit.BasicServicesKit';
 import { _QhState } from '../entryability/AppState';
 import DownloadRecordInfo from '../common/entity/DownloadRecordInfo';
 import { DownloadRecordDao } from '../common/utils/database/impl/DownloadRecordDao';
@@ -14,6 +15,11 @@ import { appSettings } from '../common/entity/SettingsModel';
 
 const logger = createLogger('DownloadViewModel')
 
+/** 直链下载连续无进展重试次数（有推进不计数，与 HLS 分片同策略） */
+const DIRECT_RETRIES: number = 6
+/** 直链下载总尝试上限（防病态循环） */
+const MAX_DIRECT_ATTEMPTS: number = 50
+
 /** 进行中的下载任务（abort 中止控制；key = 记录 path） */
 class ActiveTask {
   readonly key: string
@@ -24,16 +30,36 @@ class ActiveTask {
   }
 }
 
+/** 待确认下载（接管下载事件后的确认弹窗数据；fileName 可编辑） */
+@ObservedV2
+export class PendingDownload {
+  readonly url: string
+  readonly referer: string
+  readonly isHls: boolean
+  @Trace fileName: string
+
+  constructor(url: string, referer: string, isHls: boolean, fileName: string) {
+    this.url = url
+    this.referer = referer
+    this.isHls = isHls
+    this.fileName = fileName
+  }
+}
+
   @ObservedV2
   export class DownloadViewModel {
   @Trace records: DownloadRecordInfo[] = []
   @Trace isLoading: boolean = false
+  /** 待确认下载（非 null 时浏览器根页弹确认卡片，确认/取消后清空） */
+  @Trace pending: PendingDownload | null = null
   /** path → 进度百分比（-1 = 总大小未知；HLS 为分片粒度百分比） */
   @Trace progressOf: Map<string, number> = new Map<string, number>()
   /** path → 实时下载速度（字节/秒，EMA 平滑） */
   @Trace speedOf: Map<string, number> = new Map<string, number>()
   /** path → HLS 总大小估算（字节；已完成分片平均大小 × 总分片数，每完成一个分片校正一次） */
   @Trace estimatedTotalOf: Map<string, number> = new Map<string, number>()
+  /** path → 显示用已收字节（HLS 含乱序缓冲与在途，实时增长；落库续传锚点仍用 record.receivedSize） */
+  @Trace displayRecvOf: Map<string, number> = new Map<string, number>()
   /** path → 上次估算时的已完成分片数（只在分片边界重算估算，避免片内抖动） */
   private lastSegDoneOf: Map<string, number> = new Map<string, number>()
 
@@ -140,25 +166,65 @@ class ActiveTask {
   }
 
   /**
-   * 发起下载并落库：
+   * 发起下载（先弹确认）：接管下载事件后计算默认文件名与类型，
+   * 用户在确认弹窗中可改名，确认后 startDownload 走原下载管线：
    * - m3u8 播放列表 → 解析分片顺序合并为单个 .ts；其余链接流式直下
    * - request.downloadFile 的 filePath 仅支持应用沙箱路径（写公共目录任务必失败），
    *   故统一流式下载到沙箱临时文件，完成后拷入公共下载目录 Download/<包名>/Download
    */
-  async download(url: string, referer: string = ''): Promise<void> {
+  download(url: string, referer: string = ''): void {
     if (!url) {
       return
     }
+    const isHls: boolean = HttpDownloader.looksLikeM3u8(url)
+    let fileName: string = UrlUtils.fileNameOf(url)
+    if (isHls) {
+      fileName = DownloadViewModel.hlsFileName(fileName)
+    } else if (!fileName) {
+      fileName = `download_${new Date().getTime()}`
+    }
+    this.pending = new PendingDownload(url, referer, isHls, fileName)
+  }
+
+  /** 确认下载：清洗（可能已编辑的）文件名后开始任务 */
+  confirmDownload(fileName: string): void {
+    const p: PendingDownload | null = this.pending
+    if (p === null) {
+      return
+    }
+    this.pending = null
+    this.startDownload(p.url, p.referer, DownloadViewModel.sanitizeFileName(fileName), p.isHls)
+  }
+
+  /** 取消待确认下载 */
+  cancelDownload(): void {
+    this.pending = null
+  }
+
+  /** 文件名清洗：去路径分隔符与文件系统非法字符，空回退默认名 */
+  private static sanitizeFileName(name: string): string {
+    const n: string = name.trim().replace(/[/\\:*?"<>|]/g, '')
+    if (n !== '') {
+      return n
+    }
+    return `download_${new Date().getTime()}`
+  }
+
+  /** 异常转可读文本（Error 取 message，BusinessError 取 code/message，防 [object Object]） */
+  private static errMessage(e: Object): string {
+    const be: BusinessError = e as BusinessError
+    if (be !== null && be !== undefined && be.message !== undefined && be.message !== '') {
+      const c: string = be.code !== undefined ? `${be.code}: ` : ''
+      return `${c}${be.message}`
+    }
+    return `${e}`
+  }
+
+  /** 确认后开始下载并落库 */
+  private async startDownload(url: string, referer: string, fileName: string, isHls: boolean): Promise<void> {
     let dest: string = ''
     try {
       const dir: string = await PublicDownloadDir.ensureDir('Download')
-      const isHls: boolean = HttpDownloader.looksLikeM3u8(url)
-      let fileName: string = UrlUtils.fileNameOf(url)
-      if (isHls) {
-        fileName = DownloadViewModel.hlsFileName(fileName)
-      } else if (!fileName) {
-        fileName = `download_${new Date().getTime()}`
-      }
       dest = `${dir}/${fileName}`
       if (this.activeTasks.has(dest)) {
         return
@@ -318,16 +384,49 @@ class ActiveTask {
         }
         await HlsDownloader.downloadHls(url, tmpPath, opts)
       } else {
-        const opts: StreamOptions = new StreamOptions()
-        opts.startOffset = rec.receivedSize
-        opts.resume = rec.receivedSize > 0
-        opts.referer = rec.referer
-        opts.abort = task.abort
-        opts.onProgress = (received: number, total: number): void => {
-          const percent: number = total > 0 ? received / total * 100 : -1
-          this.onTaskProgress(rec, percent, received, total, 0, 0, received)
+        // 直链下载自适应重试：掐连接网络下响应体常在尾部被截断（truncated），
+        // 有推进就断点续传重试、连续无进展才计数放弃（与 HLS 分片同策略）
+        let recv: number = rec.receivedSize
+        let noProgress: number = 0
+        let attempts: number = 0
+        let done: boolean = false
+        while (!done && noProgress < DIRECT_RETRIES && attempts < MAX_DIRECT_ATTEMPTS) {
+          attempts++
+          if (task.abort.aborted) {
+            throw new Error('aborted')
+          }
+          const attemptStart: number = recv
+          const opts: StreamOptions = new StreamOptions()
+          opts.startOffset = recv
+          opts.resume = recv > 0
+          opts.referer = rec.referer
+          opts.abort = task.abort
+          opts.onProgress = (received: number, total: number): void => {
+            recv = received
+            const percent: number = total > 0 ? received / total * 100 : -1
+            this.onTaskProgress(rec, percent, received, total, 0, 0, received)
+          }
+          try {
+            await HttpDownloader.downloadToFile(url, tmpPath, opts)
+            done = true
+          } catch (e) {
+            // 中止立即退出，不参与重试
+            if (task.abort.aborted) {
+              throw new Error('aborted')
+            }
+            if (recv > attemptStart) {
+              noProgress = 0
+            } else {
+              noProgress++
+            }
+            logger.warn(`direct download retry (attempt ${attempts}, no-progress ` +
+              `${noProgress}/${DIRECT_RETRIES}): ${url} ${DownloadViewModel.errMessage(e)}`)
+            await DownloadViewModel.sleep(Math.min(4000, 500 * Math.pow(2, noProgress)))
+          }
         }
-        await HttpDownloader.downloadToFile(url, tmpPath, opts)
+        if (!done) {
+          throw new Error('direct download failed')
+        }
         // 无 .m3u8 后缀但内容实为播放列表：转 HLS 分片合并（文件名与记录同步更新）
         if (!resume && DownloadViewModel.fileStartsWith(tmpPath, '#EXTM3U')) {
           const text: string = fileIo.readTextSync(tmpPath)
@@ -342,6 +441,7 @@ class ActiveTask {
           rec.totalSize = -1
           await this.getDB().update(rec)
           this.progressOf.delete(dest)
+          this.displayRecvOf.delete(dest)
           this.progressOf.set(finalDest, 0)
           const hlsOpts: HlsOptions = new HlsOptions()
           hlsOpts.referer = rec.referer
@@ -365,6 +465,7 @@ class ActiveTask {
       }
       await this.getDB().update(rec)
       this.progressOf.set(finalDest, 100)
+      this.displayRecvOf.delete(finalDest)
       await this.loadAll()
       DownloadNotifier.cancel(notifId)
       toastUtil.showToast({ message: $r('app.string.download_completed') })
@@ -378,11 +479,13 @@ class ActiveTask {
           rec.status = 'paused'
           await this.getDB().update(rec)
           await this.loadAll()
+          this.displayRecvOf.delete(rec.path)
           DownloadNotifier.cancel(notifId)
         } else {
           rec.status = 'failed'
           await this.getDB().update(rec)
           await this.loadAll()
+          this.displayRecvOf.delete(rec.path)
           // 保留临时文件：失败后重试可断点续传，避免大文件反复重下
           // 失败通知留存（覆盖同 id 进度通知），不随进度通知一起消失
           DownloadNotifier.publishFailed(notifId, rec.fileName)
@@ -419,6 +522,8 @@ class ActiveTask {
     if (now - lastUi >= 400) {
       this.uiTickOf.set(record.path, now)
       this.progressOf.set(record.path, percent)
+      // 显示用已收字节（含在途，实时增长；落库 receivedSize 仍为落盘锚点 written）
+      this.displayRecvOf.set(record.path, received)
       // 速度：区间字节数/耗时，EMA 平滑；首帧记录基准（此前基准从未落 Map，dt 恒 0 导致速度永远不显示）
       const prevRecv: number | undefined = this.lastRecvOf.get(record.path)
       const prevTs: number | undefined = this.lastTsOf.get(record.path)
@@ -442,7 +547,7 @@ class ActiveTask {
       this.getDB().update(record).catch((): void => {
       })
       const speed: number = this.speedOf.get(record.path) ?? 0
-      const subtitle: string = DownloadViewModel.subtitleOf(written, displayTotal, speed, true)
+      const subtitle: string = DownloadViewModel.subtitleOf(received, displayTotal, speed, true)
       DownloadNotifier.publishProgress(DownloadViewModel.notifIdOf(record.path), record.fileName, percent, subtitle)
     }
   }

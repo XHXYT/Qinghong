@@ -236,6 +236,152 @@ export class WebScripts {
   }
 
   /**
+   * 采集「正在播放」的视频信息（助手菜单打开时 runJavaScript 执行，非侵入不改页面状态）：
+   * 严格判定播放中（!paused && !ended && readyState>=2）且地址为 http(s) 直链
+   * （blob:/MSE 媒体排除），顶层 document 扫不到时递归同源 iframe（跨域静默跳过）；
+   * 返回 JSON 字符串 {u:地址,p:当前秒,d:总秒,m:静音,r:就绪态,w:播放中}，无则空串
+   */
+  static playingVideoInfoJs(): string {
+    return "try{(function(){" +
+      "function info(v){try{" +
+      "var s=v.currentSrc||v.src||'';" +
+      "if(!s){return '';}" +
+      "try{s=new URL(s,v.ownerDocument.baseURI).href;}catch(e){return '';}" +
+      "if(!/^https?:/i.test(s)){return '';}" +
+      "return JSON.stringify({u:s,p:v.currentTime||0,d:isFinite(v.duration)?v.duration:0," +
+      "m:!!v.muted,r:v.readyState,w:!v.paused&&!v.ended});" +
+      "}catch(e){return '';}}" +
+      "function find(doc){try{" +
+      "var vs=doc.querySelectorAll('video');" +
+      "var j='',area=-1;" +
+      "for(var i=0;i<vs.length;i++){var v=vs[i];" +
+      "if(v.paused||v.ended||v.readyState<2){continue;}" +
+      "var a=(v.videoWidth||v.clientWidth||0)*(v.videoHeight||v.clientHeight||0);" +
+      "if(a<=area){continue;}" +
+      "var jj=info(v);if(jj){j=jj;area=a;}}" +
+      "return j;" +
+      "}catch(e){return '';}}" +
+      "var r=find(document);" +
+      "if(!r){var fs=document.querySelectorAll('iframe');" +
+      "for(var k=0;k<fs.length&&!r;k++){" +
+      "try{r=find(fs[k].contentDocument);}catch(e){}}}" +
+      "return r;" +
+      "})()}catch(e){return ''}"
+  }
+
+  /**
+   * 接管探测（快速托管路径，runJavaScript 执行；非侵入，不改页面状态）：
+   * 播放中的视频优先，无则回退任意 readyState>=2 的视频（含暂停态）；
+   * MSE/blob 视频保留（u 返回空串，由原生侧用网络日志嗅探的 m3u8/mp4 补位）；
+   * 返回 JSON 字符串 {u:直链或空,p:当前秒,d:总秒,m:静音,r:就绪态,w:是否播放中}，无视频返回空串
+   */
+  static takeoverProbeJs(): string {
+    return "try{(function(){" +
+      "function info(v){try{" +
+      "var s=v.currentSrc||v.src||'';" +
+      "var u='';" +
+      "if(s){" +
+      "try{u=new URL(s,v.ownerDocument.baseURI).href;}catch(e){u=s;}" +
+      "if(!/^https?:/i.test(u)){u='';}" +
+      "}" +
+      "return JSON.stringify({u:u,p:v.currentTime||0,d:isFinite(v.duration)?v.duration:0," +
+      "m:!!v.muted,r:v.readyState,w:!v.paused&&!v.ended});" +
+      "}catch(e){return '';}}" +
+      "function find(doc){try{" +
+      "var vs=doc.querySelectorAll('video');" +
+      "var v=null,i,area=-1;" +
+      "for(i=0;i<vs.length;i++){var c=vs[i];" +
+      "if(c.paused||c.ended||c.readyState<2){continue;}" +
+      "var a=(c.videoWidth||c.clientWidth||0)*(c.videoHeight||c.clientHeight||0);" +
+      "if(a>area){area=a;v=c;}}" +
+      "if(v){return v;}" +
+      "area=-1;" +
+      "for(i=0;i<vs.length;i++){var c2=vs[i];" +
+      "if(c2.readyState<2){continue;}" +
+      "var a2=(c2.videoWidth||c2.clientWidth||0)*(c2.videoHeight||c2.clientHeight||0);" +
+      "if(a2>area){area=a2;v=c2;}}" +
+      "return v;" +
+      "}catch(e){return null;}}" +
+      "var v=find(document);" +
+      "if(!v){var fs=document.querySelectorAll('iframe');" +
+      "for(var k=0;k<fs.length&&!v;k++){" +
+      "try{v=find(fs[k].contentDocument);}catch(e){}}" +
+      "return v?info(v):'';" +
+      "})()}catch(e){return ''}"
+  }
+
+  /**
+   * 暂停网页播放中视频并打 __qhHosted 标记（原生侧确认拿到可播地址后调用；
+   * 归还时 restoreVideoJs 凭标记定位视频恢复续播）
+   */
+   static pauseVideoJs(): string {
+     return "try{(function(){" +
+       "function find(doc){try{" +
+       "var vs=doc.querySelectorAll('video');" +
+       "var v=null,i,area=-1;" +
+       "for(i=0;i<vs.length;i++){var c=vs[i];" +
+       "if(c.paused||c.ended||c.readyState<2){continue;}" +
+       "var a=(c.videoWidth||c.clientWidth||0)*(c.videoHeight||c.clientHeight||0);" +
+       "if(a>area){area=a;v=c;}}" +
+       "if(v){return v;}" +
+       "area=-1;" +
+       "for(i=0;i<vs.length;i++){var c2=vs[i];" +
+       "if(c2.readyState<2){continue;}" +
+       "var a2=(c2.videoWidth||c2.clientWidth||0)*(c2.videoHeight||c2.clientHeight||0);" +
+       "if(a2>area){area=a2;v=c2;}}" +
+       "return v;" +
+       "}catch(e){return null;}}" +
+      "var v=find(document);" +
+      "if(!v){var fs=document.querySelectorAll('iframe');" +
+      "for(var k=0;k<fs.length&&!v;k++){" +
+      "try{v=find(fs[k].contentDocument);}catch(e){}}}" +
+      "if(!v){return;}" +
+      "try{v.pause();}catch(e){}" +
+      "try{v.__qhHosted=1;}catch(e){}" +
+      "})()}catch(e){}"
+  }
+
+  /**
+   * 归还网页视频（独立托管结束恢复用，runJavaScript 执行）：
+   * 优先查找 __qhHosted 标记的视频（顶层 + 同源 iframe），标记丢失时回退
+   * 面积最大选片（与接管探测同目标），清除标记并定位到 pos，
+   * wasPlaying 时恢复播放（不刷新页面，网页视频无感续播）
+   */
+  static restoreVideoJs(pos: number, wasPlaying: boolean): string {
+    const p: string = pos.toFixed(2)
+    const w: string = wasPlaying ? '1' : '0'
+    return "try{(function(){" +
+      "function mark(doc){try{" +
+      "var vs=doc.querySelectorAll('video');" +
+      "for(var i=0;i<vs.length;i++){if(vs[i].__qhHosted){return vs[i];}}" +
+      "}catch(e){}return null;}" +
+      "function pick(doc){try{" +
+      "var vs=doc.querySelectorAll('video');" +
+      "var v=null,area=-1;" +
+      "for(var i=0;i<vs.length;i++){var c=vs[i];" +
+      "if(c.readyState<2){continue;}" +
+      "var a=(c.videoWidth||c.clientWidth||0)*(c.videoHeight||c.clientHeight||0);" +
+      "if(a>area){area=a;v=c;}}" +
+      "if(!v){for(var j=0;j<vs.length;j++){v=vs[j];break;}}" +
+      "return v;" +
+      "}catch(e){}return null;}" +
+      "var v=mark(document);" +
+      "if(!v){var fs=document.querySelectorAll('iframe');" +
+      "for(var k=0;k<fs.length&&!v;k++){" +
+      "try{v=mark(fs[k].contentDocument);}catch(e){}}}" +
+      "if(!v){v=pick(document);" +
+      "if(!v){var fs2=document.querySelectorAll('iframe');" +
+      "for(var k2=0;k2<fs2.length&&!v;k2++){" +
+      "try{v=pick(fs2[k2].contentDocument);}catch(e){}}}}" +
+      "if(!v){return;}" +
+      "try{v.__qhHosted=0;}catch(e){}" +
+      "try{if(isFinite(v.duration)&&" + p + ">0){v.currentTime=Math.min(" + p + ",v.duration);}}" +
+      "catch(e){}" +
+      "if(" + w + "){try{v.play().catch(function(){});}catch(e){}}" +
+      "})()}catch(e){}"
+  }
+
+  /**
    * 资源嗅探按需采集（打开嗅探面板时 runJavaScript 执行一次）：
    * DOM 媒体元素（img/video/audio/source/embed/poster）+ performance 资源条目
    * + 整页 HTML 正则扫描内嵌媒体 URL（可抓到未播放、仅写在页面/脚本配置里的地址），

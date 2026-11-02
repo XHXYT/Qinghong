@@ -1,5 +1,5 @@
 import { fileIo } from '@kit.CoreFileKit';
-import { QhState } from '../../entryability/AppState';
+import { QhState, _QhState } from '../../entryability/AppState';
 import { TabInfo } from '../../viewmodel/TabsViewModel';
 import { bookmarkVM } from '../../viewmodel/BookmarkViewModel';
 import { browserVM } from '../../viewmodel/BrowserViewModel';
@@ -9,6 +9,8 @@ import BookmarkInfo from '../../common/entity/BookmarkInfo';
 import { HomepageQuickColumns, gridColumnsTemplate } from '../../common/utils/breakpoint/BreakPoint';
 import { toastUtil } from '../../common/utils/ToastUtils';
 import { hitokoto } from '../../common/utils/Hitokoto';
+import { searchVM } from '../../viewmodel/SearchViewModel';
+import { SearchSuggestPanel } from './SearchSuggestPanel';
 
 /**
  * 主页：Logo + 搜索框 + 快捷图标（支持定制：Logo 模式 / 搜索框样式 / 背景 / 收藏块）
@@ -20,10 +22,107 @@ export struct HomepageView {
   @Param immersive: boolean = false
   /** 搜索框内联输入内容 */
   @Local searchText: string = ''
+  /** 主页滚动控制器：输入法避让用 */
+  scroller: Scroller = new Scroller()
+  /** 搜索框聚焦中 */
+  @Local searchFocused: boolean = false
+  /** 键盘高度（vp，0=收起） */
+  @Local kbHeight: number = 0
+  /** 搜索框底边窗口坐标（vp，onAreaChange 持续刷新） */
+  @Local searchBoxBottom: number = 0
+  /** 根布局顶边窗口坐标（vp，联想面板相对根定位用） */
+  @Local rootTop: number = 0
+  /** 避让前滚动偏移（键盘收起还原） */
+  private savedOffset: number = 0
+  private avoidSaved: boolean = false
+  private kbListener: (px: number) => void = (px: number): void => {
+    this.kbHeight = QhState.windowWidth > 0 && _QhState.windowWidth_px > 0
+      ? px / (_QhState.windowWidth_px / QhState.windowWidth)
+      : 0
+    this.kbAvoid()
+  }
 
   aboutToAppear(): void {
     bookmarkVM.loadAll()
     this.ensureFavicons()
+    try {
+      _QhState.window.on('keyboardHeightChange', this.kbListener)
+    } catch (error) {
+    }
+  }
+
+  aboutToDisappear(): void {
+    try {
+      _QhState.window.off('keyboardHeightChange', this.kbListener)
+    } catch (error) {
+    }
+  }
+
+  /** 输入法避让：键盘盖住搜索框时内容整体上滚让位；联想面板展开时按面板期望高度补一次
+      上滚（与 HTML 主页 qhKbAvoid 同逻辑）；原始坐标底边 = 实时底边 + 当前已上滚量，
+      滚动是真实布局位移，实时值随上滚变小，须加回还原，避免重复调用误判已避开 */
+  private kbAvoid(): void {
+    if (!this.searchFocused || this.kbHeight <= 0) {
+      this.restoreScroll()
+      return
+    }
+    const kbTop: number = QhState.windowHeight - this.kbHeight
+    const cur: number = this.scroller.currentOffset().yOffset
+    const lifted: number = this.avoidSaved ? Math.max(0, cur - this.savedOffset) : 0
+    const boxBottom: number = this.searchBoxBottom + lifted
+    // 输入框保底：高于键盘 24
+    let lift: number = boxBottom + 24 - kbTop
+    // 面板展开：按面板期望高度（联想行数 × 46 行高，120~420 夹紧）再抬升整页
+    if (searchVM.suggestions.length > 0 && appSettings.home_show_search_area) {
+      const want: number = Math.min(Math.max(searchVM.suggestions.length * 46, 120), 420)
+      const panelLift: number = boxBottom + 6 + want - (kbTop - 12)
+      if (panelLift > lift) {
+        lift = panelLift
+      }
+    }
+    // 别把搜索框抬出屏幕顶（留 96），抬不够时由面板限高收缩兜底
+    const maxLift: number = boxBottom - 96
+    if (lift > maxLift) {
+      lift = Math.max(0, maxLift)
+    }
+    if (lift < 0) {
+      lift = 0
+    }
+    if (lift > 0) {
+      if (!this.avoidSaved) {
+        this.avoidSaved = true
+        this.savedOffset = cur
+      }
+      this.scroller.scrollTo({
+        xOffset: 0,
+        yOffset: this.savedOffset + lift,
+        animation: { duration: 200, curve: Curve.Friction }
+      })
+    } else {
+      this.restoreScroll()
+    }
+  }
+
+  /** 还原避让前滚动位置（键盘收起 / 失焦 / 无需避让时） */
+  private restoreScroll(): void {
+    if (this.avoidSaved) {
+      this.avoidSaved = false
+      this.scroller.scrollTo({
+        xOffset: 0,
+        yOffset: this.savedOffset,
+        animation: { duration: 200, curve: Curve.Friction }
+      })
+    }
+  }
+
+  /**
+   * 联想面板限高：搜索框底边与输入法键盘顶边之间的可视空间（键盘收起时上限 420）。
+   * 最低保一行 46，空间不足时面板收缩滚动，宁短也不压到键盘后面
+   */
+  private suggestMaxHeight(): number {
+    const kbTop: number = this.kbHeight > 0 ? QhState.windowHeight - this.kbHeight : QhState.windowHeight
+    const avail: number = kbTop - this.searchBoxBottom - 18
+    return Math.max(46, Math.min(420, avail))
   }
 
   /** 图标优先模式：为快捷图标懒加载 favicon */
@@ -217,11 +316,25 @@ export struct HomepageView {
         .padding({ left: 0, right: 0 })
         .borderRadius(0)
         .enterKeyType(EnterKeyType.Search)
+        .onFocus((): void => {
+          this.searchFocused = true
+          this.kbAvoid()
+        })
+        .onBlur((): void => {
+          this.searchFocused = false
+          searchVM.clearSoon()
+          this.kbAvoid()
+        })
         .onChange((v: string) => {
           this.searchText = v
+          // 联想结果落地后补算避让：面板展开时按其期望高度再上滚、清空时回落一档
+          searchVM.updateSuggestions(v, this.tab.isIncognito).then((): void => {
+            this.kbAvoid()
+          })
         })
         .onSubmit(() => {
           browserVM.submitAddress(this.searchText)
+          searchVM.clear()
           this.searchText = ''
           this.getUIContext().getFocusController().clearFocus()
         })
@@ -249,6 +362,9 @@ export struct HomepageView {
       }
       .width('86%')
       .height(46)
+      .onAreaChange((_o: Area, n: Area): void => {
+        this.searchBoxBottom = ((n.globalPosition.y ?? 0) as number) + (n.height as number)
+      })
     } else {
       Stack() {
         // 底色层（透明效果 = 底色不透明度归零；模糊效果 = 毛玻璃底）
@@ -278,6 +394,9 @@ export struct HomepageView {
       .width('86%')
       .height(46)
       .clip(true)
+      .onAreaChange((_o: Area, n: Area): void => {
+        this.searchBoxBottom = ((n.globalPosition.y ?? 0) as number) + (n.height as number)
+      })
     }
   }
 
@@ -292,7 +411,7 @@ export struct HomepageView {
           .opacity(appSettings.home_bg_opacity / 100)
           .blur(appSettings.home_bg_blur > 0 ? appSettings.home_bg_blur : 0)
       }
-      Scroll() {
+      Scroll(this.scroller) {
         Column({ space: 28 }) {
           // 无痕提示
           if (this.tab.isIncognito) {
@@ -336,10 +455,32 @@ export struct HomepageView {
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring)
       .backgroundColor(Color.Transparent)
+
+      // 搜索联想面板：浮于快捷图标上方，键盘弹出时限高避让（见 suggestMaxHeight）；
+      // 背景风格与搜索框同步：毛玻璃效果同步底色不透明度，其余效果底色与主页背景一致
+      if (searchVM.suggestions.length > 0 && appSettings.home_show_search_area) {
+        SearchSuggestPanel({
+          panelMaxHeight: this.suggestMaxHeight(),
+          panelBlur: appSettings.home_search_style !== 'line' && appSettings.home_search_effect === 'blur',
+          panelOpacity: appSettings.home_search_opacity,
+          panelBg: this.bgColor(),
+          panelRadius: appSettings.home_search_style === 'line'
+            ? 16 : Math.max(16, appSettings.home_search_radius),
+          onPick: (): void => {
+            this.searchText = ''
+            this.getUIContext().getFocusController().clearFocus()
+          }
+        })
+          .width('86%')
+          .position({ x: '7%', y: this.searchBoxBottom - this.rootTop })
+      }
     }
     .width('100%')
     .height('100%')
     .backgroundColor(this.immersive ? Color.Transparent : this.bgColor())
+    .onAreaChange((_o: Area, n: Area): void => {
+      this.rootTop = ((n.globalPosition.y ?? 0) as number)
+    })
   }
 }
 

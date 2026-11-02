@@ -10,6 +10,8 @@ import { toastUtil } from '../common/utils/ToastUtils';
 import { ResourceUtils } from '../common/utils/ResourceUtil';
 import { SiteSettingsViewModel, siteSettingsVM } from './SiteSettingsViewModel';
 import { ViewSourceScripts } from '../common/utils/ViewSourceScripts';
+import { VideoFullScreen } from '../common/utils/VideoFullScreen';
+import { WebHostedPlayerSession } from '../components/browser/WebHostedPlayer';
 
 const logger = createLogger('TabsViewModel')
 
@@ -57,6 +59,14 @@ export class TabInfo {
   @Trace themeColor: string = ''
   /** 操作栏隐藏态（自动隐藏：滑动/点击切换；按标签记忆，导航时重置） */
   @Trace actionBarHidden: boolean = false
+  /** 网页视频全屏中（HTML5 全屏请求：应用隐藏所有栏，视频区铺满全屏） */
+  @Trace videoFullScreen: boolean = false
+  /** 视频托管待触发（一次性：网页助手菜单触发置 true，页面刷新后内核接管首个 URL 视频并消费；不持久化） */
+  @Trace pendingHostVideo: boolean = false
+  /** 视频托管会话（内核接管后创建；null = 未托管）。全屏托管播放器挂 Index 根层 */
+  @Trace hostedSession: WebHostedPlayerSession | null = null
+  /** 网页视频全屏退出句柄（非 UI 状态，不参与观察） */
+  videoExitHandler: FullScreenExitHandler | null = null
   /** 应用主动导航标记（返回/前进，重定向拦截用；首次主框架请求消费） */
   programmaticNav: boolean = false
   /** 弹出式窗口转开的标签（window.close 时可整标签关闭） */
@@ -579,6 +589,12 @@ export class TabsViewModel {
     const idx = this.tabs.findIndex((t: TabInfo) => t.id === id)
     if (idx < 0) return
     const tab = this.tabs[idx]
+    // 全屏中的标签被关闭：恢复系统栏与方向（Web 随标签销毁不会再回调退出）
+    if (tab.videoFullScreen) {
+      tab.videoFullScreen = false
+      tab.videoExitHandler = null
+      VideoFullScreen.exit()
+    }
     tab.controller = null
     this.tabs.splice(idx, 1)
     this.scheduleUndoTip(tab)

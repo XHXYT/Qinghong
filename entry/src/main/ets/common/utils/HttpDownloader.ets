@@ -1,6 +1,9 @@
-import { http } from '@kit.NetworkKit';
+import { http, connection } from '@kit.NetworkKit';
 import { fileIo } from '@kit.CoreFileKit';
+import { BusinessError } from '@kit.BasicServicesKit';
 import { createLogger } from './Logger';
+import { ProxyUtils } from './ProxyUtils';
+import { appSettings } from '../entity/SettingsModel';
 
 const logger = createLogger('HttpDownloader')
 
@@ -52,13 +55,15 @@ export class HttpDownloader {
     for (let i = 0; i <= HttpDownloader.MAX_REDIRECTS; i++) {
       const req: http.HttpRequest = http.createHttp()
       try {
-        const resp: http.HttpResponse = await req.request(current, {
+        const options: http.HttpRequestOptions = {
           method: http.RequestMethod.GET,
           readTimeout: 30000,
           connectTimeout: 20000,
           expectDataType: http.HttpDataType.STRING,
           header: HttpDownloader.buildHeader(referer)
-        })
+        }
+        HttpDownloader.applyProxy(current, options)
+        const resp: http.HttpResponse = await req.request(current, options)
         if (resp.responseCode >= 200 && resp.responseCode < 300) {
           return typeof resp.result === 'string' ? resp.result : ''
         }
@@ -83,13 +88,15 @@ export class HttpDownloader {
     for (let i = 0; i <= HttpDownloader.MAX_REDIRECTS; i++) {
       const req: http.HttpRequest = http.createHttp()
       try {
-        const resp: http.HttpResponse = await req.request(current, {
+        const options: http.HttpRequestOptions = {
           method: http.RequestMethod.GET,
           readTimeout: 30000,
           connectTimeout: 20000,
           expectDataType: http.HttpDataType.ARRAY_BUFFER,
           header: HttpDownloader.buildHeader(referer)
-        })
+        }
+        HttpDownloader.applyProxy(current, options)
+        const resp: http.HttpResponse = await req.request(current, options)
         if (resp.responseCode >= 200 && resp.responseCode < 300) {
           if (resp.result instanceof ArrayBuffer) {
             return new Uint8Array(resp.result)
@@ -271,7 +278,7 @@ export class HttpDownloader {
           }
         })
         .catch((e: Object): void => {
-          finish(new Error(`${e}`))
+          finish(new Error(HttpDownloader.errText(e)))
         })
     })
     req.on('dataEnd', (): void => {
@@ -299,22 +306,34 @@ export class HttpDownloader {
     if (o.resume && o.startOffset > 0) {
       header['range'] = `bytes=${o.startOffset}-`
     }
-    req.requestInStream(url, {
+    const reqOptions: http.HttpRequestOptions = {
       method: http.RequestMethod.GET,
       // readTimeout 为请求总时长（含传输），大文件需更长超时
       readTimeout: 600000,
       connectTimeout: 20000,
       usingCache: false,
       header: header
-    })
+    }
+    HttpDownloader.applyProxy(url, reqOptions)
+    req.requestInStream(url, reqOptions)
       .then((c: number): void => {
         code = c
         codeKnown = true
         trySettle()
       })
       .catch((e: Object): void => {
-        finish(new Error(`${e}`))
+        finish(new Error(HttpDownloader.errText(e)))
       })
+  }
+
+  /** SDK 异常转可读文本（BusinessError 直接字符串化是 [object Object]，取 code/message） */
+  private static errText(e: Object): string {
+    const be: BusinessError = e as BusinessError
+    if (be !== null && be !== undefined && be.message !== undefined && be.message !== '') {
+      const c: string = be.code !== undefined ? `${be.code}: ` : ''
+      return `${c}${be.message}`
+    }
+    return `${e}`
   }
 
   /** 构造请求头：浏览器 UA + 可选 Referer（防盗链校验） */
@@ -324,6 +343,27 @@ export class HttpDownloader {
       header['referer'] = referer
     }
     return header
+  }
+
+  /**
+   * 命中应用代理分流时注入自定义代理（下载与内核同套「走代理」规则，按 URL 域名匹配）：
+   * http 代理走 usingProxy；socks 代理走 usingSocks5Proxy（优先级高于 usingProxy，http 层强制直连）；
+   * 未命中分流不动配置（维持系统默认代理行为）。
+   */
+  private static applyProxy(url: string, options: http.HttpRequestOptions): void {
+    if (!ProxyUtils.shouldProxyUrl(url)) {
+      return
+    }
+    const host: string = appSettings.proxy_host.trim()
+    const port: number = appSettings.proxy_port
+    if (appSettings.proxy_type === 'socks') {
+      const s: connection.Socks5Proxy = { host: host, port: port }
+      options.usingSocks5Proxy = s
+      options.usingProxy = false
+    } else {
+      const p: connection.HttpProxy = { host: host, port: port, exclusionList: [] }
+      options.usingProxy = p
+    }
   }
 
   /** 从响应头对象取指定头域值（头域名大小写不敏感），不存在返回 '' */

@@ -1,6 +1,6 @@
 import { webview } from '@kit.ArkWeb';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { QhState } from '../../entryability/AppState';
+import { QhState, _QhState } from '../../entryability/AppState';
 import { TabInfo } from '../../viewmodel/TabsViewModel';
 import { bookmarkVM } from '../../viewmodel/BookmarkViewModel';
 import { browserVM } from '../../viewmodel/BrowserViewModel';
@@ -12,6 +12,8 @@ import { homeHtmlRefresh } from '../../common/utils/HomeHtmlRefresh';
 import { toastUtil } from '../../common/utils/ToastUtils';
 import { createLogger } from '../../common/utils/Logger';
 import { hitokoto } from '../../common/utils/Hitokoto';
+import { searchVM, SuggestItem, SuggestType } from '../../viewmodel/SearchViewModel';
+import { tabsVM } from '../../viewmodel/TabsViewModel';
 
 const logger = createLogger('HomeHtmlView')
 
@@ -60,8 +62,32 @@ class HomeHtmlConfig {
   customCss: string = ''
 }
 
+/** 下发到 HTML 主页的联想条目 */
+class HomeSuggestEntry {
+  type: string = ''
+  text: string = ''
+  url: string = ''
+}
+
 /** 原生侧 ↔ HTML 主页桥 */
 class HomeHtmlBridge {
+  /** 联想输入回调（宿主异步拉取联想并 runJavaScript 回推 HTML 渲染） */
+  suggestHandler: (text: string) => void = (): void => {
+  }
+  /** 联想条目点击回调（宿主按索引分发跳转） */
+  pickHandler: (index: number) => void = (): void => {
+  }
+
+  /** HTML 搜索框输入：请求联想 */
+  suggest(text: string): void {
+    this.suggestHandler(text)
+  }
+
+  /** HTML 联想条目点击：按索引分发 */
+  openSuggest(index: number): void {
+    this.pickHandler(index)
+  }
+
   openUrl(url: string): void {
     // 走地址栏同款「URL 直达 / 搜索词转引擎」逻辑：搜索词直接 navigate 会被内核
     // 当作主机名做 punycode 编码（http://xn--...），URL 本身不受影响
@@ -109,6 +135,10 @@ export struct HomeHtmlView {
   controller: webview.WebviewController = new webview.WebviewController()
   bridge: HomeHtmlBridge = new HomeHtmlBridge()
   private pageReady: boolean = false
+  /** HTML 搜索联想快照（点击按索引分发，原生不重复渲染 HTML 侧列表） */
+  private suggestList: SuggestItem[] = []
+  /** HTML 联想请求序号（本地过期守卫） */
+  private suggestSeq: number = 0
   /** document start 预载配置：首帧即按最终样式渲染，省掉 onPageEnd 后 runJavaScript 二次重绘 */
   private docStartScript: string = ''
   private pushFn: () => void = (): void => {
@@ -116,6 +146,13 @@ export struct HomeHtmlView {
   }
 
   aboutToAppear(): void {
+    // 桥回调接线：HTML 输入联想 / 联想条目点击分发
+    this.bridge.suggestHandler = (text: string): void => {
+      this.handleSuggest(text)
+    }
+    this.bridge.pickHandler = (index: number): void => {
+      this.pickSuggest(index)
+    }
     // 快照挂载时刻配置，注入到文档开始：页面内联脚本首帧同步渲染最终样式
     this.docStartScript = `window.__QH_CFG__ = ${JSON.stringify(this.buildConfig())};`
     // 书签异步加载完成后再推一次配置，避免首次推送时快捷图标（quickLinks）尚未就绪
@@ -124,10 +161,102 @@ export struct HomeHtmlView {
       this.pushConfig()
     })
     homeHtmlRefresh.register(this.pushFn)
+    try {
+      _QhState.window.on('keyboardHeightChange', this.kbListener)
+    } catch (error) {
+    }
   }
 
   aboutToDisappear(): void {
     homeHtmlRefresh.unregister(this.pushFn)
+    try {
+      _QhState.window.off('keyboardHeightChange', this.kbListener)
+    } catch (error) {
+    }
+  }
+
+  /** 键盘高度变化（px→vp）：推给页面按聚焦元素整体上移避让 */
+  private kbListener: (px: number) => void = (px: number): void => {
+    if (!this.pageReady) {
+      return
+    }
+    const vp: number = QhState.windowWidth > 0 && _QhState.windowWidth_px > 0
+      ? px / (_QhState.windowWidth_px / QhState.windowWidth)
+      : 0
+    try {
+      this.controller.runJavaScript(`window.qhKbAvoid && window.qhKbAvoid(${vp})`)
+        .catch((): void => {
+        })
+    } catch (error) {
+    }
+  }
+
+  /** 联想类型 → HTML 图标名（与 HTML 侧 SG_ICONS 键一致） */
+  private suggestTypeName(t: SuggestType): string {
+    if (t === SuggestType.BOOKMARK) {
+      return 'bookmark'
+    }
+    if (t === SuggestType.HISTORY) {
+      return 'history'
+    }
+    if (t === SuggestType.TAB) {
+      return 'tab'
+    }
+    if (t === SuggestType.FAVORITES) {
+      return 'star'
+    }
+    if (t === SuggestType.NETWORK_SUGGEST) {
+      return 'lightbulb'
+    }
+    return 'search'
+  }
+
+  /** HTML 搜索框输入：纯计算联想（不写共享状态，避免联动原生面板），过期守卫后回推 HTML 渲染 */
+  private handleSuggest(text: string): void {
+    const seq: number = ++this.suggestSeq
+    searchVM.computeSuggestions(text, this.tab.isIncognito).then((list: SuggestItem[]) => {
+      // 过期守卫：期间有新输入则丢弃本次结果
+      if (seq !== this.suggestSeq) {
+        return
+      }
+      this.suggestList = list.slice(0, 12)
+      const entries: HomeSuggestEntry[] = []
+      for (const it of this.suggestList) {
+        const en: HomeSuggestEntry = new HomeSuggestEntry()
+        en.type = this.suggestTypeName(it.type)
+        en.text = it.text
+        en.url = it.url
+        entries.push(en)
+      }
+      if (!this.pageReady) {
+        return
+      }
+      try {
+        this.controller.runJavaScript(`window.renderSuggests(${JSON.stringify(entries)})`)
+          .catch((): void => {
+          })
+      } catch (error) {
+      }
+    })
+  }
+
+  /** HTML 联想条目点击：标签切换 / URL 直达 / 搜索词提交 */
+  private pickSuggest(index: number): void {
+    if (index < 0 || index >= this.suggestList.length) {
+      return
+    }
+    const item: SuggestItem = this.suggestList[index]
+    this.suggestSeq++
+    this.suggestList = []
+    if (item.type === SuggestType.TAB && item.tabId >= 0) {
+      tabsVM.switchTab(item.tabId)
+      return
+    }
+    if (item.url !== '') {
+      browserVM.openUrl(item.url)
+      return
+    }
+    browserVM.submitAddress(item.text)
   }
 
   /** 图标优先模式：为快捷图标懒加载 favicon */
@@ -214,7 +343,7 @@ export struct HomeHtmlView {
       .javaScriptProxy({
         object: this.bridge,
         name: 'qhBridge',
-        methodList: ['openUrl', 'setEngine', 'removeQuick'],
+        methodList: ['openUrl', 'setEngine', 'removeQuick', 'suggest', 'openSuggest'],
         controller: this.controller
       })
       .fileAccess(true)

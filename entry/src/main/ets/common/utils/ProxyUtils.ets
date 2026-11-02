@@ -1,4 +1,5 @@
 import { webview } from '@kit.ArkWeb';
+import { url } from '@kit.ArkTS';
 import { appSettings } from '../entity/SettingsModel';
 import SiteSettingInfo from '../entity/SiteSettingInfo';
 import { SiteSettingDao } from './database/impl/SiteSettingDao';
@@ -7,6 +8,14 @@ import { _QhState } from '../../entryability/AppState';
 /** 站点级"走代理"覆盖 key（site_setting 表） */
 export const SITE_PROXY_KEY: string = 'site_proxy';
 
+/** 代理路由缓存（apply 重算；原生 http 请求按 URL 域名同步判定） */
+interface ProxyRouteCache {
+  /** 「走代理」默认开（默认全走代理，off 例外直连） */
+  defaultOn: boolean
+  onSites: string[]
+  offSites: string[]
+}
+
 /**
  * 代理分流：ArkWeb 仅支持全应用全局代理（ProxyController，无 per-Web setProxy）。
  * 走代理范围由「网站设定 · 走代理」决定（默认 + 站点例外）：
@@ -14,6 +23,7 @@ export const SITE_PROXY_KEY: string = 'site_proxy';
  * 默认关 = 仅例外（on）站点走代理（enableReverseBypass 反转旁路语义），其余直连。
  * 路由由内核按请求域名匹配 bypass 规则，多标签并发互不影响。
  * 仅支持单一代理服务器（所有分流站点共用）。
+ * 原生 http 请求（HttpDownloader 下载等）经 shouldProxyUrl 按同一套分流规则走代理。
  */
 export class ProxyUtils {
 
@@ -22,6 +32,8 @@ export class ProxyUtils {
   /** 本次会话已应用过代理覆盖（撤销仅在曾应用过时执行，避免无谓内核调用） */
   private static applied: boolean = false
   private static dao: SiteSettingDao | null = null
+  /** 分流路由缓存（apply 时重算；HttpDownloader 等原生 http 请求同步查用） */
+  private static routeCache: ProxyRouteCache | null = null
 
   private static getDB(): SiteSettingDao {
     if (ProxyUtils.dao === null) {
@@ -76,10 +88,26 @@ export class ProxyUtils {
       return
     }
     if (!ProxyUtils.valid()) {
+      ProxyUtils.routeCache = null
       ProxyUtils.remove()
       return
     }
     const rows: SiteSettingInfo[] = await ProxyUtils.getDB().listByKey(SITE_PROXY_KEY)
+    // 分流路由缓存（供原生 http 请求按 URL 域名同步判定）
+    const cache: ProxyRouteCache = {
+      defaultOn: ProxyUtils.proxyDefault() === 'on', onSites: [], offSites: []
+    }
+    for (const r of rows) {
+      if (r.site === '') {
+        continue
+      }
+      if (r.value === 'on') {
+        cache.onSites.push(r.site)
+      } else if (r.value === 'off') {
+        cache.offSites.push(r.site)
+      }
+    }
+    ProxyUtils.routeCache = cache
     const config: webview.ProxyConfig = new webview.ProxyConfig()
     config.insertProxyRule(`${appSettings.proxy_type}://${appSettings.proxy_host.trim()}:${appSettings.proxy_port}`)
     if (ProxyUtils.proxyDefault() === 'on') {
@@ -127,5 +155,45 @@ export class ProxyUtils {
     } catch (e) {
       console.error(`[ProxyUtils] removeProxyOverride 失败: ${e}`)
     }
+  }
+
+  /**
+   * 原生 http 请求（下载等）是否应走应用代理：
+   * 按 URL 域名匹配「走代理」分流，与内核 bypass 规则同语义
+   * （默认开：例外站点直连、其余走代理；默认关：仅例外站点走代理）。
+   * 代理未启用/未配置/缓存未就绪时返回 false。
+   */
+  static shouldProxyUrl(target: string): boolean {
+    if (!ProxyUtils.valid() || ProxyUtils.routeCache === null) {
+      return false
+    }
+    let host: string = ''
+    try {
+      host = new url.URL(target).host.split(':')[0]
+    } catch (e) {
+      return false
+    }
+    if (host === '') {
+      return false
+    }
+    const c: ProxyRouteCache = ProxyUtils.routeCache
+    if (c.defaultOn) {
+      return !ProxyUtils.matchesAny(host, c.offSites)
+    }
+    return ProxyUtils.matchesAny(host, c.onSites)
+  }
+
+  /** 域名是否命中站点规则（支持裸域名与 *. 前缀通配，子域名后缀匹配） */
+  private static matchesAny(host: string, sites: string[]): boolean {
+    for (const s of sites) {
+      let site: string = s
+      if (site.startsWith('*.')) {
+        site = site.substring(2)
+      }
+      if (host === site || host.endsWith('.' + site)) {
+        return true
+      }
+    }
+    return false
   }
 }

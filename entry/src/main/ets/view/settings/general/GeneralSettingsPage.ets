@@ -54,13 +54,6 @@ function orientationLabel(v: string): ResourceStr {
   return $r('app.string.orientation_auto');
 }
 
-function videoPlayerLabel(v: string): ResourceStr {
-  if (v === 'none') {
-    return $r('app.string.vp_none');
-  }
-  return $r('app.string.vp_system');
-}
-
 function restoreLabel(v: string): ResourceStr {
   if (v === 'never') {
     return $r('app.string.restore_never');
@@ -260,14 +253,7 @@ struct GeneralSettingsPage {
     g.items.push(this.routerItem('ad_block', $r('app.string.ad_block'), 'settings_adblock'))
     g.items.push(this.routerItem('site_settings', $r('app.string.site_settings'), 'settings_site'))
     g.items.push(this.routerItem('translate_settings', $r('app.string.translate_settings'), 'settings_translate'))
-    // 外置视频播放器：功能未接线，置灰待后续实现
-    const videoPlayerItem: CustomItemInfo = this.textItem('video_player', $r('app.string.video_player'),
-      ResourceUtils.getString(videoPlayerLabel(appSettings.video_player)), (): void => {
-        this.openVideoPlayerPicker()
-      })
-    videoPlayerItem.enabled = false
-    videoPlayerItem.disabledHint = $r('app.string.feature_not_available')
-    g.items.push(videoPlayerItem)
+    g.items.push(this.routerItem('video_settings', $r('app.string.video_settings'), 'settings_video'))
     g.items.push(this.routerItem('password_manager', $r('app.string.password_manager'), 'settings_password'))
     groups.push(g)
     // 搜索与主页
@@ -437,16 +423,6 @@ struct GeneralSettingsPage {
       appSettings.screen_orientation = v
       SettingsUtils.applyOrientation()
       this.setItemValue('screen_orientation', ResourceUtils.getString(orientationLabel(v)))
-    })
-  }
-
-  private openVideoPlayerPicker(): void {
-    this.openPicker($r('app.string.video_player'), [
-      new PickerOption('system', $r('app.string.vp_system')),
-      new PickerOption('none', $r('app.string.vp_none'))
-    ], appSettings.video_player, (v: string): void => {
-      appSettings.video_player = v
-      this.setItemValue('video_player', ResourceUtils.getString(videoPlayerLabel(v)))
     })
   }
 

@@ -89,10 +89,6 @@ struct SiteSettingsPage {
           // 网页振动为全局开关（无站点例外），显示其状态
           item.value = ResourceUtils.getString(appSettings.web_vibration_enabled
             ? $r('app.string.site_opt_on') : $r('app.string.site_opt_off'))
-        } else if (config.key === 'site_popup') {
-          // 弹出式窗口为全局开关（无站点例外），显示其状态
-          item.value = ResourceUtils.getString(appSettings.popup_allowed
-            ? $r('app.string.site_opt_on') : $r('app.string.site_opt_off'))
         } else {
           item.value = SiteSettingsViewModel.labelOf(config, SiteSettingsViewModel.getDefault(config.key))
         }

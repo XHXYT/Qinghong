@@ -1,5 +1,5 @@
 import { QhState } from '../entryability/AppState';
-import { KeyboardAvoidMode } from '@kit.ArkUI';
+import { KeyboardAvoidMode, SymbolGlyphModifier } from '@kit.ArkUI';
 import { tabsVM, TabInfo } from '../viewmodel/TabsViewModel';
 import { syncVM } from '../viewmodel/SyncViewModel';
 import { browserVM } from '../viewmodel/BrowserViewModel';
@@ -29,6 +29,11 @@ import { TopMenuPanel } from '../components/browser/TopMenuPanel';
 import { inspectorVM } from '../viewmodel/InspectorViewModel';
 import { hitokoto } from '../common/utils/Hitokoto';
 import { toastUtil } from '../common/utils/ToastUtils';
+import { VideoFullScreen } from '../common/utils/VideoFullScreen';
+import { downloadVM } from '../viewmodel/DownloadViewModel';
+import { DownloadConfirmDialog } from '../components/browser/DownloadConfirmDialog';
+import { assistantVM } from '../viewmodel/WebAssistantViewModel';
+import { WebHostedPlayerView, WebHostedPlayerSession } from '../components/browser/WebHostedPlayer';
 
 @Entry
 @ComponentV2
@@ -69,6 +74,29 @@ struct Index {
    * 系统返回：覆盖层 > 网页回退(到底回主页) > 默认退出
    */
   onBackPress(): boolean {
+    // 网页助手菜单：返回关闭
+    if (assistantVM.showMenu) {
+      assistantVM.closeMenu()
+      return true
+    }
+    // 视频托管播放器：返回关闭全屏托管层（会话保留，页面再次播放可唤起）
+    const hostTab = tabsVM.activeTab
+    if (hostTab !== null && hostTab.hostedSession !== null && hostTab.hostedSession.state.show) {
+      hostTab.hostedSession.close()
+      return true
+    }
+    // 网页视频全屏：返回先退出全屏（触发 Web 退出全屏回调恢复界面）
+    const fullTab = tabsVM.activeTab
+    if (fullTab !== null && fullTab.videoFullScreen) {
+      const handler = fullTab.videoExitHandler
+      if (handler !== null) {
+        handler.exitFullScreen()
+      } else {
+        fullTab.videoFullScreen = false
+        VideoFullScreen.exit()
+      }
+      return true
+    }
     // 游戏模式：2 秒内连按两次返回退出，首次提示「再按一次退出」
     if (browserVM.gameMode) {
       if (!browserVM.handleGameModeBack()) {
@@ -88,6 +116,11 @@ struct Index {
       browserVM.closeFind()
       return true
     }
+    // 下载确认弹窗：返回关闭
+    if (downloadVM.pending !== null) {
+      downloadVM.cancelDownload()
+      return true
+    }
     if (this.inspectorVisible()) {
       inspectorVM.handleBack()
       return true
@@ -100,6 +133,16 @@ struct Index {
     return inspectorVM.showInspector && !this.readerActive()
       && !browserVM.showTabSwitcher
       && tabsVM.activeTabId === inspectorVM.boundTabId
+  }
+
+  /** 当前激活标签的视频托管会话（null = 无托管播放） */
+  @Computed
+  private get activeHostedSession(): WebHostedPlayerSession | null {
+    const tab: TabInfo | null = tabsVM.activeTab
+    if (tab !== null && tab.hostedSession !== null) {
+      return tab.hostedSession
+    }
+    return null
   }
 
   private async initTabs(): Promise<void> {
@@ -134,10 +177,10 @@ struct Index {
     return UISettings.app_layout === 'bottom_double'
   }
 
-  /** 操作栏自动隐藏中（滑动/点击隐藏触发，各标签独立记忆） */
+  /** 操作栏隐藏中（滑动/点击隐藏、网页视频全屏，各标签独立记忆） */
   private barsHidden(): boolean {
     const tab = tabsVM.activeTab
-    return tab !== null && tab.actionBarHidden
+    return tab !== null && (tab.actionBarHidden || tab.videoFullScreen)
   }
 
   /** 地址栏左图标顶弹面板距顶端偏移：传统布局=顶部地址栏高度（44+进度条2），双底布局=0；均含状态栏避让 */
@@ -154,17 +197,67 @@ struct Index {
     return UISettings.show_tab_bar && (this.mergedTop() || this.mergedBottom())
   }
 
-  /** 资源嗅探悬浮按钮显隐：设置开启 + 网页标签（非主页/无痕/弹窗）+ 无覆盖层 + 检测到视频/音频 */
-  private showSniffButton(): boolean {
-    if (!appSettings.show_sniff_button || this.readerActive() || browserVM.showFindBar
+  /** 网页助手悬浮按钮显隐：设置开启 + 网页标签（非主页/无痕/弹窗）+ 无覆盖层 + 检测到视频/音频 */
+  private showAssistantButton(): boolean {
+    if (!appSettings.web_assistant || this.readerActive() || browserVM.showFindBar
       || browserVM.showTabSwitcher || browserVM.gameMode) {
       return false
     }
     const tab = tabsVM.activeTab
-    if (tab === null || tab.isHome || tab.isIncognito || tab.isPopupWindow) {
+    if (tab === null || tab.isHome || tab.isIncognito || tab.isPopupWindow || tab.videoFullScreen) {
       return false
     }
     return sniffVM.hasMedia(tab.id)
+  }
+
+  /** 托管播放器标题（当前标签页面标题） */
+  private hostedTitle(): string {
+    const tab: TabInfo | null = tabsVM.activeTab
+    return tab !== null ? tab.title : ''
+  }
+
+  /** 网页助手系统菜单（悬浮按钮 bindMenu 弹出）：资源嗅探/视频托管/投屏播放/下载视频 */
+  @Builder
+  private assistantMenu() {
+    Menu() {
+      if (appSettings.resource_sniff) {
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.waveform')),
+          content: $r('app.string.resource_sniff')
+        })
+          .onClick(() => {
+            assistantVM.closeMenu()
+            sniffVM.open()
+          })
+      }
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_square')),
+        content: $r('app.string.video_hosting')
+      })
+        .onClick(() => {
+          assistantVM.triggerVideoHosting()
+        })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.screen_share')),
+        content: $r('app.string.cast_play')
+      })
+        .onClick(() => {
+          assistantVM.closeMenu()
+          toastUtil.showToast({ message: $r('app.string.feature_not_available') })
+        })
+      if (assistantVM.playingUrl !== '' && !assistantVM.playingUrl.startsWith('blob:')) {
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_down_circle')),
+          content: $r('app.string.download_video')
+        })
+          .onClick(() => {
+            const url: string = assistantVM.playingUrl
+            assistantVM.closeMenu()
+            const tab: TabInfo | null = tabsVM.activeTab
+            downloadVM.download(url, tab !== null ? tab.url : '')
+          })
+      }
+    }
   }
 
   /** 顶栏可见且吸收状态栏区域（合并栏在上或传统布局顶部地址栏时，栏背景沉浸到状态栏） */
@@ -355,6 +448,8 @@ struct Index {
               .width('100%')
               // 顶部避让内化为栏容器内边距：背景层不再被整体推下，主页背景可铺至状态栏
               .padding({ top: QhState.topRectHeight })
+              // 抬升顶部栏层级：地址栏搜索联想面板可覆盖内容区渲染
+              .zIndex(2)
               .transition(this.barTransition('top'))
             }
 
@@ -393,8 +488,8 @@ struct Index {
                 .margin({ left: 16, right: 16, bottom: 12 })
               }
 
-              // 资源嗅探悬浮按钮：当前页检测到视频/音频时显示（高级设置可关）
-              if (this.showSniffButton()) {
+              // 网页助手悬浮按钮：当前页检测到视频/音频时显示（高级设置「网页助手」可关）
+              if (this.showAssistantButton()) {
                 Row() {
                   Blank()
                   Row() {
@@ -410,7 +505,15 @@ struct Index {
                   .shadow({ radius: 12, color: 'rgba(0,0,0,0.2)', offsetY: 2 })
                   .margin({ right: 16, bottom: 14 })
                   .onClick(() => {
-                    sniffVM.open()
+                    assistantVM.openMenu()
+                  })
+                  // 系统菜单：点击悬浮按钮先采集正在播放的视频再弹出
+                  .bindMenu(assistantVM.showMenu, this.assistantMenu, {
+                    placement: Placement.TopRight,
+                    offset: { x: 0, y: -6 },
+                    onDisappear: () => {
+                      assistantVM.closeMenu()
+                    }
                   })
                 }
                 .width('100%')
@@ -444,7 +547,7 @@ struct Index {
                   }
                   MergedActionBar({ barPosition: 'bottom' })
                 } else if (this.doubleBottom()) {
-                  AddressBar()
+                  AddressBar({ suggestBelow: false })
                   BrowserToolbar()
                 } else if (!this.mergedTop()) {
                   BrowserToolbar()
@@ -508,6 +611,16 @@ struct Index {
               browserVM.closeReader()
             }
           })
+        }
+
+        // 下载确认弹窗：接管下载事件后先确认（可改文件名）再开始下载
+        if (downloadVM.pending !== null) {
+          DownloadConfirmDialog()
+        }
+
+        // 视频托管播放器：全窗口沉浸层（托管会话播放时覆盖整个应用窗口）
+        if (this.activeHostedSession !== null && this.activeHostedSession.state.show) {
+          WebHostedPlayerView({ session: this.activeHostedSession, title: this.hostedTitle() })
         }
       }
       .width('100%')

@@ -80,6 +80,8 @@ export class SitePolicy {
   redirectMode: string = 'allow'
   /** 返回不刷新（BFCache：离开页面时按当前页策略缓存快照，返回瞬时恢复），默认开 */
   backNoReload: boolean = true
+  /** 弹出式窗口：'allow' 直接放行 | 'ask' 先询问 | 'block' 拒绝（默认 ask） */
+  popupMode: string = 'ask'
 }
 
 /** 权限三档（允许/优先询问/已禁止） */
@@ -154,7 +156,7 @@ export class SiteSettingsViewModel {
         ], 'allow'),
         new SiteItemConfig('site_js', $r('app.string.site_js'), AB('allow'), 'allow'),
         new SiteItemConfig('site_cookies', $r('app.string.site_cookies'), [], 'allow'),
-        new SiteItemConfig('site_popup', $r('app.string.site_popup'), [], 'off')
+        new SiteItemConfig('site_popup', $r('app.string.site_popup'), P(), 'ask')
       ]),
       new SiteGroup('basic', $r('app.string.site_group_basic'), [
         new SiteItemConfig('site_ad_block', $r('app.string.site_ad_block'), T('on'), 'on', true),
@@ -209,6 +211,10 @@ export class SiteSettingsViewModel {
     const v: Object | undefined = raw[key]
     if (v !== undefined && typeof v === 'string' && v !== '') {
       return v
+    }
+    // 弹出式窗口三态化迁移：未写入 site_defaults 前存于旧开关 popup_allowed（开=允许，关=询问）
+    if (key === 'site_popup' && appSettings.popup_allowed) {
+      return 'allow'
     }
     return config !== null ? config.def : ''
   }
@@ -383,6 +389,10 @@ export class SiteSettingsViewModel {
     policy.redirectMode = rd === 'allow' || rd === 'ask' || rd === 'block' ? rd : 'allow'
     // 返回不刷新（BFCache）
     policy.backNoReload = (merged.get('site_back_no_reload') ?? '') === 'on'
+    // 弹出式窗口（站点覆盖 > site_defaults 默认 > 旧开关迁移：popup_allowed 开=allow 关=ask）
+    const pv: string = merged.get('site_popup') ?? ''
+    policy.popupMode = pv === 'allow' || pv === 'ask' || pv === 'block'
+      ? pv : (appSettings.popup_allowed ? 'allow' : 'ask')
     // 浏览器标识 / 电脑模式
     const uaId: string = merged.get('site_ua') ?? ''
     if (uaId !== '' && uaId !== 'global') {

@@ -1849,6 +1849,14 @@
       "value": "下载目录"
     },
     {
+      "name": "download_confirm_title",
+      "value": "下载文件"
+    },
+    {
+      "name": "download_action",
+      "value": "下载"
+    },
+    {
       "name": "download_settings",
       "value": "下载配置"
     },
@@ -1895,6 +1903,138 @@
     {
       "name": "vp_system",
       "value": "系统播放器"
+    },
+    {
+      "name": "video_settings",
+      "value": "视频设置"
+    },
+    {
+      "name": "video_settings_group_player",
+      "value": "播放器"
+    },
+    {
+      "name": "video_settings_group_web",
+      "value": "网页视频"
+    },
+    {
+      "name": "video_control",
+      "value": "视频控制"
+    },
+    {
+      "name": "video_control_desc",
+      "value": "双击快进、滑动调节、长按倍速与键盘快捷键"
+    },
+    {
+      "name": "video_control_group_gestures",
+      "value": "手势操作"
+    },
+    {
+      "name": "video_control_group_keyboard",
+      "value": "键盘快捷键"
+    },
+    {
+      "name": "video_gesture_enable",
+      "value": "启用视频手势"
+    },
+    {
+      "name": "video_gesture_enable_desc",
+      "value": "在网页视频上使用触屏手势控制播放"
+    },
+    {
+      "name": "video_gesture_disabled_hint",
+      "value": "请先开启视频手势"
+    },
+    {
+      "name": "video_gesture_double_tap",
+      "value": "双击快进/快退"
+    },
+    {
+      "name": "video_gesture_double_tap_desc",
+      "value": "双击视频左侧快退10秒，右侧快进10秒"
+    },
+    {
+      "name": "video_gesture_swipe_seek",
+      "value": "滑动调节进度"
+    },
+    {
+      "name": "video_gesture_swipe_seek_desc",
+      "value": "按住视频左右滑动调整进度，松开生效"
+    },
+    {
+      "name": "video_gesture_side_slide",
+      "value": "上下滑调亮度音量"
+    },
+    {
+      "name": "video_gesture_side_slide_desc",
+      "value": "全屏时左侧上下滑动调亮度，右侧调音量"
+    },
+    {
+      "name": "video_gesture_tap_toggle",
+      "value": "单击暂停/播放"
+    },
+    {
+      "name": "video_gesture_tap_toggle_desc",
+      "value": "单击视频区域切换暂停与播放"
+    },
+    {
+      "name": "video_gesture_long_press",
+      "value": "长按倍速"
+    },
+    {
+      "name": "video_gesture_long_press_desc",
+      "value": "长按视频以3倍速播放，松开恢复"
+    },
+    {
+      "name": "video_keyboard_shortcuts",
+      "value": "常用键盘快捷键"
+    },
+    {
+      "name": "video_keyboard_shortcuts_desc",
+      "value": "在网页视频中启用键盘快捷键，键位可在下方逐项修改"
+    },
+    {
+      "name": "video_kb_play",
+      "value": "播放/暂停"
+    },
+    {
+      "name": "video_kb_back5",
+      "value": "快退5秒"
+    },
+    {
+      "name": "video_kb_fwd5",
+      "value": "快进5秒"
+    },
+    {
+      "name": "video_kb_back10",
+      "value": "快退10秒"
+    },
+    {
+      "name": "video_kb_fwd10",
+      "value": "快进10秒"
+    },
+    {
+      "name": "video_kb_volup",
+      "value": "音量增大"
+    },
+    {
+      "name": "video_kb_voldown",
+      "value": "音量减小"
+    },
+    {
+      "name": "video_kb_mute",
+      "value": "静音切换"
+    },
+    {
+      "name": "video_kb_fullscreen",
+      "value": "全屏切换"
+    },
+    {
+      "name": "video_kb_reset",
+      "value": "恢复默认按键"
+    },
+    {
+      "name": "video_kb_reset_done",
+      "value": "已恢复默认按键"
     },
     {
       "name": "exit_clear_data",
@@ -2385,8 +2525,92 @@
       "value": "不加载网页中的在线图片以节省流量"
     },
     {
-      "name": "show_sniff_button",
-      "value": "自动展示嗅探按钮"
+      "name": "web_assistant",
+      "value": "网页助手"
+    },
+    {
+      "name": "web_assistant_desc",
+      "value": "网页有视频播放或可下载资源时展示悬浮按钮，以增强浏览体验"
+    },
+    {
+      "name": "resource_sniff_desc",
+      "value": "网页有可下载资源时在网页助手中展示此菜单项，关闭后不再展示此功能"
+    },
+    {
+      "name": "video_hosting",
+      "value": "视频托管"
+    },
+    {
+      "name": "video_hosting_start",
+      "value": "正在接管视频播放…"
+    },
+    {
+      "name": "video_hosting_not_found",
+      "value": "未检测到可播放的视频"
+    },
+    {
+      "name": "video_hosting_scale_label",
+      "value": "播放比例"
+    },
+    {
+      "name": "video_hosting_scale_fit",
+      "value": "适应（留黑边）"
+    },
+    {
+      "name": "video_hosting_scale_crop",
+      "value": "填充（裁剪）"
+    },
+    {
+      "name": "video_hosting_scale_stretch",
+      "value": "拉伸"
+    },
+    {
+      "name": "video_hosting_loop",
+      "value": "循环播放"
+    },
+    {
+      "name": "video_hosting_brightness",
+      "value": "亮度"
+    },
+    {
+      "name": "video_hosting_volume",
+      "value": "音量"
+    },
+    {
+      "name": "video_hosting_buffering",
+      "value": "缓冲中…"
+    },
+    {
+      "name": "video_hosting_retry",
+      "value": "点击重试"
+    },
+    {
+      "name": "video_hosting_boost",
+      "value": ">> 2X 倍速中"
+    },
+    {
+      "name": "video_hosting_rewind",
+      "value": "<< 2X 快退中"
+    },
+    {
+      "name": "video_hosting_seek_fwd",
+      "value": "快进 %d 秒"
+    },
+    {
+      "name": "video_hosting_seek_back",
+      "value": "快退 %d 秒"
+    },
+    {
+      "name": "video_host_play_failed",
+      "value": "视频播放失败"
+    },
+    {
+      "name": "cast_play",
+      "value": "投屏播放"
+    },
+    {
+      "name": "download_video",
+      "value": "下载视频"
     },
     {
       "name": "feature_not_available",
@@ -2719,6 +2943,14 @@
     {
       "name": "popup_allowed_desc",
       "value": "网站可以直接显示弹出式窗口"
+    },
+    {
+      "name": "site_popup_desc",
+      "value": "允许：网站可直接打开弹出式窗口；询问：打开前需先确认；拒绝：阻止弹出式窗口"
+    },
+    {
+      "name": "popup_blocked_toast",
+      "value": "已阻止弹出式窗口"
     },
     {
       "name": "popup_permission_title",

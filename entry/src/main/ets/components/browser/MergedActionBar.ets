@@ -9,6 +9,8 @@ import { sniffVM } from '../../viewmodel/SniffViewModel';
 import { ResourceSniffPanel } from './ResourceSniffPanel';
 import { BookmarkEditor } from './BookmarkEditor';
 import { addressDisplayText } from './AddressBar';
+import { searchVM } from '../../viewmodel/SearchViewModel';
+import { SearchSuggestPanel } from './SearchSuggestPanel';
 import { ActionBarColor } from '../../common/utils/ActionBarColor';
 import { HomeImmersive } from '../../common/utils/HomeImmersive';
 import { toolbarEventRunner } from '../../common/utils/ToolbarEventRunner';
@@ -415,12 +417,16 @@ export struct MergedActionBar {
             })
             .onChange((v: string) => {
               this.editText = v
+              const t = tabsVM.activeTab
+              searchVM.updateSuggestions(v, t !== null && t.isIncognito)
             })
             .onBlur(() => {
               this.editing = false
+              searchVM.clearSoon()
             })
             .onSubmit(() => {
               browserVM.submitAddress(this.editText)
+              searchVM.clear()
               this.editing = false
               this.editText = ''
               this.getUIContext().getFocusController().clearFocus()
@@ -528,6 +534,30 @@ export struct MergedActionBar {
           .height(2)
           .color(ActionBarColor.fg(QhState.currentThemeColor))
           .backgroundColor(Color.Transparent)
+      }
+
+      // 搜索联想面板：顶部合并栏向下展开、底部合并栏向上展开
+      if (searchVM.suggestions.length > 0) {
+        if (this.barPosition === 'top') {
+          SearchSuggestPanel({
+            onPick: (): void => {
+              this.editing = false
+              this.editText = ''
+              this.getUIContext().getFocusController().clearFocus()
+            }
+          })
+            .position({ x: 0, y: 36 })
+        } else {
+          SearchSuggestPanel({
+            onPick: (): void => {
+              this.editing = false
+              this.editText = ''
+              this.getUIContext().getFocusController().clearFocus()
+            }
+          })
+            .position({ x: 0, y: 0 })
+            .markAnchor({ x: 0, y: '100%' })
+        }
       }
     }
     .width('100%')

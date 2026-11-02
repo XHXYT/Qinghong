@@ -70,15 +70,35 @@ struct AdvancedSettingsPage {
         DnsUtils.applyPreconnect()
       }
     }))
-    items.push(new CustomItemInfo({
-      id: 'show_sniff_button',
-      title: $r('app.string.show_sniff_button'),
+    // 资源嗅探：依赖网页助手（总开关关闭时禁用并联动关闭）
+    const sniffItem: CustomItemInfo = new CustomItemInfo({
+      id: 'resource_sniff',
+      title: $r('app.string.resource_sniff'),
+      subtitle: $r('app.string.resource_sniff_desc'),
       type: ItemActionType.TOGGLE,
-      value: appSettings.show_sniff_button,
+      value: appSettings.resource_sniff,
+      enabled: appSettings.web_assistant,
       onChange: (v: string | boolean | number): void => {
-        appSettings.show_sniff_button = v as boolean
+        appSettings.resource_sniff = v as boolean
+      }
+    })
+    items.push(new CustomItemInfo({
+      id: 'web_assistant',
+      title: $r('app.string.web_assistant'),
+      subtitle: $r('app.string.web_assistant_desc'),
+      type: ItemActionType.TOGGLE,
+      value: appSettings.web_assistant,
+      onChange: (v: string | boolean | number): void => {
+        appSettings.web_assistant = v as boolean
+        if (!appSettings.web_assistant) {
+          // 总开关关闭：联动关闭资源嗅探（反向不联动）
+          appSettings.resource_sniff = false
+          sniffItem.value = false
+        }
+        sniffItem.enabled = appSettings.web_assistant
       }
     }))
+    items.push(sniffItem)
     items.push(new CustomItemInfo({
       id: 'allow_debug_web',
       title: $r('app.string.allow_debug_web'),

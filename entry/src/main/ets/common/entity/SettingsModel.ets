@@ -207,12 +207,30 @@ export class AppSettings {
   @Trace custom_uas: CustomUa[] = []
   /** 外置视频播放器 'system' | 'none' */
   @Trace video_player: string = 'system'
+  /** 视频控制：启用视频手势（网页视频触屏手势总开关） */
+  @Trace video_gesture_enabled: boolean = false
+  /** 视频手势：双击快进/快退（双击视频左侧快退、右侧快进） */
+  @Trace video_gesture_double_tap: boolean = true
+  /** 视频手势：滑动调节进度（按住视频左右滑动，松开生效） */
+  @Trace video_gesture_swipe_seek: boolean = true
+  /** 视频手势：上下滑调亮度音量（全屏时左侧亮度、右侧音量） */
+  @Trace video_gesture_side_slide: boolean = true
+  /** 视频手势：单击暂停/播放 */
+  @Trace video_gesture_tap_toggle: boolean = true
+  /** 视频手势：长按倍速（3 倍速播放，松开恢复） */
+  @Trace video_gesture_long_press: boolean = true
+  /** 视频控制：常用键盘快捷键（空格/方向键/M/F 等控制视频） */
+  @Trace video_keyboard_shortcuts: boolean = false
+  /** 视频快捷键自定义键位（"id:键,...", 空串=全部默认） */
+  @Trace video_kb_keys: string = ''
   /** 退出时清除数据（逗号分隔的 key 列表）；默认勾选：缓存/应用缓存 */
   @Trace exit_clear_data: string = 'cache,app_cache'
   /** 高级：无图模式（不加载网页在线图片） */
   @Trace no_image_mode: boolean = false
-  /** 高级：自动展示嗅探按钮 */
-  @Trace show_sniff_button: boolean = true
+  /** 高级：网页助手（视频/可下载资源时展示悬浮按钮入口） */
+  @Trace web_assistant: boolean = true
+  /** 高级：资源嗅探（网页助手菜单中的嗅探入口；依赖网页助手开启） */
+  @Trace resource_sniff: boolean = true
   /** 高级：允许调试网页 */
   @Trace allow_debug_web: boolean = true
   /** 高级：禁用安全浏览 */
@@ -456,9 +474,18 @@ export class AppSettings {
       "ua_simplify": this.ua_simplify,
       "custom_uas": this.custom_uas,
       "video_player": this.video_player,
+      "video_gesture_enabled": this.video_gesture_enabled,
+      "video_gesture_double_tap": this.video_gesture_double_tap,
+      "video_gesture_swipe_seek": this.video_gesture_swipe_seek,
+      "video_gesture_side_slide": this.video_gesture_side_slide,
+      "video_gesture_tap_toggle": this.video_gesture_tap_toggle,
+      "video_gesture_long_press": this.video_gesture_long_press,
+      "video_keyboard_shortcuts": this.video_keyboard_shortcuts,
+      "video_kb_keys": this.video_kb_keys,
       "exit_clear_data": this.exit_clear_data,
       "no_image_mode": this.no_image_mode,
-      "show_sniff_button": this.show_sniff_button,
+      "web_assistant": this.web_assistant,
+      "resource_sniff": this.resource_sniff,
       "allow_debug_web": this.allow_debug_web,
       "disable_safe_browsing": this.disable_safe_browsing,
       "ignore_ssl_warning": this.ignore_ssl_warning,
@@ -573,9 +600,18 @@ export class AppSettings {
     this.desktop_mode = (json["desktop_mode"] as boolean) ?? this.desktop_mode;
     this.ua_simplify = (json["ua_simplify"] as boolean) ?? this.ua_simplify;
     this.video_player = (json["video_player"] as string) ?? this.video_player;
+    this.video_gesture_enabled = (json["video_gesture_enabled"] as boolean) ?? this.video_gesture_enabled;
+    this.video_gesture_double_tap = (json["video_gesture_double_tap"] as boolean) ?? this.video_gesture_double_tap;
+    this.video_gesture_swipe_seek = (json["video_gesture_swipe_seek"] as boolean) ?? this.video_gesture_swipe_seek;
+    this.video_gesture_side_slide = (json["video_gesture_side_slide"] as boolean) ?? this.video_gesture_side_slide;
+    this.video_gesture_tap_toggle = (json["video_gesture_tap_toggle"] as boolean) ?? this.video_gesture_tap_toggle;
+    this.video_gesture_long_press = (json["video_gesture_long_press"] as boolean) ?? this.video_gesture_long_press;
+    this.video_keyboard_shortcuts = (json["video_keyboard_shortcuts"] as boolean) ?? this.video_keyboard_shortcuts;
+    this.video_kb_keys = (json["video_kb_keys"] as string) ?? this.video_kb_keys;
     this.exit_clear_data = (json["exit_clear_data"] as string) ?? this.exit_clear_data;
     this.no_image_mode = (json["no_image_mode"] as boolean) ?? this.no_image_mode;
-    this.show_sniff_button = (json["show_sniff_button"] as boolean) ?? this.show_sniff_button;
+    this.web_assistant = (json["web_assistant"] as boolean) ?? this.web_assistant;
+    this.resource_sniff = (json["resource_sniff"] as boolean) ?? this.resource_sniff;
     this.allow_debug_web = (json["allow_debug_web"] as boolean) ?? this.allow_debug_web;
     this.disable_safe_browsing = (json["disable_safe_browsing"] as boolean) ?? this.disable_safe_browsing;
     this.ignore_ssl_warning = (json["ignore_ssl_warning"] as boolean) ?? this.ignore_ssl_warning;
@@ -690,8 +726,9 @@ export class AppSettings {
   }
 
   @Monitor('search_engine_id', 'custom_engines', 'show_homepage_logo', 'restore_mode', 'default_incognito',
-    'do_not_track', 'disable_webrtc', 'disable_webrtc_udp', 'do_not_sell', 'intelligent_tracking_prevention', 'geolocation_access', 'language', 'screen_orientation', 'ua_mode', 'ua_desktop', 'desktop_mode', 'ua_simplify', 'custom_uas', 'video_player',
-    'exit_clear_data', 'no_image_mode', 'show_sniff_button', 'allow_debug_web', 'disable_safe_browsing',
+    'do_not_track', 'disable_webrtc', 'disable_webrtc_udp', 'do_not_sell', 'intelligent_tracking_prevention', 'geolocation_access', 'language', 'screen_orientation', 'ua_mode', 'ua_desktop', 'desktop_mode', 'ua_simplify', 'custom_uas',     'video_player', 'video_gesture_enabled', 'video_gesture_double_tap', 'video_gesture_swipe_seek',
+    'video_gesture_side_slide', 'video_gesture_tap_toggle', 'video_gesture_long_press', 'video_keyboard_shortcuts', 'video_kb_keys',
+    'exit_clear_data', 'no_image_mode', 'web_assistant', 'resource_sniff', 'allow_debug_web', 'disable_safe_browsing',
     'ignore_ssl_warning', 'web_vibration_enabled', 'web_haptic_enabled', 'dns_preconnect_enabled',
     'dns_doh_enabled', 'dns_doh_provider', 'dns_doh_custom',
     'proxy_enabled', 'proxy_type', 'proxy_host', 'proxy_port',
@@ -741,9 +778,18 @@ export class AppSettings {
     this.ua_simplify = false;
     this.custom_uas = [];
     this.video_player = 'system';
+    this.video_gesture_enabled = false;
+    this.video_gesture_double_tap = true;
+    this.video_gesture_swipe_seek = true;
+    this.video_gesture_side_slide = true;
+    this.video_gesture_tap_toggle = true;
+    this.video_gesture_long_press = true;
+    this.video_keyboard_shortcuts = false;
+    this.video_kb_keys = '';
     this.exit_clear_data = 'cache,app_cache';
     this.no_image_mode = false;
-    this.show_sniff_button = true;
+    this.web_assistant = true;
+    this.resource_sniff = true;
     this.allow_debug_web = true;
     this.disable_safe_browsing = false;
     this.ignore_ssl_warning = false;

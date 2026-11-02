@@ -8,6 +8,8 @@ import { HomeImmersive } from '../../common/utils/HomeImmersive';
 import { homeHtmlRefresh } from '../../common/utils/HomeHtmlRefresh';
 import { hitokoto } from '../../common/utils/Hitokoto';
 import { menuVM } from '../../viewmodel/MenuViewModel';
+import { searchVM } from '../../viewmodel/SearchViewModel';
+import { SearchSuggestPanel } from './SearchSuggestPanel';
 
 /**
  * 地址栏显示文本（按地址栏内容设置：标题/地址/域名，标题为空回退域名）
@@ -32,6 +34,8 @@ export struct AddressBar {
   /** 编辑中（聚焦时展示完整地址，失焦回退显示文本） */
   @Local editing: boolean = false
   @Local editText: string = ''
+  /** 联想面板展开方向：顶部地址栏向下、底部双行布局向上 */
+  @Param suggestBelow: boolean = true
 
   /** 主页态监测：回到主页时重置编辑状态，地址栏恢复默认展示 */
   @Computed
@@ -131,12 +135,16 @@ export struct AddressBar {
             })
             .onChange((v: string) => {
               this.editText = v
+              const t = tabsVM.activeTab
+              searchVM.updateSuggestions(v, t !== null && t.isIncognito)
             })
             .onBlur(() => {
               this.editing = false
+              searchVM.clearSoon()
             })
             .onSubmit(() => {
               browserVM.submitAddress(this.editText)
+              searchVM.clear()
               this.editing = false
               this.editText = ''
               this.getUIContext().getFocusController().clearFocus()
@@ -192,9 +200,15 @@ export struct AddressBar {
             .enterKeyType(EnterKeyType.Search)
             .onChange((v: string) => {
               this.editText = v
+              const t = tabsVM.activeTab
+              searchVM.updateSuggestions(v, t !== null && t.isIncognito)
+            })
+            .onBlur(() => {
+              searchVM.clearSoon()
             })
             .onSubmit(() => {
               browserVM.submitAddress(this.editText)
+              searchVM.clear()
               this.editText = ''
               this.getUIContext().getFocusController().clearFocus()
             })
@@ -211,6 +225,32 @@ export struct AddressBar {
         .height(44)
         .alignItems(VerticalAlign.Center)
         .padding({ left: 16, right: 16 })
+      }
+
+      // 搜索联想面板：输入时浮于内容区（顶部布局向下展开、底部双行布局向上展开）
+      if (searchVM.suggestions.length > 0) {
+        if (this.suggestBelow) {
+          SearchSuggestPanel({
+            panelBg: $r('sys.color.comp_background_primary'),
+            onPick: (): void => {
+              this.editing = false
+              this.editText = ''
+              this.getUIContext().getFocusController().clearFocus()
+            }
+          })
+            .position({ x: 0, y: 48 })
+        } else {
+          SearchSuggestPanel({
+            panelBg: $r('sys.color.comp_background_primary'),
+            onPick: (): void => {
+              this.editing = false
+              this.editText = ''
+              this.getUIContext().getFocusController().clearFocus()
+            }
+          })
+            .position({ x: 0, y: 0 })
+            .markAnchor({ x: 0, y: '100%' })
+        }
       }
     }
     .width('100%')

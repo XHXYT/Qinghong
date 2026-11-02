@@ -56,6 +56,7 @@
   .search_part {
     width: 100%; margin-top: 28px;
     display: flex; justify-content: center;
+    position: relative;
   }
   .search_bar {
     display: flex; align-items: center; gap: 4px;
@@ -99,6 +100,51 @@
   }
   #search_submit { width: 0; height: 0; padding: 0; border: none; visibility: hidden; }
 
+  /* 搜索联想下拉（原生拉取联想后 runJavaScript 推送渲染；点击走 qhBridge.openSuggest） */
+  /* 外层定位容器（flex 居中，无 transform：backdrop-filter 元素自带 transform 会错位采样背景） */
+  #suggest_box {
+    display: none;
+    position: absolute; left: 0; right: 0; top: 100%;
+    margin-top: 6px;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 50;
+  }
+  #suggest_box.show { display: flex; }
+  /* 内层面板：矩形样式时与搜索框同挂 search_bar 类——自定义 CSS 的 .search_bar 规则
+     （模糊/底色/圆角/阴影）经原生层叠直接命中面板，无需 JS 读计算样式；
+     本规则在 .search_bar 之后，仅覆盖布局差异（高度自适应/纵向排列/去内边距） */
+  .sg_panel {
+    width: 86%; max-width: 800px;
+    height: auto; min-height: 0;
+    padding: 0; gap: 0;
+    flex-direction: column; align-items: stretch;
+    background-color: var(--sg-bg, var(--bg));
+    background-image: var(--sg-bgimg, none);
+    backdrop-filter: var(--sg-bf, none);
+    -webkit-backdrop-filter: var(--sg-bf, none);
+    border: var(--sg-bw, 0px) solid var(--sg-bc, var(--sbc, transparent));
+    border-radius: var(--sg-radius, 16px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    /* 键盘避让限高：键盘弹出时原生推高度收缩可视区，避免下拉被键盘顶住挤压布局 */
+    max-height: var(--sg-max, 420px);
+    overflow-y: auto;
+    pointer-events: auto;
+  }
+  .sg_row {
+    display: flex; align-items: center; gap: 10px;
+    height: 46px; padding: 0 16px;
+  }
+  .sg_row svg { flex: none; width: 17px; height: 17px; color: var(--fg2); }
+  .sg_text {
+    flex: 1; min-width: 0; font-size: 15px; color: var(--fg);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sg_url {
+    flex: none; max-width: 40%; font-size: 12px; color: var(--fg2);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
   /* 快捷图标（Via 主页结构：#box_container > .box > .title + .label） */
   #box_container {
     display: flex; flex-wrap: wrap; justify-content: center;
@@ -132,6 +178,7 @@
   <div class="search_part" id="search_part">
     <form class="search_bar" id="search_bar"><div id="search_row"><select id="engine_select"></select><input id="search_input" type="text" autocomplete="off" enterkeyhint="search"><input id="search_submit" type="submit" value=""></div>
     </form>
+    <div id="suggest_box"><div class="sg_panel" id="sg_panel"></div></div>
   </div>
   <div id="box_container"></div>
   <div id="empty"></div>
@@ -195,10 +242,71 @@
     if (v) {
       a.value = '';
       a.blur();
+      hideSuggest();
       qhBridge.openUrl(v);
     }
     return false;
   };
+
+  /* 搜索联想（原生拉取后推送渲染；点击走 qhBridge.openSuggest 按索引分发） */
+  var SG_ICONS = {
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>',
+    lightbulb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 1 4 10.5c-.7.6-1 1.5-1 2.5h-6c0-1-.3-1.9-1-2.5A6 6 0 0 1 12 3z"/></svg>',
+    history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+    bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>',
+    tab: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="12" height="12" rx="2"/><path d="M9 21h10a2 2 0 0 0 2-2V9"/></svg>',
+    star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.3.9-4.5 4.4 1 6.1-5.5-2.9-5.5 2.9 1-6.1L3 9.5l6.3-.9z"/></svg>'
+  };
+  function hideSuggest() {
+    var box = el('suggest_box');
+    var panel = el('sg_panel');
+    box.className = '';
+    panel.innerHTML = '';
+    /* 面板收起后回落多上移的部分（键盘未关时仍保输入框避让） */
+    window.qhKbAvoid && window.qhKbAvoid(lastKb);
+  }
+  window.renderSuggests = function (list) {
+    var box = el('suggest_box');
+    var panel = el('sg_panel');
+    if (!list || !list.length) { hideSuggest(); return; }
+    var html = [];
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i];
+      html.push('<div class="sg_row" data-i="' + i + '">'
+        + (SG_ICONS[it.type] || SG_ICONS.search)
+        + '<span class="sg_text">' + esc(it.text) + '</span>'
+        + (it.url ? '<span class="sg_url">' + esc(it.url) + '</span>' : '')
+        + '</div>');
+    }
+    panel.innerHTML = html.join('');
+    /* 宽度与搜索框实时一致（含 :focus-within 放大后的宽度），居中由外层容器保证 */
+    var bw = el('search_bar').getBoundingClientRect().width;
+    if (bw > 0) { panel.style.width = bw + 'px'; }
+    box.className = 'show';
+    /* 面板展开后重算避让：整页随 logo/搜索框一起上移，保证面板完整避开键盘 */
+    window.qhKbAvoid && window.qhKbAvoid(lastKb);
+  };
+  el('search_input').addEventListener('input', function () {
+    var v = this.value.trim();
+    if (!v) { hideSuggest(); return; }
+    qhBridge.suggest(v);
+  });
+  /* 失焦延迟隐藏：保证联想行点击先于隐藏生效 */
+  el('search_input').addEventListener('blur', function () {
+    setTimeout(hideSuggest, 200);
+  });
+  /* 行点击按索引回原生分发（切标签/直达/搜索），阻止默认避免输入法抢焦点 */
+  el('suggest_box').addEventListener('pointerdown', function (e) { e.preventDefault(); });
+  el('suggest_box').addEventListener('click', function (e) {
+    var row = e.target && e.target.closest ? e.target.closest('.sg_row') : null;
+    if (!row) { return; }
+    var i = parseInt(row.dataset.i, 10);
+    var input = el('search_input');
+    input.value = '';
+    input.blur();
+    hideSuggest();
+    qhBridge.openSuggest(i);
+  });
 
   function applyTheme() {
     document.body.className = cfg.theme === 'dark' ? 'theme-dark'
@@ -274,11 +382,16 @@
     if (!cfg.showSearchArea) { el('search_part').style.display = 'none'; return; }
     el('search_part').style.display = '';
     s.className = 'search_bar';
+    /* 面板与搜索框同类：矩形样式挂 search_bar(+blur)，自定义 CSS 直接生效；
+       线条样式保持独立 sg_panel（applySearch 线条分支的 --sg-* 回落卡片默认） */
+    var panel = el('sg_panel');
+    panel.className = 'sg_panel';
     if (cfg.searchStyle === 'line') {
       s.classList.add('line');
       r.setProperty('--sbw2', (cfg.searchBorderWidth > 0 ? cfg.searchBorderWidth : 1.5) + 'px');
     } else {
-      if (cfg.searchEffect === 'blur') { s.classList.add('blur'); }
+      if (cfg.searchEffect === 'blur') { s.classList.add('blur'); panel.classList.add('blur'); }
+      panel.classList.add('search_bar');
       r.setProperty('--sr', cfg.searchRadius + 'px');
       r.setProperty('--sbw', cfg.searchBorderWidth + 'px');
       if (cfg.searchEffect === 'transparent') {
@@ -286,6 +399,21 @@
       } else {
         r.setProperty('--sbg2', 'rgba(' + base + ',' + (cfg.searchOpacity / 100 * 0.08) + ')');
       }
+    }
+    /* 联想下拉背景与搜索框同步：线条样式回落卡片默认，矩形样式同底色/模糊/描边/圆角
+       （透明效果下拉需可读性，底色回落 8% 半透明 + 毛玻璃） */
+    if (cfg.searchStyle === 'line') {
+      r.setProperty('--sg-bg', 'var(--bg)');
+      r.setProperty('--sg-bf', 'none');
+      r.setProperty('--sg-bw', '0px');
+      r.setProperty('--sg-radius', '16px');
+    } else {
+      var sgOp = cfg.searchEffect === 'transparent' ? 0.08 : (cfg.searchOpacity / 100 * 0.08);
+      var sgBlur = (cfg.searchEffect === 'blur' || cfg.searchEffect === 'transparent') ? 'blur(16px)' : 'none';
+      r.setProperty('--sg-bg', 'rgba(' + base + ',' + sgOp + ')');
+      r.setProperty('--sg-bf', sgBlur);
+      r.setProperty('--sg-bw', cfg.searchBorderWidth + 'px');
+      r.setProperty('--sg-radius', Math.max(16, cfg.searchRadius) + 'px');
     }
   }
 
@@ -371,6 +499,38 @@
     };
   }
 
+  /* 联想面板样式兜底同步（第二层；主机制是面板与搜索框同挂 search_bar 类走原生层叠）：
+     自定义 CSS 用 #search_bar 等 ID 选择器（类层叠覆盖不到面板）时，
+     仍从搜索框计算样式回填 --sg-* 变量；仅在成功读到有效值时覆盖，读不到保留 applySearch 值 */
+  function syncSuggestStyle() {
+    var s = getComputedStyle(el('search_bar'));
+    var r = document.documentElement.style;
+    var bg = s.getPropertyValue('background-color');
+    var bgImg = s.getPropertyValue('background-image');
+    var bf = s.getPropertyValue('backdrop-filter');
+    var bfWk = s.getPropertyValue('-webkit-backdrop-filter');
+    if (bf === '' || bf === 'none') {
+      bf = (bfWk !== '' && bfWk !== 'none') ? bfWk : '';
+    }
+    if (bg !== '' && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+      r.setProperty('--sg-bg', bg);
+    }
+    if (bgImg !== '' && bgImg !== 'none') {
+      r.setProperty('--sg-bgimg', bgImg);
+    } else if (bg !== '' || bf !== '') {
+      r.setProperty('--sg-bgimg', 'none');
+    }
+    if (bf !== '') {
+      r.setProperty('--sg-bf', bf);
+    }
+    var bw = s.getPropertyValue('border-top-width');
+    var bc = s.getPropertyValue('border-top-color');
+    var br = s.getPropertyValue('border-top-left-radius');
+    if (bw !== '') { r.setProperty('--sg-bw', bw); }
+    if (bc !== '') { r.setProperty('--sg-bc', bc); }
+    if (br !== '') { r.setProperty('--sg-radius', br); }
+  }
+
   window.renderHome = function (data) {
     cfg = data;
     el('incognitoText').textContent = cfg.incognitoText || '';
@@ -382,6 +542,8 @@
     applyQuick();
     /* 自定义 CSS 先于 Logo 脚本生效（注入脚本会读取计算样式） */
     el('custom').textContent = cfg.customCss || '';
+    /* 联想面板跟随搜索框最终样式（自定义 CSS 优先） */
+    syncSuggestStyle();
     applyLogo();
   };
 
@@ -390,6 +552,51 @@
   if (window.__QH_CFG__) {
     window.renderHome(window.__QH_CFG__);
   }
+
+  /* 输入法避让（原生推键盘高度 vp）：聚焦的输入框被键盘遮挡时 #wrap 整体上移，收起复位；
+     联想面板展开时重算补一次上移（renderSuggests/hideSuggest 触发），按面板期望高度
+     抬升整页，让面板与 logo/搜索框一起整体上滚避开键盘；
+     rect 测量值含当前 transform，须加回 curLift 还原原始坐标，否则重复调用会误判已避开 */
+  var lastKb = 0;
+  var curLift = 0;
+  window.qhKbAvoid = function (kbVp) {
+    lastKb = kbVp || 0;
+    var wrap = el('wrap');
+    var r = document.documentElement.style;
+    var ae = document.activeElement;
+    var ok = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA');
+    if (!lastKb || lastKb <= 0 || !ok) {
+      curLift = 0;
+      wrap.style.transform = '';
+      r.setProperty('--sg-max', '420px');
+      return;
+    }
+    var kbTop = window.innerHeight - lastKb;
+    var inBottom = ae.getBoundingClientRect().bottom + curLift;
+    var barBottom = el('search_bar').getBoundingClientRect().bottom + curLift;
+    /* 输入框保底：高于键盘 24px */
+    var overlap = inBottom - kbTop + 24;
+    /* 面板展开：按面板期望高度（内容实际高度，最低 120 保可用）再抬升整页 */
+    if (el('suggest_box').className.indexOf('show') >= 0) {
+      var want = el('sg_panel').scrollHeight || 120;
+      if (want < 120) { want = 120; }
+      if (want > 420) { want = 420; }
+      var panelLift = barBottom + 6 + want - (kbTop - 12);
+      if (panelLift > overlap) { overlap = panelLift; }
+    }
+    /* 别把搜索框抬出屏幕顶（状态栏下留 96px），抬不够时由下方限高收缩兜底 */
+    var maxLift = barBottom - 96;
+    if (overlap > maxLift) { overlap = Math.max(0, maxLift); }
+    if (overlap < 0) { overlap = 0; }
+    if (overlap > 0) {
+      wrap.style.transition = 'transform .25s ease';
+      wrap.style.transform = 'translateY(' + (-overlap) + 'px)';
+    } else {
+      wrap.style.transform = '';
+    }
+    curLift = overlap;
+    r.setProperty('--sg-max', Math.max(46, kbTop - (barBottom - overlap) - 18) + 'px');
+  };
 })();
 </script>
 </body>

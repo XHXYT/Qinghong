@@ -82,12 +82,27 @@ export class SearchViewModel {
    * 更新联想列表（按设置的建议来源：收藏/书签/标签页/历史浏览/搜索引擎/搜索历史）
    */
   async updateSuggestions(input: string, incognito: boolean): Promise<void> {
+    // 取消待执行的失焦延迟清空（重新聚焦输入）
+    if (this.clearTimer >= 0) {
+      clearTimeout(this.clearTimer)
+      this.clearTimer = -1
+    }
     this.inputText = input
-    const keyword = input.trim()
     const seq = ++this.requestSeq
+    const result = await this.computeSuggestions(input, incognito)
+    // 防止过期请求覆盖新输入
+    if (seq !== this.requestSeq) return
+    this.suggestions = result.slice(0, 12)
+  }
+
+  /**
+   * 纯计算联想（不写共享 @Trace 状态）：HTML 主页桥接走此路径，
+   * 避免网页内输入联动原生地址栏/主页联想面板
+   */
+  async computeSuggestions(input: string, incognito: boolean): Promise<SuggestItem[]> {
+    const keyword = input.trim()
     if (!keyword) {
-      this.suggestions = []
-      return
+      return []
     }
 
     const result: SuggestItem[] = []
@@ -173,9 +188,7 @@ export class SearchViewModel {
       }
     }
 
-    // 防止过期请求覆盖新输入
-    if (seq !== this.requestSeq) return
-    this.suggestions = result.slice(0, 12)
+    return result
   }
 
   /**
@@ -198,6 +211,22 @@ export class SearchViewModel {
     this.requestSeq++
     this.suggestions = []
     this.inputText = ''
+  }
+
+  /** 失焦延迟清空句柄（延迟避开联想条目点击；期间重新输入则取消） */
+  private clearTimer: number = -1
+
+  /**
+   * 失焦延迟清空（输入框失焦后 200ms 清空联想，保证点击联想条目先于清空生效）
+   */
+  clearSoon(): void {
+    if (this.clearTimer >= 0) {
+      clearTimeout(this.clearTimer)
+    }
+    this.clearTimer = setTimeout((): void => {
+      this.clearTimer = -1
+      this.clear()
+    }, 200)
   }
 
   /**

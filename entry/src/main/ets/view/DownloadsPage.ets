@@ -71,7 +71,18 @@ struct DownloadsPage {
     if (percent >= 0) {
       return `${Math.floor(percent)}%`
     }
-    return DownloadViewModel.formatSize(r.receivedSize)
+    return DownloadViewModel.formatSize(this.displayRecv(r))
+  }
+
+  /** 显示用已收字节：下载中取实时值（HLS 含乱序缓冲与在途），其余取落盘记录值 */
+  private displayRecv(r: DownloadRecordInfo): number {
+    if (r.status === 'downloading') {
+      const v: number | undefined = downloadVM.displayRecvOf.get(r.path)
+      if (v !== undefined && v > 0) {
+        return v
+      }
+    }
+    return r.receivedSize
   }
 
   /** 副标题：已下载 / 总大小 · 速度（总大小未知时用分片估算值；保存类记录无大小则留空） */
@@ -80,7 +91,7 @@ struct DownloadsPage {
       return ''
     }
     const speed: number = downloadVM.speedOf.get(r.path) ?? 0
-    return DownloadViewModel.subtitleOf(r.receivedSize, downloadVM.displayTotalOf(r), speed, r.status === 'downloading')
+    return DownloadViewModel.subtitleOf(this.displayRecv(r), downloadVM.displayTotalOf(r), speed, r.status === 'downloading')
   }
 
   private statusText(status: string): ResourceStr {

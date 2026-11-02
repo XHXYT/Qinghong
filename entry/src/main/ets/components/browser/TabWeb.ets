@@ -16,6 +16,9 @@ import { AdvancedSecurityUtils } from '../../common/utils/AdvancedSecurityUtils'
 import { AdBlockEngine } from '../../common/utils/AdBlockEngine';
 import { adBlockStore } from '../../common/utils/AdBlockStore';
 import { WebScripts } from '../../common/utils/WebScripts';
+import { VideoScripts } from '../../common/utils/VideoScripts';
+import { VideoFullScreen } from '../../common/utils/VideoFullScreen';
+import { WebHostedPlayerSession } from './WebHostedPlayer';
 import { ReaderScripts } from '../../common/utils/ReaderScripts';
 import { ViewSourceScripts } from '../../common/utils/ViewSourceScripts';
 import { SitePolicy, SiteSettingsViewModel, siteSettingsVM } from '../../viewmodel/SiteSettingsViewModel';
@@ -58,6 +61,7 @@ class ClipboardBridge {
   private readonly tapToggleHandler: () => void
   private readonly gmHandler: (api: string, json: string) => void
   private readonly sniffHandler: (url: string, kind: string) => void
+  private readonly videoHandler: (api: string, arg: string) => void
 
   constructor(handler: (action: string, cbId: number, text: string) => void,
     passwordHandler: (username: string, password: string) => void,
@@ -65,7 +69,8 @@ class ClipboardBridge {
     scrollHandler: (hidden: boolean) => void,
     tapToggleHandler: () => void,
     gmHandler: (api: string, json: string) => void,
-    sniffHandler: (url: string, kind: string) => void) {
+    sniffHandler: (url: string, kind: string) => void,
+    videoHandler: (api: string, arg: string) => void) {
     this.handler = handler
     this.passwordHandler = passwordHandler
     this.inspectHandler = inspectHandler
@@ -73,6 +78,7 @@ class ClipboardBridge {
     this.tapToggleHandler = tapToggleHandler
     this.gmHandler = gmHandler
     this.sniffHandler = sniffHandler
+    this.videoHandler = videoHandler
   }
 
   clipboardRequest(action: string, cbId: number, text: string): void {
@@ -105,6 +111,11 @@ class ClipboardBridge {
   /** 媒体嗅探钩子上报（__qhNative.sniffMedia）：记录网络日志驱动悬浮按钮/嗅探面板 */
   sniffMedia(url: string, kind: string): void {
     this.sniffHandler(url, kind)
+  }
+
+  /** 视频手势桥（__qhNative.videoRequest）：全屏左半屏上下滑调节窗口亮度 */
+  videoRequest(api: string, arg: string): void {
+    this.videoHandler(api, arg)
   }
 }
 
@@ -157,6 +168,8 @@ export struct TabWeb {
     this.handleGmRequest(api, json)
   }, (url: string, kind: string): void => {
     this.handleSniffMedia(url, kind)
+  }, (api: string, arg: string): void => {
+    this.handleVideoRequest(api, arg)
   })
 
   /** 保存密码提示弹窗 */
@@ -238,6 +251,16 @@ export struct TabWeb {
     this.netConn?.unregister(() => {
     })
     inspectorVM.removeLogs(this.tab.id)
+    // 视频托管：释放托管会话（AVPlayer 等底层资源）
+    if (this.tab.hostedSession !== null) {
+      this.tab.hostedSession.release()
+    }
+    // 全屏中组件销毁（Web 随之销毁不会再回调退出）：恢复系统栏与方向
+    if (this.tab.videoFullScreen) {
+      this.tab.videoFullScreen = false
+      this.tab.videoExitHandler = null
+      VideoFullScreen.exit()
+    }
   }
 
   /** 查询当前默认网络是否为 WIFI */
@@ -410,6 +433,33 @@ export struct TabWeb {
     netLogVM.recordSniffed(this.tab.id, url, kind)
   }
 
+  /**
+   * 视频手势原生请求（__qhNative.videoRequest）：
+   * brightness 设窗口亮度（0-1）、brightnessReset 恢复跟随系统（-1）
+   */
+  private handleVideoRequest(api: string, arg: string): void {
+    const win = _QhState.window
+    if (!win) {
+      return
+    }
+    try {
+      if (api === 'brightness') {
+        const v: number = Number(arg)
+        if (!Number.isNaN(v)) {
+          win.setWindowBrightness(Math.min(1, Math.max(0.02, v)))
+            .catch((): void => {
+            })
+        }
+      } else if (api === 'brightnessReset') {
+        win.setWindowBrightness(-1)
+          .catch((): void => {
+          })
+      }
+    } catch (e) {
+      console.error(`[TabWeb] 视频手势亮度请求失败: ${e}`)
+    }
+  }
+
   private documentStartScripts(): Array<ScriptItem> {
     const scripts: Array<ScriptItem> = WebScripts.privacyScripts()
     scripts.push(WebScripts.clipboardScript())
@@ -421,6 +471,11 @@ export struct TabWeb {
     }
     if (!appSettings.system_password_manager) {
       scripts.push(WebScripts.passwordScript())
+    }
+    // 视频控制：手势 + 键盘快捷键（任一开启时注入）
+    const videoScript: ScriptItem | null = VideoScripts.controlScript()
+    if (videoScript !== null) {
+      scripts.push(videoScript)
     }
     // 用户脚本：@run-at document-start（@match 规则做 URL 预过滤）
     for (const item of scriptVM.docStartScriptItems()) {
@@ -548,13 +603,18 @@ export struct TabWeb {
   }
 
   /**
-   * 网页请求新窗口（window.open / target=_blank）：
-   * 弹出式窗口开关开启 → 直接以新标签打开；
-   * 未开启 → 询问许可（内核在此期间阻塞渲染，须在允许/拒绝/取消时均回执解除）
+   * 网页请求新窗口（window.open / target=_blank），按站点策略三态处理：
+   * 允许 → 直接以新标签打开；拒绝 → 回执拦截并提示；
+   * 询问 → 弹窗许可（内核在此期间阻塞渲染，须在允许/拒绝/取消时均回执解除）
    */
   private handleWindowNew(event: OnWindowNewEvent): void {
-    if (appSettings.popup_allowed) {
+    if (this.policy.popupMode === 'allow') {
       this.openPopupAsTab(event)
+      return
+    }
+    if (this.policy.popupMode === 'block') {
+      this.rejectPopup(event)
+      toastUtil.showToast({ message: $r('app.string.popup_blocked_toast') })
       return
     }
     const host: string = SiteSettingsViewModel.hostOf(this.tab.url)
@@ -1691,7 +1751,7 @@ export struct TabWeb {
           object: this.clipboardBridge,
           name: '__qhNative',
           methodList: ['clipboardRequest', 'passwordSubmit', 'inspectEvent', 'actionBarScroll',
-            'actionBarTapToggle', 'gmRequest', 'sniffMedia'],
+            'actionBarTapToggle', 'gmRequest', 'sniffMedia', 'videoRequest'],
           controller: tabsVM.ensureController(this.tab)
         })
         .copyOptions(this.policy.clipboardMode === 'block' ? CopyOptions.None : CopyOptions.LocalDevice)
@@ -1699,6 +1759,12 @@ export struct TabWeb {
         .enableAutoFill(appSettings.system_password_manager)
         .multiWindowAccess(true)
         .allowWindowOpenMethod(true)
+        // 视频托管：内核级接管网页媒体（官方 enableNativeMediaPlayer 机制，全屏托管播放器播放）；
+        // 待触发标志或已有托管会话时开启，其余时间交给内核自播
+        .enableNativeMediaPlayer({
+          enable: this.tab.pendingHostVideo || this.tab.hostedSession !== null,
+          shouldOverlay: true
+        })
         .onWindowNew((event: OnWindowNewEvent) => {
           this.handleWindowNew(event)
         })
@@ -1710,6 +1776,28 @@ export struct TabWeb {
           // 弹出式窗口页面调用 window.close() 时关闭对应标签
           if (this.tab.isPopupWindow) {
             tabsVM.closeTab(this.tab.id)
+          }
+        })
+        // HTML5 视频全屏：网页请求全屏时隐藏应用栏+系统栏，横屏视频转横屏（退出回调恢复）
+        .onFullScreenEnter((event: FullScreenEnterEvent) => {
+          this.tab.videoFullScreen = true
+          this.tab.videoExitHandler = event.handler
+          VideoFullScreen.enter(event.videoWidth ?? 0, event.videoHeight ?? 0)
+        })
+        .onFullScreenExit(() => {
+          this.tab.videoFullScreen = false
+          this.tab.videoExitHandler = null
+          VideoFullScreen.exit()
+          // 手势调亮度过兜底恢复：退出网页全屏时恢复跟随系统亮度
+          const win = _QhState.window
+          if (win) {
+            try {
+              win.setWindowBrightness(-1)
+                .catch((): void => {
+                })
+            } catch (e) {
+              // 窗口异常时忽略
+            }
           }
         })
         .onLoadIntercept((event: OnLoadInterceptEvent): boolean => {
@@ -1793,6 +1881,20 @@ export struct TabWeb {
         .onPageBegin((event: OnPageBeginEvent) => {
           // 导航离开时关闭可能残留的自定义菜单
           this.closeCtxMenu()
+          // 视频托管：导航销毁旧页面媒体，释放旧托管会话（AVPlayer 等底层资源）
+          if (this.tab.hostedSession !== null) {
+            this.tab.hostedSession.release()
+          }
+          // 视频托管：每页注册内核媒体接管回调（内核创建网页媒体时回调，决定是否由应用接管）
+          try {
+            tabsVM.ensureController(this.tab).onCreateNativeMediaPlayer(
+              (handler: webview.NativeMediaPlayerHandler,
+                mediaInfo: webview.MediaInfo): webview.NativeMediaPlayerBridge | null => {
+                return this.createHostedPlayer(handler, mediaInfo)
+              })
+          } catch (e) {
+            // 页面异常态注册失败忽略
+          }
           // HTTP 认证：进入新页面说明已通过认证，清空防死循环 guard
           this.authGuard.clear()
           // 元素审查：绑定标签导航时清选点与选中态（面板保留）
@@ -1937,6 +2039,55 @@ export struct TabWeb {
       browserVM.goBack()
     } else {
       browserVM.goForward()
+    }
+  }
+
+  /**
+   * 视频托管：内核媒体创建回调（onCreateNativeMediaPlayer）。
+   * 仅接管「待触发」标签的 URL 直链视频（一次性消费触发标志）；MSE/blob 动态流与音频返回 null 交回内核自播。
+   * 新视频创建时释放旧会话（托管跟随最新视频）；同 embedId 重复回调不重复接管。
+   */
+  private createHostedPlayer(handler: webview.NativeMediaPlayerHandler,
+    mediaInfo: webview.MediaInfo): webview.NativeMediaPlayerBridge | null {
+    if (mediaInfo.mediaType !== webview.MediaType.VIDEO || !this.tab.pendingHostVideo) {
+      return null
+    }
+    if (this.tab.hostedSession !== null) {
+      if (this.tab.hostedSession.embedId === mediaInfo.embedID) {
+        return null
+      }
+      this.tab.hostedSession.release()
+    }
+    let src: string = ''
+    for (const item of mediaInfo.mediaSrcList) {
+      if (item.type === webview.SourceType.URL && item.source !== '') {
+        src = item.source
+        break
+      }
+    }
+    if (src === '') {
+      return null
+    }
+    const session: WebHostedPlayerSession = new WebHostedPlayerSession(src,
+      (): void => {
+        this.tab.hostedSession = null
+      },
+      (): void => {
+        this.exitHostedPlayback()
+      },
+      handler, mediaInfo.embedID, mediaInfo.headers, mediaInfo.muted)
+    this.tab.pendingHostVideo = false
+    this.tab.hostedSession = session
+    return session
+  }
+
+  /** 结束托管播放：刷新页面恢复网页内播放（托管媒体已释放，页面重建视频元素后内核自播） */
+  private exitHostedPlayback(): void {
+    this.tab.pendingHostVideo = false
+    try {
+      tabsVM.ensureController(this.tab).refresh()
+    } catch (e) {
+      // 刷新失败时保持现状，下次导航自然恢复
     }
   }
 

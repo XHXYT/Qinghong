@@ -91,8 +91,8 @@ struct SiteDetailPage {
     for (const g of SiteSettingsViewModel.groups()) {
       const dg: DetailGroup = new DetailGroup(g.key, g.title)
       for (const cfg of g.items) {
-        // Cookies / 网页振动 / 弹出式窗口为全局开关，无按站点语义，不在站点详情页展示
-        if (cfg.key === 'site_cookies' || cfg.key === 'site_vibration' || cfg.key === 'site_popup') {
+        // Cookies / 网页振动为全局开关，无按站点语义，不在站点详情页展示
+        if (cfg.key === 'site_cookies' || cfg.key === 'site_vibration') {
           continue
         }
         dg.items.push(cfg)

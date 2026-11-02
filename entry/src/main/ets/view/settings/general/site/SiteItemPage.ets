@@ -24,7 +24,7 @@ const IMAGE_KEY = 'site_image'
 const COOKIES_KEY = 'site_cookies'
 /** 网页振动项 key（专属布局：全局单开关，无例外列表） */
 const VIBRATION_KEY = 'site_vibration'
-/** 弹出式窗口项 key（专属布局：全局开关，未开启时需先询问；无例外列表） */
+/** 弹出式窗口项 key（允许/询问/拒绝三态；卡片下方带三态说明） */
 const POPUP_KEY = 'site_popup'
 /** 无痕模式项 key（全局默认即「默认无痕浏览」开关，与隐私设置联动） */
 const INCOGNITO_KEY = 'site_incognito'
@@ -99,7 +99,7 @@ struct SiteItemPage {
   build() {
     NaviContainer({
       title: this.config !== null ? this.config.title : '',
-      buttons: this.isCookies || this.isVibration || this.isPopup ? [] : [
+      buttons: this.isCookies || this.isVibration ? [] : [
         new NaviBarButton({
           symbol: $r('sys.symbol.plus'),
           action: (): void => {
@@ -202,11 +202,6 @@ struct SiteItemPage {
     // 网页振动：全局单开关专属布局（无站点例外）
     if (this.isVibration) {
       this.buildVibrationItem()
-      return
-    }
-    // 弹出式窗口：全局开关专属布局（未开启时需先询问；无站点例外）
-    if (this.isPopup) {
-      this.buildPopupItem()
       return
     }
     this.buildDefaultItem(config)
@@ -348,19 +343,6 @@ struct SiteItemPage {
     })
   }
 
-  /** 弹出式窗口专属：全局开关（提示文字在卡片下方，随开关联动；无站点例外） */
-  private buildPopupItem(): void {
-    this.defaultItem = new CustomItemInfo({
-      id: 'popup',
-      title: $r('app.string.site_popup'),
-      type: ItemActionType.TOGGLE,
-      value: appSettings.popup_allowed,
-      onChange: (v: string | boolean | number): void => {
-        appSettings.popup_allowed = v === true
-      }
-    })
-  }
-
   private overrideItem(o: SiteSettingInfo): CustomItemInfo {
     const item: CustomItemInfo = this.buildOverrideItem(o)
     this.applyLock(item)
@@ -495,8 +477,6 @@ struct SiteItemPage {
       this.cookiesContent()
     } else if (this.isVibration) {
       this.vibrationContent()
-    } else if (this.isPopup) {
-      this.popupContent()
     } else if (this.isFont) {
       this.fontContent()
     } else {
@@ -571,44 +551,6 @@ struct SiteItemPage {
       .borderRadius(16)
       .clip(true)
       .margin({ top: 12 })
-    }
-    .width('100%')
-    .height('100%')
-    .contentEndOffset(QhState.bottomRectHeight)
-    .align(Alignment.Top)
-    .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
-    .padding({ left: 16, right: 16 })
-  }
-
-  /** 弹出式窗口专属页：全局开关 + 卡片下方说明文字（随开关联动） */
-  @Builder
-  popupContent() {
-    List() {
-      ListItem() {
-        CustomListItem({
-          item: this.defaultItem,
-          itemPadding: { left: 16, right: 16, top: 13, bottom: 13 }
-        })
-      }
-      .width('100%')
-      .backgroundColor($r('app.color.background_color'))
-      .borderRadius(16)
-      .clip(true)
-      .margin({ top: 10 })
-
-      // 状态说明：未开启需先询问，开启后可直接弹出
-      ListItem() {
-        Text(appSettings.popup_allowed
-          ? $r('app.string.popup_allowed_desc') : $r('app.string.popup_ask_desc'))
-          .fontSize(13)
-          .fontColor($r('sys.color.font_secondary'))
-          .lineHeight(19)
-      }
-      .width('100%')
-      .align(Alignment.Start)
-      .padding({ left: 6, right: 6 })
-      .margin({ top: 10 })
     }
     .width('100%')
     .height('100%')
@@ -854,6 +796,20 @@ struct SiteItemPage {
       .borderRadius(16)
       .clip(true)
       .margin({ top: 10 })
+
+      // 弹出式窗口：三态说明（允许直接打开 / 询问需确认 / 拒绝阻止；站点例外优先于全局默认）
+      if (this.isPopup) {
+        ListItem() {
+          Text($r('app.string.site_popup_desc'))
+            .fontSize(13)
+            .fontColor($r('sys.color.font_secondary'))
+            .lineHeight(19)
+        }
+        .width('100%')
+        .align(Alignment.Start)
+        .padding({ left: 6, right: 6 })
+        .margin({ top: 10 })
+      }
 
       // 例外网站
       if (this.overrides.length > 0) {
