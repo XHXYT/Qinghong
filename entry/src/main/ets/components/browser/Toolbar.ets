@@ -169,17 +169,17 @@ export struct BrowserToolbar {
               }))
               }, (e: MenuEntry): string => e.id)
             }
-            .rowsTemplate('1fr 1fr')
+            .rowsTemplate(menuVM.menuRowsPerPage() === 4 ? '1fr 1fr 1fr 1fr' : '1fr 1fr')
             .columnsTemplate('1fr 1fr 1fr 1fr 1fr')
             .scrollBar(BarState.Off)
             .columnsGap(4)
             .rowsGap(19)
             .width('100%')
-            .height(111)
+            .height(menuVM.menuRowsPerPage() * 46 + (menuVM.menuRowsPerPage() - 1) * 19)
             .padding({ left: 4, right: 4 })
             Row()
               .width('100%')
-              .height(29)
+              .height(menuVM.menuRowsPerPage() === 4 ? 36 : 29)
           }
           .width('100%')
         }, (page: MenuEntry[], pageIndex: number): string => pageIndex.toString())
@@ -194,6 +194,7 @@ export struct BrowserToolbar {
     }
     .width('100%')
     .height('100%')
+    .justifyContent(menuVM.menuRowsPerPage() === 4 ? FlexAlign.End : FlexAlign.Start)
     .padding({ top: 18, bottom: QhState.bottomRectHeight - 12 })
   }
 
@@ -303,7 +304,8 @@ export struct BrowserToolbar {
         toolbarEventRunner.run('menu_long')
       }))
       .bindSheet(menuVM.showMenu!!, this.menuSheetBuilder(), {
-        height: 175,
+        height: 175 + menuVM.menuSheetExtraHeight(),
+        enableOutsideInteractive: false,
         dragBar: false,
         showClose: false,
         backgroundColor: $r('sys.color.comp_background_primary'),

@@ -162,6 +162,7 @@ struct ScriptCodePage {
     .height('100%')
     .padding({ left: 16, right: 16, top: 10, bottom: 10 + QhState.bottomRectHeight })
     .bindSheet(this.showHelp!!, this.helpBuilder(), {
+      preferType: SheetType.CENTER,
       dragBar: true,
       showClose: true,
       height: SheetSize.LARGE,

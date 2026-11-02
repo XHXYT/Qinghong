@@ -25,30 +25,14 @@ export function addressDisplayText(url: string, title: string): string {
 }
 
 /**
- * 顶部地址栏：内联输入，回车直达 URL 或搜索引擎（无独立搜索页）
- * 最左图标：主页态=搜索图标，网页态=盾牌；点按=全宽顶弹面板（路由入口/页面信息），
- * 长按=切换搜索引擎菜单
+ * 地址最左图标入口（地址栏/合并栏地址胶囊共用）：
+ * 主页态=搜索图标，网页态=按连接安全状态切换（勾盾/警示盾/锁盾）；
+ * 点按=全宽顶弹面板（路由入口/页面信息），长按=切换搜索引擎菜单
  */
 @ComponentV2
-export struct AddressBar {
-  /** 编辑中（聚焦时展示完整地址，失焦回退显示文本） */
-  @Local editing: boolean = false
-  @Local editText: string = ''
-  /** 联想面板展开方向：顶部地址栏向下、底部双行布局向上 */
-  @Param suggestBelow: boolean = true
-
-  /** 主页态监测：回到主页时重置编辑状态，地址栏恢复默认展示 */
-  @Computed
-  get inHomeMode(): boolean {
-    const tab = tabsVM.activeTab
-    return tab === null || tab.isHome
-  }
-
-  @Monitor('inHomeMode')
-  onHomeModeChange(): void {
-    this.editing = false
-    this.editText = ''
-  }
+export struct AddressEntryIcon {
+  /** 图标字号（地址栏 19，合并栏胶囊按容器高度缩小） */
+  @Param iconSize: number = 19
 
   /** 长按菜单：切换搜索引擎 */
   @Builder
@@ -95,11 +79,9 @@ export struct AddressBar {
     return ActionBarColor.fg($r('sys.color.font_secondary'))
   }
 
-  /** 地址栏最左图标：点按=全宽顶弹面板，长按=搜索引擎菜单 */
-  @Builder
-  searchIconEntry() {
+  build() {
     SymbolGlyph(this.entryIcon())
-      .fontSize(19)
+      .fontSize(this.iconSize)
       .fontColor([this.entryIconColor()])
       .onClick(() => {
         this.getUIContext().animateTo({ duration: 220, curve: Curve.Friction }, (): void => {
@@ -108,18 +90,47 @@ export struct AddressBar {
       })
       .bindContextMenu(this.engineMenuBuilder(), ResponseType.LongPress)
   }
+}
+
+/**
+ * 顶部地址栏：内联输入，回车直达 URL 或搜索引擎（无独立搜索页）
+ * 最左图标：主页态=搜索图标，网页态=盾牌；点按=全宽顶弹面板（路由入口/页面信息），
+ * 长按=切换搜索引擎菜单
+ */
+@ComponentV2
+export struct AddressBar {
+  /** 编辑中（聚焦时展示完整地址，失焦回退显示文本） */
+  @Local editing: boolean = false
+  @Local editText: string = ''
+  /** 联想面板展开方向：顶部地址栏向下、底部双行布局向上 */
+  @Param suggestBelow: boolean = true
+
+  /** 主页态监测：回到主页时重置编辑状态，地址栏恢复默认展示 */
+  @Computed
+  get inHomeMode(): boolean {
+    const tab = tabsVM.activeTab
+    return tab === null || tab.isHome
+  }
+
+  @Monitor('inHomeMode')
+  onHomeModeChange(): void {
+    this.editing = false
+    this.editText = ''
+  }
 
   build() {
     Column() {
       if (tabsVM.activeTab && !tabsVM.activeTab.isHome) {
         Row({ space: 8 }) {
-          this.searchIconEntry()
+          AddressEntryIcon()
           TextInput({
             text: this.editing ? this.editText
               : addressDisplayText(tabsVM.activeTab.url, tabsVM.activeTab.title),
             placeholder: $r('app.string.search_hint')
           })
             .fontSize(15)
+            // 占位符显式对齐正文字号（默认 16fp 会显大）
+            .placeholderFont({ size: 15 })
             .fontColor(ActionBarColor.fg($r('sys.color.font_primary')))
             .placeholderColor(ActionBarColor.fg($r('sys.color.font_secondary')))
             .caretColor(ActionBarColor.fg($r('sys.color.font_primary')))
@@ -186,9 +197,11 @@ export struct AddressBar {
       } else if (tabsVM.activeTab && tabsVM.activeTab.isHome) {
         // 主页态：地址栏直接输入搜索或直达
         Row({ space: 8 }) {
-          this.searchIconEntry()
+          AddressEntryIcon()
           TextInput({ text: this.editText, placeholder: hitokoto.quote !== '' ? hitokoto.quote : $r('app.string.search_hint') })
             .fontSize(15)
+            // 占位符显式对齐正文字号（默认 16fp 会显大）
+            .placeholderFont({ size: 15 })
             .fontColor(ActionBarColor.fg($r('sys.color.font_primary')))
             .placeholderColor(ActionBarColor.fg($r('sys.color.font_secondary')))
             .caretColor(ActionBarColor.fg($r('sys.color.font_primary')))
@@ -227,8 +240,9 @@ export struct AddressBar {
         .padding({ left: 16, right: 16 })
       }
 
-      // 搜索联想面板：输入时浮于内容区（顶部布局向下展开、底部双行布局向上展开）
-      if (searchVM.suggestions.length > 0) {
+      // 搜索联想面板：输入时浮于内容区（顶部布局向下展开、底部双行布局向上展开）；
+      // 仅地址输入框编辑中显示（共享 suggestions，避免主页搜索框输入联动弹出本面板）
+      if (searchVM.suggestions.length > 0 && this.editing) {
         if (this.suggestBelow) {
           SearchSuggestPanel({
             panelBg: $r('sys.color.comp_background_primary'),

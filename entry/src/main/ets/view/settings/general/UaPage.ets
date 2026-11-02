@@ -397,6 +397,7 @@ struct UaPage {
     .contentEndOffset(QhState.bottomRectHeight)
     .padding({ left: 16, right: 16 })
     .bindSheet(this.showDesktopPicker!!, this.desktopPickerBuilder(), {
+      preferType: SheetType.CENTER,
       height: this.pickerHeight,
       dragBar: true,
       showClose: false,

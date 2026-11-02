@@ -46,115 +46,107 @@ function contentLabel(v: string): ResourceStr {
 @ComponentV2
 struct ToolbarSettingsPage {
 
-  @Local items: CustomItemInfo[] = []
   @Local sections: SettingsSection[] = []
   @Local picker: PickerConfig = new PickerConfig()
   @Local showPicker: boolean = false
   @Local pickerHeight: number = pickerSheetHeight(2)
 
+  /** 列表行持久化实例：Repeat 按 id 做 key diff，同 key 换新对象不会刷新，必须原地更新 */
+  private section: SettingsSection = new SettingsSection('toolbar_items')
+  private appLayoutItem: CustomItemInfo = new CustomItemInfo({
+    id: 'app_layout',
+    title: $r('app.string.app_layout'),
+    type: ItemActionType.TEXT,
+    onChange: (v: string | boolean | number): void => {
+      this.openLayoutPicker()
+    }
+  })
+  private autoHideItem: CustomItemInfo = new CustomItemInfo({
+    id: 'auto_hide_action_bar',
+    title: $r('app.string.auto_hide_action_bar'),
+    type: ItemActionType.TEXT,
+    onChange: (v: string | boolean | number): void => {
+      this.openHidePicker()
+    }
+  })
+  private addressContentItem: CustomItemInfo = new CustomItemInfo({
+    id: 'address_bar_content',
+    title: $r('app.string.address_bar_content'),
+    type: ItemActionType.TEXT,
+    onChange: (v: string | boolean | number): void => {
+      this.openContentPicker()
+    }
+  })
+  private tabBarItem: CustomItemInfo = new CustomItemInfo({
+    id: 'show_tab_bar',
+    title: $r('app.string.tab_bar'),
+    type: ItemActionType.TOGGLE,
+    onChange: (v: string | boolean | number): void => {
+      UISettings.show_tab_bar = v === true
+    }
+  })
+  private bookmarkBarItem: CustomItemInfo = new CustomItemInfo({
+    id: 'show_bookmark_bar',
+    title: $r('app.string.bookmark_bar'),
+    type: ItemActionType.TOGGLE,
+    onChange: (v: string | boolean | number): void => {
+      UISettings.show_bookmark_bar = v === true
+    }
+  })
+  private homeButtonItem: CustomItemInfo = new CustomItemInfo({
+    id: 'show_home_button',
+    title: $r('app.string.home_button'),
+    type: ItemActionType.TOGGLE,
+    onChange: (v: string | boolean | number): void => {
+      UISettings.show_home_button = v === true
+    }
+  })
+  private downloadButtonItem: CustomItemInfo = new CustomItemInfo({
+    id: 'show_download_button',
+    title: $r('app.string.download_button'),
+    type: ItemActionType.TOGGLE,
+    onChange: (v: string | boolean | number): void => {
+      UISettings.show_download_button = v === true
+    }
+  })
+  private colorModeItem: CustomItemInfo = new CustomItemInfo({
+    id: 'action_bar_color_mode',
+    title: $r('app.string.action_bar_color_mode'),
+    subtitle: $r('app.string.action_bar_color_mode_desc'),
+    type: ItemActionType.TOGGLE,
+    onChange: (v: string | boolean | number): void => {
+      UISettings.action_bar_color_mode = v === true
+    }
+  })
+
   aboutToAppear(): void {
-    this.buildItems()
+    this.section.topMargin = 12
+    this.syncItems()
+    this.sections = [this.section]
   }
 
-  /** 按当前布局构建设置行：同类相邻——布局/隐藏/地址栏在前，合并布局的栏与按钮开关次之，外观在后 */
-  private buildItems(): void {
-    const items: CustomItemInfo[] = [
-      new CustomItemInfo({
-        id: 'app_layout',
-        title: $r('app.string.app_layout'),
-        type: ItemActionType.TEXT,
-        value: ResourceUtils.getString(layoutLabel(UISettings.app_layout)),
-        onChange: (v: string | boolean | number): void => {
-          this.openLayoutPicker()
-        }
-      }),
-      new CustomItemInfo({
-        id: 'auto_hide_action_bar',
-        title: $r('app.string.auto_hide_action_bar'),
-        type: ItemActionType.TEXT,
-        value: ResourceUtils.getString(hideLabel(UISettings.auto_hide_action_bar)),
-        onChange: (v: string | boolean | number): void => {
-          this.openHidePicker()
-        }
-      }),
-      new CustomItemInfo({
-        id: 'address_bar_content',
-        title: $r('app.string.address_bar_content'),
-        type: ItemActionType.TEXT,
-        value: ResourceUtils.getString(contentLabel(UISettings.address_bar_content)),
-        onChange: (v: string | boolean | number): void => {
-          this.openContentPicker()
-        }
-      })
-    ]
+  /** 同步列表：原地更新各行的值，按布局增删合并布局专属开关（保持行对象引用以触发 @Trace 刷新） */
+  private syncItems(): void {
+    this.appLayoutItem.value = ResourceUtils.getString(layoutLabel(UISettings.app_layout))
+    this.autoHideItem.value = ResourceUtils.getString(hideLabel(UISettings.auto_hide_action_bar))
+    this.addressContentItem.value = ResourceUtils.getString(contentLabel(UISettings.address_bar_content))
+    this.tabBarItem.value = UISettings.show_tab_bar
+    this.bookmarkBarItem.value = UISettings.show_bookmark_bar
+    this.homeButtonItem.value = UISettings.show_home_button
+    this.downloadButtonItem.value = UISettings.show_download_button
+    this.colorModeItem.value = UISettings.action_bar_color_mode
+    const items: CustomItemInfo[] = [this.appLayoutItem, this.autoHideItem, this.addressContentItem]
     if (UISettings.app_layout === 'top' || UISettings.app_layout === 'bottom') {
-      items.push(new CustomItemInfo({
-        id: 'show_tab_bar',
-        title: $r('app.string.tab_bar'),
-        type: ItemActionType.TOGGLE,
-        value: UISettings.show_tab_bar,
-        onChange: (v: string | boolean | number): void => {
-          UISettings.show_tab_bar = v === true
-        }
-      }))
-      items.push(new CustomItemInfo({
-        id: 'show_bookmark_bar',
-        title: $r('app.string.bookmark_bar'),
-        type: ItemActionType.TOGGLE,
-        value: UISettings.show_bookmark_bar,
-        onChange: (v: string | boolean | number): void => {
-          UISettings.show_bookmark_bar = v === true
-        }
-      }))
-      items.push(new CustomItemInfo({
-        id: 'show_home_button',
-        title: $r('app.string.home_button'),
-        type: ItemActionType.TOGGLE,
-        value: UISettings.show_home_button,
-        onChange: (v: string | boolean | number): void => {
-          UISettings.show_home_button = v === true
-        }
-      }))
-      items.push(new CustomItemInfo({
-        id: 'show_download_button',
-        title: $r('app.string.download_button'),
-        type: ItemActionType.TOGGLE,
-        value: UISettings.show_download_button,
-        onChange: (v: string | boolean | number): void => {
-          UISettings.show_download_button = v === true
-        }
-      }))
+      items.push(this.tabBarItem, this.bookmarkBarItem, this.homeButtonItem, this.downloadButtonItem)
     }
-    items.push(new CustomItemInfo({
-      id: 'action_bar_color_mode',
-      title: $r('app.string.action_bar_color_mode'),
-      subtitle: $r('app.string.action_bar_color_mode_desc'),
-      type: ItemActionType.TOGGLE,
-      value: UISettings.action_bar_color_mode,
-      onChange: (v: string | boolean | number): void => {
-        UISettings.action_bar_color_mode = v === true
-      }
-    }))
-    this.items = items
-    const section: SettingsSection = new SettingsSection('toolbar_items')
-    section.items = items
-    section.topMargin = 12
-    this.sections = [section]
-  }
-
-  private setItemValue(id: string, value: string | boolean | number): void {
-    for (const it of this.items) {
-      if (it.id === id) {
-        it.value = value
-        return
-      }
-    }
+    items.push(this.colorModeItem)
+    this.section.items = items
   }
 
   /** 应用布局并联动刷新设置行（追加/移除合并布局专属开关） */
   private applyLayout(layout: string): void {
     UISettings.app_layout = layout
-    this.buildItems()
+    this.syncItems()
   }
 
   private openLayoutPicker(): void {
@@ -183,7 +175,7 @@ struct ToolbarSettingsPage {
     this.picker.selected = UISettings.auto_hide_action_bar
     this.picker.onSelect = (v: string): void => {
       UISettings.auto_hide_action_bar = v
-      this.setItemValue('auto_hide_action_bar', ResourceUtils.getString(hideLabel(v)))
+      this.autoHideItem.value = ResourceUtils.getString(hideLabel(v))
     }
     this.pickerHeight = pickerSheetHeight(this.picker.options.length)
     this.showPicker = true
@@ -199,7 +191,7 @@ struct ToolbarSettingsPage {
     this.picker.selected = UISettings.address_bar_content
     this.picker.onSelect = (v: string): void => {
       UISettings.address_bar_content = v
-      this.setItemValue('address_bar_content', ResourceUtils.getString(contentLabel(v)))
+      this.addressContentItem.value = ResourceUtils.getString(contentLabel(v))
     }
     this.pickerHeight = pickerSheetHeight(this.picker.options.length)
     this.showPicker = true
@@ -213,6 +205,16 @@ struct ToolbarSettingsPage {
         this.previewBox()
       }
     })
+      .bindSheet(this.showPicker!!, this.pickerBuilder(), {
+        preferType: SheetType.CENTER,
+        height: this.pickerHeight,
+        dragBar: true,
+        showClose: false,
+        backgroundColor: $r('sys.color.comp_background_primary'),
+        onDisappear: (): void => {
+          this.showPicker = false
+        }
+      })
   }
 
   /** 布局预览迷你元素（真实图标渲染） */
@@ -472,15 +474,6 @@ struct ToolbarSettingsPage {
     .borderRadius(16)
     .backgroundColor($r('app.color.background_color'))
     .margin({ top: 10 })
-    .bindSheet(this.showPicker!!, this.pickerBuilder(), {
-      height: this.pickerHeight,
-      dragBar: true,
-      showClose: false,
-      backgroundColor: $r('sys.color.comp_background_primary'),
-      onDisappear: (): void => {
-        this.showPicker = false
-      }
-    })
   }
 
   @Builder

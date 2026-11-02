@@ -325,6 +325,12 @@ export class AppSettings {
   @Trace home_quick_icon_style: string = 'text'
   /** 主页高级：搜索框效果 blur 模糊 / transparent 透明（底色不透明度归零） */
   @Trace home_search_effect: string = 'blur'
+  /** 主页高级：搜索框模糊程度（px，blur 效果生效，0=不模糊） */
+  @Trace home_search_blur: number = 16
+  /** 主页高级：搜索区域垂直偏移（vp，负=上移 正=下移） */
+  @Trace home_search_offset: number = 0
+  /** 主页高级：搜索框高度（vp） */
+  @Trace home_search_height: number = 46
   /** 主页高级：显示搜索区域（Logo + 搜索框） */
   @Trace home_show_search_area: boolean = true
   /** 主页高级：自定义 CSS（非空时启用本地 HTML 主页，优先级最高） */
@@ -532,6 +538,9 @@ export class AppSettings {
       "home_quick_radius": this.home_quick_radius,
       "home_quick_icon_style": this.home_quick_icon_style,
       "home_search_effect": this.home_search_effect,
+      "home_search_blur": this.home_search_blur,
+      "home_search_offset": this.home_search_offset,
+      "home_search_height": this.home_search_height,
       "home_show_search_area": this.home_show_search_area,
       "home_custom_css": this.home_custom_css,
       "home_custom_css_enabled": this.home_custom_css_enabled,
@@ -658,6 +667,9 @@ export class AppSettings {
     this.home_quick_radius = (json["home_quick_radius"] as number) ?? this.home_quick_radius;
     this.home_quick_icon_style = (json["home_quick_icon_style"] as string) ?? this.home_quick_icon_style;
     this.home_search_effect = (json["home_search_effect"] as string) ?? this.home_search_effect;
+    this.home_search_blur = (json["home_search_blur"] as number) ?? this.home_search_blur;
+    this.home_search_offset = (json["home_search_offset"] as number) ?? this.home_search_offset;
+    this.home_search_height = (json["home_search_height"] as number) ?? this.home_search_height;
     this.home_show_search_area = (json["home_show_search_area"] as boolean) ?? this.home_show_search_area;
     this.home_custom_css = (json["home_custom_css"] as string) ?? this.home_custom_css;
     this.home_custom_css_enabled = (json["home_custom_css_enabled"] as boolean) ?? this.home_custom_css_enabled;
@@ -739,7 +751,8 @@ export class AppSettings {
     'home_search_radius', 'home_search_opacity', 'home_search_border_width', 'home_search_border_opacity',
     'home_search_style', 'home_bg_image', 'home_bg_theme', 'home_bg_opacity', 'home_bg_blur',
     'home_quick_width', 'home_quick_height', 'home_quick_radius', 'home_quick_icon_style',
-    'home_search_effect', 'home_show_search_area', 'home_custom_css', 'home_custom_css_enabled',
+    'home_search_effect', 'home_search_blur', 'home_search_offset', 'home_search_height',
+    'home_show_search_area', 'home_custom_css', 'home_custom_css_enabled',
     'search_suggest_sources',     'search_toolbar_enabled', 'search_toolbar_engines', 'menu_layout', 'long_press_menu', 'bookmark_folders',
     'swipe_nav_enabled', 'volume_key_paging', 'player_gestures', 'keyboard_shortcuts', 'toolbar_events',
     'download_concurrency', 'download_task_limit', 'download_notify',
@@ -843,6 +856,9 @@ export class AppSettings {
     this.home_quick_radius = 24;
     this.home_quick_icon_style = 'text';
     this.home_search_effect = 'blur';
+    this.home_search_blur = 16;
+    this.home_search_offset = 0;
+    this.home_search_height = 46;
     this.home_show_search_area = true;
     this.home_custom_css = '';
     this.home_custom_css_enabled = true;
@@ -897,6 +913,9 @@ export class AppSettings {
     this.home_quick_radius = 24;
     this.home_quick_icon_style = 'text';
     this.home_search_effect = 'blur';
+    this.home_search_blur = 16;
+    this.home_search_offset = 0;
+    this.home_search_height = 46;
     this.home_show_search_area = true;
     this.home_custom_css = '';
     this.home_custom_css_enabled = true;

@@ -280,6 +280,7 @@ struct ProxyPage {
     .contentEndOffset(QhState.bottomRectHeight)
     .padding({ left: 16, right: 16 })
     .bindSheet(this.showTypePicker!!, this.typePickerBuilder(), {
+      preferType: SheetType.CENTER,
       height: this.pickerHeight,
       dragBar: true,
       showClose: false,

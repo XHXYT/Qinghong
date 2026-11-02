@@ -1,9 +1,11 @@
 import { NaviContainer } from '../../../components/NaviContainer';
 import { QhState, _QhState } from '../../../entryability/AppState';
-import { appSettings } from '../../../common/entity/SettingsModel';
+import { appSettings, UISettings } from '../../../common/entity/SettingsModel';
 import { TabInfo } from '../../../viewmodel/TabsViewModel';
-import { HomepageView } from '../../../components/browser/HomepageView';
+import { HomepageView, HomeBgLayer } from '../../../components/browser/HomepageView';
 import { HomeHtmlView } from '../../../components/browser/HomeHtmlView';
+import { HomeImmersive } from '../../../common/utils/HomeImmersive';
+import { homeBg } from '../../../common/utils/HomeBg';
 import { homeHtmlRefresh } from '../../../common/utils/HomeHtmlRefresh';
 import { HomeImageUtil } from '../../../common/utils/HomeImageUtil';
 import { toastUtil } from '../../../common/utils/ToastUtils';
@@ -67,9 +69,36 @@ struct HomeCustomizePage {
     new HomeTabItem($r('app.string.home_tab_advanced'), TAB_ADV)
   ]
 
-  /** 编辑后通知 HTML 主页刷新（原生主页靠 @Trace 自动刷新） */
+  /** 编辑后通知 HTML 主页刷新（原生主页靠 @Trace 自动刷新），并重估背景明暗（黑/白字依据） */
   private changed(): void {
+    homeBg.refresh()
     homeHtmlRefresh.request()
+  }
+
+  /** 主页沉浸态（与 Index 判定一致，供全屏预览还原真实主页布局） */
+  private homeImmersive(): boolean {
+    return HomeImmersive.active()
+  }
+
+  /** HTML 主页沉浸：真实主页网页全屏铺底、操作栏浮于其上 */
+  private htmlHomeFull(): boolean {
+    return this.homeImmersive() && appSettings.isHomeHtmlMode()
+  }
+
+  /** 全屏预览内容顶部内缩：HTML 沉浸网页全屏不内缩，其余按实测顶栏总高避让 */
+  private previewInsetTop(): number {
+    return this.htmlHomeFull() ? 0 : QhState.homeTopBarHeight
+  }
+
+  /** 真实主页底栏+小白条合计占位：实测底栏总高（栏在上布局无底栏，补小白条避让） */
+  private previewBarBottom(): number {
+    const navAvoid: number = UISettings.app_layout === 'top' ? QhState.bottomRectHeight : 0
+    return QhState.homeBottomBarHeight + navAvoid
+  }
+
+  /** 全屏预览内容底部内缩：HTML 沉浸网页全屏不内缩 */
+  private previewInsetBottom(): number {
+    return this.htmlHomeFull() ? 0 : this.previewBarBottom()
   }
 
   /** 点 tab：当前分区收起面板，其余分区切换内容 */
@@ -436,7 +465,25 @@ struct HomeCustomizePage {
             appSettings.home_search_opacity = v
             this.changed()
           })
+        if (appSettings.home_search_effect === 'blur') {
+          this.sliderRow($r('app.string.home_search_blur'),
+            (): number => appSettings.home_search_blur, 0, 30, (v: number) => {
+              appSettings.home_search_blur = v
+              this.changed()
+            })
+        }
       }
+
+      this.sliderRow($r('app.string.home_search_height'),
+        (): number => appSettings.home_search_height, 36, 60, (v: number) => {
+          appSettings.home_search_height = v
+          this.changed()
+        })
+      this.sliderRow($r('app.string.home_search_offset'),
+        (): number => appSettings.home_search_offset, -200, 200, (v: number) => {
+          appSettings.home_search_offset = v
+          this.changed()
+        })
 
       this.groupHeader($r('app.string.home_search_border_width'), false)
       this.sliderRow($r('app.string.home_search_border_width'),
@@ -637,11 +684,43 @@ struct HomeCustomizePage {
       // 预览区：始终最大化，配置面板作为上层覆盖其上，不挤压预览布局
       Stack({ alignContent: Alignment.Bottom }) {
         Stack() {
-          if (appSettings.isHomeHtmlMode()) {
-            HomeHtmlView({ tab: this.previewTab })
-          } else {
-            HomepageView({ tab: this.previewTab })
+          // 原生沉浸全屏预览：背景层铺满整窗（延伸至状态栏与底栏区域，同 Index）
+          if (this.previewFullscreen && !appSettings.isHomeHtmlMode() && this.homeImmersive()) {
+            HomeBgLayer()
           }
+          // 预览内容：全屏时按真实主页内缩避让栏区域（HTML 沉浸网页全屏、不内缩）
+          Column() {
+            if (appSettings.isHomeHtmlMode()) {
+              HomeHtmlView({ tab: this.previewTab })
+            } else {
+              HomepageView({ tab: this.previewTab, immersive: this.previewFullscreen && this.homeImmersive() })
+            }
+          }
+          .width('100%')
+          .height('100%')
+          .padding({
+            top: this.previewFullscreen ? this.previewInsetTop() : 0,
+            bottom: this.previewFullscreen ? this.previewInsetBottom() : 0
+          })
+
+          // 全屏预览顶栏占位示意：真实主页该区域被顶栏（标签栏/操作栏/地址栏）遮挡
+          if (this.previewFullscreen && QhState.homeTopBarHeight > 0) {
+            Column()
+              .width('100%')
+              .height(QhState.homeTopBarHeight)
+              .backgroundColor('rgba(0,0,0,0.30)')
+              .position({ x: 0, y: 0 })
+          }
+          // 全屏预览底栏占位示意：真实主页该区域被底栏/小白条遮挡
+          if (this.previewFullscreen && this.previewBarBottom() > 0) {
+            Column()
+              .width('100%')
+              .height(this.previewBarBottom())
+              .backgroundColor('rgba(0,0,0,0.30)')
+              .position({ x: 0, y: '100%' })
+              .markAnchor({ y: '100%' })
+          }
+
           // 拦截触摸，预览不可交互
           Column()
             .width('100%')
@@ -650,6 +729,7 @@ struct HomeCustomizePage {
         }
         .width('100%')
         .height('100%')
+        .backgroundColor($r('app.color.background_color_accent'))
         .borderRadius(this.previewFullscreen ? 0 : 20)
         .clip(true)
 

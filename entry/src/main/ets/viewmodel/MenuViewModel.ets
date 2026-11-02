@@ -117,6 +117,8 @@ export class MenuViewModel {
   private editingId: number = -1
   /** 文件夹编辑模式（新建文件夹页兼做编辑文件夹页） */
   @Trace folderEditMode: boolean = false
+  /** 独立新建文件夹模式（书签页右上角发起：确认创建后直接关闭 sheet） */
+  @Trace folderCreateMode: boolean = false
   /** 待编辑文件夹路径 */
   editFolderPath: string = ''
 
@@ -202,6 +204,7 @@ export class MenuViewModel {
     this.moveFolderSources = []
     this.moveBookmarkIds = []
     this.folderEditMode = false
+    this.folderCreateMode = false
     this.editFolderPath = ''
     this.onEditorClosed = null
     this.showBookmarkEditor = true
@@ -235,6 +238,26 @@ export class MenuViewModel {
     this.moveFolderSources = []
     this.moveBookmarkIds = []
     this.folderEditMode = false
+    this.folderCreateMode = false
+    this.editFolderPath = ''
+  }
+
+  /** 书签页右上角发起：独立新建文件夹（默认落在当前层级，确认后关闭 sheet） */
+  prepareNewFolder(parent: string): void {
+    this.folderEditMode = false
+    this.folderCreateMode = true
+    this.editorIsEdit = false
+    this.editingId = -1
+    this.folderPickerTarget = 'newFolder'
+    this.newFolderName = ''
+    this.newFolderNameItem.value = ''
+    this.newFolderParent = parent
+    this.newFolderParentItem.value = this.folderPathLabel(parent)
+    this.loadFolderRegistry()
+    this.clearEditorStack()
+    this.folderPickerMainStack = null
+    this.moveFolderSources = []
+    this.moveBookmarkIds = []
     this.editFolderPath = ''
   }
 
@@ -262,12 +285,14 @@ export class MenuViewModel {
     this.moveFolderSources = []
     this.moveBookmarkIds = []
     this.folderEditMode = false
+    this.folderCreateMode = false
     this.editFolderPath = ''
   }
 
   /** 书签页发起：编辑文件夹（复用新建文件夹页） */
   prepareEditFolder(path: string): void {
     this.folderEditMode = true
+    this.folderCreateMode = false
     this.editFolderPath = path
     this.newFolderName = this.lastSegmentOf(path)
     this.newFolderNameItem.value = this.newFolderName
@@ -290,6 +315,11 @@ export class MenuViewModel {
     }
     if (!this.folderEditMode) {
       this.createFolder()
+      // 独立新建模式（书签页右上角发起）：创建完成直接关闭 sheet；编辑器内嵌流程则留在编辑器
+      if (this.folderCreateMode) {
+        this.folderCreateMode = false
+        this.closeEditorSheet()
+      }
       return
     }
     const old: string = this.editFolderPath
@@ -624,6 +654,9 @@ export class MenuViewModel {
     if (paths.length === 0 || paths.length !== slots.length) {
       return
     }
+    // 先重载注册表：拖拽可能从书签栏等未初始化 folderList 的入口发起，
+    // 直接用陈旧列表保存会把仅存于注册表的空文件夹清掉
+    this.loadFolderRegistry()
     for (let i: number = 0; i < paths.length; i++) {
       this.folderOrders.set(paths[i], slots[i])
     }
@@ -891,7 +924,17 @@ export class MenuViewModel {
     'game_mode', 'add_home_favorite', 'report_site'
   ])
 
-  /** 按定制菜单布局构建分页：每页 2 行 × 5 列共 10 项 */
+  /** 菜单宫格每页行数：宽或高断点 > 1（平板横/竖屏）时 4 行/页，手机形态 2 行/页 */
+  menuRowsPerPage(): number {
+    return QhState.widthBp > 1 || QhState.heightBp > 1 ? 4 : 2
+  }
+
+  /** 菜单宫格 4 行/页时 sheet 需额外加高的量（多出 2 行 × 46 + 2 行距 × 19 + 底部占位 36-29） */
+  menuSheetExtraHeight(): number {
+    return this.menuRowsPerPage() === 4 ? 137 : 0
+  }
+
+  /** 按定制菜单布局构建分页：每页（4 或 2）行 × 5 列 */
   buildMenuPages(): void {
     const ids = appSettings.menu_layout !== ''
       ? appSettings.menu_layout.split(',')
@@ -903,9 +946,11 @@ export class MenuViewModel {
         entries.push(e)
       }
     }
+    const perPage: number = this.menuRowsPerPage() * 5
+    logger.info('MenuPages', `widthBp=${QhState.widthBp} heightBp=${QhState.heightBp} rows=${this.menuRowsPerPage()} perPage=${perPage} winW=${QhState.windowWidth} winH=${QhState.windowHeight} ratio=${QhState.windowWidth > 0 ? Math.round(QhState.windowHeight / QhState.windowWidth * 100) / 100 : 0}`)
     const pages: MenuEntry[][] = []
-    for (let i = 0; i < entries.length; i += 10) {
-      pages.push(entries.slice(i, i + 10))
+    for (let i = 0; i < entries.length; i += perPage) {
+      pages.push(entries.slice(i, i + perPage))
     }
     this.menuPages = pages
     // 每次打开菜单回到第一页

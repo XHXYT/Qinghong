@@ -9,6 +9,7 @@ import { faviconCache, FaviconCache } from '../../viewmodel/FaviconCache';
 import { SearchToolbarEngines } from '../../common/constants/SearchEngines';
 import { ResourceUtils } from '../../common/utils/ResourceUtil';
 import { homeHtmlRefresh } from '../../common/utils/HomeHtmlRefresh';
+import { homeBg } from '../../common/utils/HomeBg';
 import { toastUtil } from '../../common/utils/ToastUtils';
 import { createLogger } from '../../common/utils/Logger';
 import { hitokoto } from '../../common/utils/Hitokoto';
@@ -33,6 +34,8 @@ class HomeEngineEntry {
 /** 下发到 HTML 主页的完整配置 */
 class HomeHtmlConfig {
   theme: string = 'system'
+  /** 主页背景偏暗（背景图采样/背景主题综合判定）：页面文字取浅色 */
+  bgDark: boolean = false
   bgImage: string = ''
   bgOpacity: number = 100
   bgBlur: number = 0
@@ -47,6 +50,9 @@ class HomeHtmlConfig {
   searchBorderOpacity: number = 100
   searchStyle: string = 'rect'
   searchEffect: string = 'blur'
+  searchBlur: number = 16
+  searchOffset: number = 0
+  searchHeight: number = 46
   quickWidth: number = 0
   quickHeight: number = 0
   quickRadius: number = 24
@@ -272,6 +278,7 @@ export struct HomeHtmlView {
   private buildConfig(): HomeHtmlConfig {
     const cfg: HomeHtmlConfig = new HomeHtmlConfig()
     cfg.theme = appSettings.home_bg_theme
+    cfg.bgDark = homeBg.dark
     cfg.bgImage = appSettings.home_bg_image
     cfg.bgOpacity = appSettings.home_bg_opacity
     cfg.bgBlur = appSettings.home_bg_blur
@@ -286,6 +293,9 @@ export struct HomeHtmlView {
     cfg.searchBorderOpacity = appSettings.home_search_border_opacity
     cfg.searchStyle = appSettings.home_search_style
     cfg.searchEffect = appSettings.home_search_effect
+    cfg.searchBlur = appSettings.home_search_blur
+    cfg.searchOffset = appSettings.home_search_offset
+    cfg.searchHeight = appSettings.home_search_height
     cfg.quickWidth = appSettings.home_quick_width
     cfg.quickHeight = appSettings.home_quick_height
     cfg.quickRadius = appSettings.home_quick_radius

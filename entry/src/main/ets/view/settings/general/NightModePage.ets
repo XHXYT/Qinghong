@@ -154,6 +154,7 @@ struct NightModePage {
       .height(1)
       .width('100%')
       .bindSheet(this.showSheet!!, this.sheetContent(), {
+        preferType: SheetType.CENTER,
         height: this.sheetType === 'mask' ? 500 : pickerSheetHeight(3),
         dragBar: true,
         showClose: false,

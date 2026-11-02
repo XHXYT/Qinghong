@@ -1,5 +1,7 @@
 import { UISettings } from '../entity/SettingsModel';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
+import { HomeImmersive } from './HomeImmersive';
+import { homeBg } from './HomeBg';
 
 /**
  * 操作栏自适应色彩（色彩模式开启时取当前标签页 theme-color）
@@ -15,8 +17,12 @@ export class ActionBarColor {
     return tab.themeColor
   }
 
-  /** 操作栏前景（按页面色亮度取黑/白） */
+  /** 操作栏前景（主页沉浸时按主页背景明暗取黑/白；色彩模式开启时按页面色亮度；其余返回 fallback） */
   static fg(fallback: ResourceColor): ResourceColor {
+    // 主页沉浸：栏透明浮于主页背景上，按主页背景明暗取黑/白保证可读
+    if (HomeImmersive.active()) {
+      return homeBg.dark ? Color.White : Color.Black
+    }
     const tab = tabsVM.activeTab
     if (!UISettings.action_bar_color_mode || tab === null || tab.themeColor === '') {
       return fallback

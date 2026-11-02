@@ -260,6 +260,7 @@ struct ReadModePage {
     .edgeEffect(EdgeEffect.Spring)
     .padding({ left: 16, right: 16 })
     .bindSheet(this.showCssSheet!!, this.cssSheetContent(), {
+      preferType: SheetType.CENTER,
       height: 430,
       dragBar: true,
       showClose: false,

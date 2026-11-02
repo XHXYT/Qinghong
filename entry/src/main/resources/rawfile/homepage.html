@@ -46,7 +46,7 @@
   }
   #incognito.show { display: flex; }
   #logo {
-    margin-top: 56px; max-width: 92vw;
+    margin-top: calc(56px + var(--soff, 0px)); max-width: 92vw;
     font-size: 40px; font-weight: 700; color: var(--fg);
     text-align: center;
   }
@@ -60,13 +60,13 @@
   }
   .search_bar {
     display: flex; align-items: center; gap: 4px;
-    width: 86%; max-width: 800px; height: 46px; padding: 0 16px;
+    width: 86%; max-width: 800px; height: var(--sh, 46px); padding: 0 16px;
     border-radius: var(--sr, 23px);
     background: var(--sbg2, rgba(0,0,0,0.05));
     border: var(--sbw, 0px) solid var(--sbc, transparent);
     position: relative;
   }
-  .search_bar.blur { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  .search_bar.blur { backdrop-filter: blur(var(--sblur, 16px)); -webkit-backdrop-filter: blur(var(--sblur, 16px)); }
   .search_bar.line {
     background: transparent; border: none; border-radius: 0;
     border-bottom: var(--sbw2, 1.5px) solid var(--sbc, transparent);
@@ -82,7 +82,7 @@
   /* 内嵌 flex 行：不受外层 .search_bar 被 display:table 覆盖影响，保证下拉与输入框同行 */
   #search_row {
     display: flex; align-items: center; gap: 4px;
-    width: 100%; min-height: 46px;
+    width: 100%; min-height: var(--sh, 46px);
   }
   /* 引擎选择器（原生引擎下拉 + Logo HTML 脚本注入的 select） */
   .search_bar select {
@@ -90,11 +90,11 @@
     border: none; outline: none; background: transparent;
     color: var(--fg); font-size: 14px;
   }
-  #search_bar { min-height: 46px; }
+  #search_bar { min-height: var(--sh, 46px); }
   /* 原生引擎下拉：左对齐，与输入框同处 #search_row */
   #engine_select {
     flex: none; text-align: left;
-    margin: 0; height: 46px;
+    margin: 0; height: var(--sh, 46px);
     padding: 0 2px 0 6px;
     box-sizing: border-box;
   }
@@ -309,8 +309,8 @@
   });
 
   function applyTheme() {
-    document.body.className = cfg.theme === 'dark' ? 'theme-dark'
-      : (cfg.theme === 'light' ? 'theme-light' : '');
+    /* 原生综合背景图亮度/主题/系统深浅判定后下发 bgDark：暗背景浅色字、亮背景深色字 */
+    document.body.className = cfg.bgDark ? 'theme-dark' : 'theme-light';
   }
   /* 已应用的背景图缓存：路径没变时仅更新透明度/模糊，不重建元素 */
   var appliedBg = '';
@@ -343,7 +343,6 @@
   var appliedLogoHtml = '';
   function applyLogo() {
     var logo = el('logo');
-    if (!cfg.showSearchArea) { logo.style.display = 'none'; return; }
     logo.style.display = '';
     if (cfg.logoMode === 'image' && cfg.logoImage) {
       appliedLogoHtml = '';
@@ -370,8 +369,7 @@
   function applySearch() {
     var s = el('search_bar');
     var r = document.documentElement.style;
-    var dark = cfg.theme === 'dark' || (cfg.theme !== 'light' && window.matchMedia
-      && matchMedia('(prefers-color-scheme: dark)').matches);
+    var dark = cfg.bgDark;
     var base = dark ? '255,255,255' : '0,0,0';
     r.setProperty('--sbc', 'rgba(' + base + ',' + (cfg.searchBorderOpacity / 100 * (dark ? 0.6 : 0.4)) + ')');
     var input = el('search_input');
@@ -382,6 +380,9 @@
     if (!cfg.showSearchArea) { el('search_part').style.display = 'none'; return; }
     el('search_part').style.display = '';
     s.className = 'search_bar';
+    /* 高度 / 垂直偏移（联动 Logo 顶部间距）/ 模糊程度 */
+    r.setProperty('--sh', (cfg.searchHeight > 0 ? cfg.searchHeight : 46) + 'px');
+    r.setProperty('--soff', (cfg.searchOffset || 0) + 'px');
     /* 面板与搜索框同类：矩形样式挂 search_bar(+blur)，自定义 CSS 直接生效；
        线条样式保持独立 sg_panel（applySearch 线条分支的 --sg-* 回落卡片默认） */
     var panel = el('sg_panel');
@@ -390,7 +391,11 @@
       s.classList.add('line');
       r.setProperty('--sbw2', (cfg.searchBorderWidth > 0 ? cfg.searchBorderWidth : 1.5) + 'px');
     } else {
-      if (cfg.searchEffect === 'blur') { s.classList.add('blur'); panel.classList.add('blur'); }
+      if (cfg.searchEffect === 'blur' && cfg.searchBlur > 0) {
+        s.classList.add('blur');
+        panel.classList.add('blur');
+        r.setProperty('--sblur', cfg.searchBlur + 'px');
+      }
       panel.classList.add('search_bar');
       r.setProperty('--sr', cfg.searchRadius + 'px');
       r.setProperty('--sbw', cfg.searchBorderWidth + 'px');

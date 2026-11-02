@@ -680,6 +680,7 @@ struct SiteItemPage {
     .edgeEffect(EdgeEffect.Spring)
     .padding({ left: 16, right: 16 })
     .bindSheet(this.showFontSheet!!, this.fontSheetBuilder(), {
+      preferType: SheetType.CENTER,
       height: SheetSize.FIT_CONTENT,
       dragBar: true,
       showClose: false,
@@ -860,6 +861,7 @@ struct SiteItemPage {
     .edgeEffect(EdgeEffect.Spring)
     .padding({ left: 16, right: 16 })
     .bindSheet(this.showPicker!!, this.pickerBuilder(), {
+      preferType: SheetType.CENTER,
       height: this.pickerHeight,
       dragBar: true,
       showClose: false,

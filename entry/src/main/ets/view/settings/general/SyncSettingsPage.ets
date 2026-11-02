@@ -455,6 +455,7 @@ struct SyncSettingsPage {
     .edgeEffect(EdgeEffect.Spring)
     .padding({ left: 16, right: 16 })
     .bindSheet(this.showConfigSheet!!, this.configSheetContent(), {
+      preferType: SheetType.CENTER,
       height: 460,
       dragBar: true,
       showClose: false,

@@ -346,6 +346,7 @@ struct SiteDetailPage {
     .edgeEffect(EdgeEffect.Spring)
     .padding({ left: 16, right: 16 })
     .bindSheet(this.showSheet!!, this.sheetBuilder(), {
+      preferType: SheetType.CENTER,
       height: this.sheetMode === 'font' ? SheetSize.FIT_CONTENT : this.pickerHeight,
       dragBar: true,
       showClose: false,

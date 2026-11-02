@@ -8,11 +8,12 @@ import { menuVM } from '../../viewmodel/MenuViewModel';
 import { sniffVM } from '../../viewmodel/SniffViewModel';
 import { ResourceSniffPanel } from './ResourceSniffPanel';
 import { BookmarkEditor } from './BookmarkEditor';
-import { addressDisplayText } from './AddressBar';
+import { addressDisplayText, AddressEntryIcon } from './AddressBar';
 import { searchVM } from '../../viewmodel/SearchViewModel';
 import { SearchSuggestPanel } from './SearchSuggestPanel';
 import { ActionBarColor } from '../../common/utils/ActionBarColor';
 import { HomeImmersive } from '../../common/utils/HomeImmersive';
+import { homeBg } from '../../common/utils/HomeBg';
 import { toolbarEventRunner } from '../../common/utils/ToolbarEventRunner';
 import { scriptVM } from '../../viewmodel/ScriptViewModel';
 import { GmMenuCommand } from '../../common/utils/GmRuntime';
@@ -205,17 +206,17 @@ export struct MergedActionBar {
               }))
               }, (e: MenuEntry): string => e.id)
             }
-            .rowsTemplate('1fr 1fr')
+            .rowsTemplate(menuVM.menuRowsPerPage() === 4 ? '1fr 1fr 1fr 1fr' : '1fr 1fr')
             .columnsTemplate('1fr 1fr 1fr 1fr 1fr')
             .scrollBar(BarState.Off)
             .columnsGap(4)
             .rowsGap(19)
             .width('100%')
-            .height(111)
+            .height(menuVM.menuRowsPerPage() * 46 + (menuVM.menuRowsPerPage() - 1) * 19)
             .padding({ left: 4, right: 4 })
             Row()
               .width('100%')
-              .height(29)
+              .height(menuVM.menuRowsPerPage() === 4 ? 36 : 29)
           }
           .width('100%')
         }, (page: MenuEntry[], pageIndex: number): string => pageIndex.toString())
@@ -230,6 +231,7 @@ export struct MergedActionBar {
     }
     .width('100%')
     .height('100%')
+    .justifyContent(menuVM.menuRowsPerPage() === 4 ? FlexAlign.End : FlexAlign.Start)
     .padding({ top: 18, bottom: QhState.bottomRectHeight - 12 })
   }
 
@@ -242,19 +244,14 @@ export struct MergedActionBar {
     return addressDisplayText(tab.url, tab.title)
   }
 
-  private pillIcon(): Resource {
-    const tab = tabsVM.activeTab
-    if (tab !== null && !tab.isHome && tab.url.startsWith('https://')) {
-      return $r('sys.symbol.lock')
-    }
-    return $r('sys.symbol.website')
-  }
-
-  /** 地址胶囊底色：色彩模式时按页面色深浅取半透明黑/白 */
+  /** 地址胶囊底色：色彩模式时按页面色深浅取半透明黑/白；主页沉浸时按主页背景明暗取半透明底 */
   private pillBg(): ResourceColor {
     const tab = tabsVM.activeTab
     if (tab !== null && tab.themeColor !== '') {
       return ActionBarColor.isDarkColor(tab.themeColor) ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)'
+    }
+    if (HomeImmersive.active()) {
+      return homeBg.dark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.06)'
     }
     return $r('sys.color.comp_background_tertiary')
   }
@@ -390,16 +387,16 @@ export struct MergedActionBar {
           }))
         }
 
-        // 地址胶囊：内联输入，回车直达或搜索
+        // 地址胶囊：内联输入，回车直达或搜索；最左图标与地址栏同款（盾牌/搜索，点击=顶弹面板，长按=引擎菜单）
         Row({ space: 6 }) {
-          SymbolGlyph(this.pillIcon())
-            .fontSize(13)
-            .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'))])
+          AddressEntryIcon({ iconSize: 14 })
           TextInput({
             text: this.editing ? this.editText : this.pillText(),
             placeholder: $r('app.string.search_hint')
           })
             .fontSize(14)
+            // 占位符显式对齐正文字号：不设时按默认 16fp 渲染，获焦切占位符后显大且 30 高胶囊显示不全
+            .placeholderFont({ size: 14 })
             .maxLines(1)
             .fontColor(ActionBarColor.fg($r('sys.color.font_primary')))
             .placeholderColor(ActionBarColor.fg($r('sys.color.font_secondary')))
@@ -508,7 +505,8 @@ export struct MergedActionBar {
           toolbarEventRunner.run('menu_long')
         }))
         .bindSheet(menuVM.showMenu!!, this.menuSheetBuilder(), {
-          height: scriptVM.activeTabMenuCommands().length > 0 ? 240 : 175,
+          height: (scriptVM.activeTabMenuCommands().length > 0 ? 240 : 175) + menuVM.menuSheetExtraHeight(),
+          enableOutsideInteractive: false,
           dragBar: false,
           showClose: false,
           backgroundColor: $r('sys.color.comp_background_primary'),
@@ -536,8 +534,9 @@ export struct MergedActionBar {
           .backgroundColor(Color.Transparent)
       }
 
-      // 搜索联想面板：顶部合并栏向下展开、底部合并栏向上展开
-      if (searchVM.suggestions.length > 0) {
+      // 搜索联想面板：顶部合并栏向下展开、底部合并栏向上展开；
+      // 仅地址胶囊编辑中显示（共享 suggestions，避免主页搜索框输入联动弹出本面板）
+      if (searchVM.suggestions.length > 0 && this.editing) {
         if (this.barPosition === 'top') {
           SearchSuggestPanel({
             onPick: (): void => {

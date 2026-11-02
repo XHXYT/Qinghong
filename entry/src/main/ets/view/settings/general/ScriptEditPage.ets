@@ -298,6 +298,7 @@ struct ScriptEditPage {
     .contentEndOffset(QhState.bottomRectHeight)
     .padding({ left: 16, right: 16, top: 10 })
     .bindSheet(this.sheetKind !== ''!!, this.sheetContentBuilder(), {
+      preferType: SheetType.CENTER,
       height: this.sheetKind === 'info' ? 400 : (this.sheetKind === 'runtime' ? 250 : 240),
       dragBar: false,
       showClose: false,

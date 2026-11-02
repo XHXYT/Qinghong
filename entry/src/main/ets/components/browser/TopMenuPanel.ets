@@ -89,7 +89,9 @@ function dnValue(dn: string, key: string): string {
  */
 @ComponentV2
 export struct TopMenuPanel {
-  /** 面板距顶端偏移（顶部地址栏高度，双底布局为 0） */
+  /** 面板弹出边：'top'=自顶向下（顶部栏布局）、'bottom'=自底向上（底部栏布局），跟随搜索框所在栏 */
+  @Param edge: string = 'top'
+  /** 面板距弹出边偏移（顶部布局=顶栏实测总高，底部布局=底栏实测总高） */
   @Param edgeOffset: number = 46
 
   @Local showSheet: boolean = false
@@ -822,7 +824,7 @@ export struct TopMenuPanel {
   }
 
   build() {
-    Stack({ alignContent: Alignment.Top }) {
+    Stack({ alignContent: this.edge === 'bottom' ? Alignment.Bottom : Alignment.Top }) {
       // 透明 scrim：点击空白关闭
       Column()
         .width('100%')
@@ -832,7 +834,7 @@ export struct TopMenuPanel {
         })
         .transition(TransitionEffect.OPACITY.animation({ duration: 180, curve: Curve.Friction }))
 
-      // 全宽面板：自顶向下弹出（底部菜单反向）
+      // 全宽面板：顶部栏布局自顶向下弹出、底部栏布局自底向上弹出（跟随搜索框所在栏）
       Column() {
         if (this.isHomeMode()) {
           this.homePanel()
@@ -841,14 +843,15 @@ export struct TopMenuPanel {
         }
       }
       .width('100%')
-      .margin({ top: this.edgeOffset })
+      .margin(this.edge === 'bottom' ? { bottom: this.edgeOffset } : { top: this.edgeOffset })
       .backgroundColor($r('sys.color.comp_background_primary'))
       .borderRadius(this.isHomeMode()
         ? { topLeft: 22, topRight: 22, bottomLeft: 22, bottomRight: 22 }
-        : { bottomLeft: 22, bottomRight: 22 })
-      .shadow({ radius: 24, color: 'rgba(0,0,0,0.18)', offsetY: 4 })
+        : (this.edge === 'bottom'
+          ? { topLeft: 22, topRight: 22 } : { bottomLeft: 22, bottomRight: 22 }))
+      .shadow({ radius: 24, color: 'rgba(0,0,0,0.18)', offsetY: this.edge === 'bottom' ? -4 : 4 })
       .clip(true)
-      .transition(TransitionEffect.translate({ y: -220 })
+      .transition(TransitionEffect.translate({ y: this.edge === 'bottom' ? 220 : -220 })
         .combine(TransitionEffect.OPACITY)
         .animation({ duration: 220, curve: Curve.Friction }))
     }

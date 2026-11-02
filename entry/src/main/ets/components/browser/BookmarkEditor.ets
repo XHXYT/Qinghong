@@ -15,7 +15,7 @@ export struct BookmarkEditor {
       Column() {
         this.titleBar()
         Column() {
-          if (menuVM.folderEditMode) {
+          if (menuVM.folderEditMode || menuVM.folderCreateMode) {
             this.folderEditContent()
           } else {
             this.addPageContent()
@@ -54,6 +54,9 @@ export struct BookmarkEditor {
   }
 
   private editorTitle(): ResourceStr {
+    if (menuVM.folderCreateMode) {
+      return $r('app.string.bookmark_new_folder')
+    }
     if (menuVM.folderEditMode) {
       return $r('app.string.bookmark_edit_folder')
     }

@@ -394,6 +394,7 @@ struct AdblockSubsPage {
     .contentEndOffset(QhState.bottomRectHeight)
     .padding({ left: 16, right: 16 })
     .bindSheet(this.showPicker!!, this.pickerBuilder(), {
+      preferType: SheetType.CENTER,
       height: this.pickerHeight,
       dragBar: true,
       showClose: false,

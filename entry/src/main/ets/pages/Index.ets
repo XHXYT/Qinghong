@@ -8,6 +8,7 @@ import { appSettings, UISettings } from '../common/entity/SettingsModel';
 import { webview } from '@kit.ArkWeb';
 import { HomepageView, HomeBgLayer } from '../components/browser/HomepageView';
 import { HomeImmersive } from '../common/utils/HomeImmersive';
+import { homeBg } from '../common/utils/HomeBg';
 import { HomeHtmlView } from '../components/browser/HomeHtmlView';
 import { HomeBookmarksView } from '../components/browser/HomeBookmarksView';
 import { AddressBar } from '../components/browser/AddressBar';
@@ -40,6 +41,8 @@ import { WebHostedPlayerView, WebHostedPlayerSession } from '../components/brows
 struct Index {
 
   aboutToAppear(): void {
+    // 主页背景明暗重估：背景图采样/背景主题 → 操作栏与搜索框黑/白字依据
+    homeBg.refresh()
     this.applyWebDebuggingAccess()
     this.registerExternalUrlHandler()
     this.setupKeyboardAvoid()
@@ -183,10 +186,19 @@ struct Index {
     return tab !== null && (tab.actionBarHidden || tab.videoFullScreen)
   }
 
-  /** 地址栏左图标顶弹面板距顶端偏移：传统布局=顶部地址栏高度（44+进度条2），双底布局=0；均含状态栏避让 */
+  /** 地址栏左图标顶弹面板弹出边：底部栏布局（合并栏在下/双行在下）自底向上，其余自顶向下——跟随搜索框所在栏 */
+  private pageMenuEdge(): string {
+    return (this.mergedBottom() || this.doubleBottom()) ? 'bottom' : 'top'
+  }
+
+  /** 地址栏左图标顶弹面板距弹出边偏移：合并在上=顶栏实测总高、在下=底栏实测总高、
+      传统顶部布局=地址栏高度（44+进度条2）+状态栏避让 */
   private topMenuEdgeOffset(): number {
-    if (this.doubleBottom()) {
-      return QhState.topRectHeight
+    if (this.mergedBottom() || this.doubleBottom()) {
+      return QhState.homeBottomBarHeight
+    }
+    if (this.mergedTop()) {
+      return QhState.homeTopBarHeight
     }
     const tab = tabsVM.activeTab
     return QhState.topRectHeight + 44 + (tab !== null && tab.progress < 100 ? 2 : 0)
@@ -438,6 +450,8 @@ struct Index {
                     TabBar()
                   }
                   MergedActionBar({ barPosition: 'top' })
+                    // 抬升合并栏层级：搜索联想面板向下溢出渲染时不被后绘制的书签栏覆盖
+                    .zIndex(1)
                   if (UISettings.show_bookmark_bar) {
                     BookmarkBar()
                   }
@@ -451,6 +465,10 @@ struct Index {
               // 抬升顶部栏层级：地址栏搜索联想面板可覆盖内容区渲染
               .zIndex(2)
               .transition(this.barTransition('top'))
+              // 实测顶栏总高（含状态栏避让内边距）：定制页全屏预览按此还原真实主页栏占位
+              .onAreaChange((_o: Area, n: Area): void => {
+                QhState.homeTopBarHeight = (n.height as number)
+              })
             }
 
             Stack({ alignContent: Alignment.Bottom }) {
@@ -555,6 +573,10 @@ struct Index {
               }
               .width('100%')
               .transition(this.barTransition('bottom'))
+              // 实测底栏总高：定制页全屏预览按此还原真实主页栏占位
+              .onAreaChange((_o: Area, n: Area): void => {
+                QhState.homeBottomBarHeight = (n.height as number)
+              })
             }
           }
           .width('100%')
@@ -584,7 +606,7 @@ struct Index {
           // 地址栏左图标全宽顶弹面板（主页态路由入口 / 网页态页面信息）
           if (browserVM.showPageMenu && !this.readerActive() && !this.barsHidden()
             && !browserVM.showTabSwitcher && !browserVM.gameMode) {
-            TopMenuPanel({ edgeOffset: this.topMenuEdgeOffset() })
+            TopMenuPanel({ edge: this.pageMenuEdge(), edgeOffset: this.topMenuEdgeOffset() })
           }
         }
         .width('100%')

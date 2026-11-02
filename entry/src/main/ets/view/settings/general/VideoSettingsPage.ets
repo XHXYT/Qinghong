@@ -109,6 +109,7 @@ struct VideoSettingsPage {
       .height(1)
       .width('100%')
       .bindSheet(this.showSheet!!, this.sheetContent(), {
+        preferType: SheetType.CENTER,
         height: pickerSheetHeight(2),
         dragBar: true,
         showClose: false,

@@ -31,6 +31,10 @@ export class _QhState {
   @Trace leftAvoidWidth: number = 0
   /** @description 右侧避让宽度 */
   @Trace rightAvoidWidth: number = 0
+  /** @description 主页顶部栏实测总高（含状态栏避让，供定制页全屏预览还原真实主页栏占位） */
+  @Trace homeTopBarHeight: number = 0
+  /** @description 主页底部栏实测总高（供定制页全屏预览还原真实主页栏占位） */
+  @Trace homeBottomBarHeight: number = 0
   /** @description 窗口高度 -vp */
   @Trace windowHeight: number = 0
   /** @description 窗口宽度 -vp */

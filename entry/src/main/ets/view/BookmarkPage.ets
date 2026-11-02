@@ -694,6 +694,15 @@ struct BookmarkPage {
     this.showEditorSheet = true
   }
 
+  /** 右上角新建文件夹：半模态编辑器（默认落在当前层级） */
+  private openAddFolderEditor(): void {
+    menuVM.prepareNewFolder(this.currentFolder)
+    menuVM.onEditorClosed = (): void => {
+      this.showEditorSheet = false
+    }
+    this.showEditorSheet = true
+  }
+
   private folderCtxMenu(path: string): ContextMenuItem[] {
     const items: ContextMenuItem[] = []
     items.push(new ContextMenuItem($r('app.string.bookmark_multi_select'), (): void => {
@@ -720,6 +729,11 @@ struct BookmarkPage {
     items.push(new ContextMenuItem($r('app.string.share'), (): void => {
       this.shareBookmark(b)
     }, $r('sys.symbol.share')))
+    items.push(new ContextMenuItem($r('app.string.bookmark_move_to'), (): void => {
+      if (b.id !== null) {
+        menuVM.openMovePicker(this.pageStack, [], [b.id])
+      }
+    }, $r('sys.symbol.arrow_right_circle')))
     items.push(new ContextMenuItem($r('app.string.bookmark_edit_title'), (): void => {
       if (b.id !== null) {
         this.openBookmarkEdit(b.id)
@@ -792,6 +806,12 @@ struct BookmarkPage {
       ]
     }
     return [
+      new NaviBarButton({
+        symbol: $r('sys.symbol.folder_badge_plus'),
+        action: (): void => {
+          this.openAddFolderEditor()
+        }
+      }),
       new NaviBarButton({
         symbol: $r('sys.symbol.plus'),
         action: (): void => {
@@ -1198,6 +1218,7 @@ struct BookmarkPage {
       }
     })
     .bindSheet(this.showEditorSheet, this.editorSheetBuilder(), {
+      preferType: SheetType.CENTER,
       height: 560,
       dragBar: true,
       showClose: false,

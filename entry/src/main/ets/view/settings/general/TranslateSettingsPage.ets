@@ -394,6 +394,7 @@ struct TranslateSettingsPage {
       .height(1)
       .width('100%')
       .bindSheet(this.showPicker!!, this.pickerBuilder(), {
+        preferType: SheetType.CENTER,
         height: this.pickerHeight,
         dragBar: true,
         showClose: false,
