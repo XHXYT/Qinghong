@@ -912,8 +912,11 @@ export class MenuViewModel {
   }
   /** 菜单宫格当前页索引（工具箱 = 跳第二页） */
   @Trace menuPageIndex: number = 0
-  /** 菜单宫格分页数据（打开菜单前重建） */
-  menuPages: MenuEntry[][] = []
+
+  /** 菜单 sheet 展开态：2 行形态下拖高一档后为 true（宫格按 4 行渲染） */
+  @Trace menuExpanded: boolean = false
+  /** 菜单宫格分页数据（打开前/展开收起时重建；@Trace 驱动 sheet 内 ForEach 刷新） */
+  @Trace menuPages: MenuEntry[][] = []
 
   /** 只能作用于网页的条目（主页/无页面时置灰） */
   private static readonly WEB_ONLY: Set<string> = new Set<string>([
@@ -924,18 +927,105 @@ export class MenuViewModel {
     'game_mode', 'add_home_favorite', 'report_site'
   ])
 
-  /** 菜单宫格每页行数：宽或高断点 > 1（平板横/竖屏）时 4 行/页，手机形态 2 行/页 */
+  /** 菜单宫格每页行数：宽度断点 ≥ MD（窗口宽 ≥600vp：平板横/竖屏、折叠展开）时 4 行/页，手机形态 2 行/页 */
   menuRowsPerPage(): number {
-    return QhState.widthBp > 1 || QhState.heightBp > 1 ? 4 : 2
+    return QhState.widthBp > 1 ? 4 : 2
   }
 
-  /** 菜单宫格 4 行/页时 sheet 需额外加高的量（多出 2 行 × 46 + 2 行距 × 19 + 底部占位 36-29） */
-  menuSheetExtraHeight(): number {
-    return this.menuRowsPerPage() === 4 ? 137 : 0
+  /** 菜单宫格当前渲染行数：2 行形态被拖高一档（menuExpanded）后按 4 行渲染 */
+  menuEffectiveRows(): number {
+    return this.menuRowsPerPage() === 4 || this.menuExpanded ? 4 : 2
   }
 
-  /** 按定制菜单布局构建分页：每页（4 或 2）行 × 5 列 */
-  buildMenuPages(): void {
+  /** 菜单 sheet 展开档与收起档的高度差（多出 2 行 × 46 + 2 行距 × 19 + 底部占位 36-29） */
+  menuExpandHeightDelta(): number {
+    return 137
+  }
+
+  /** 菜单 sheet 拖拽档位：手机 2 行形态两档（低=2 行 / 高=4 行）；平板 4 行形态单档固定 */
+  menuSheetDetents(baseHeight: number): [(SheetSize | Length), (SheetSize | Length)?, (SheetSize | Length)?] {
+    const high: number = baseHeight + this.menuExpandHeightDelta()
+    if (this.menuRowsPerPage() === 4) {
+      return [high]
+    }
+    return [baseHeight, high]
+  }
+
+  /** 菜单 sheet 打开时高度：手机 2 行形态从低档打开；平板 4 行形态固定高档 */
+  menuSheetOpenHeight(baseHeight: number): number {
+    return this.menuRowsPerPage() === 4 ? baseHeight + this.menuExpandHeightDelta() : baseHeight
+  }
+
+  /** 归一化 sheet 高度回调值：回调单位存在 px/vp 差异，明显超出高档 vp 值时按窗口密度折算为 vp */
+  private normalizeSheetHeightVp(height: number, lowHeight: number, highHeight: number): number {
+    if (height <= highHeight + (highHeight - lowHeight) / 2) {
+      return height
+    }
+    const density: number = QhState.windowHeight > 0 ? _QhState.windowHeight_px / QhState.windowHeight : 0
+    return density > 0 ? height / density : height
+  }
+
+  /** 上次 sheet 高度回调记录值（吸附动画逐帧重报，去重防日志刷屏） */
+  private lastSheetHeightLogged: number = -1
+  /** 上次回调高度值（值变化才重排防抖；吸附后同值重复回调视为稳定） */
+  private lastSheetHeight: number = -1
+  /** 高度稳定防抖定时器：拖拽跟手过程不重建列表，吸附稳定后再切换展开态 */
+  private sheetSettleTimer: number = -1
+
+  /** 菜单 sheet 拖拽吸附后高度变化：吸附到档位附近才切换展开/收起（忽略打开动画等中间高度） */
+  onMenuSheetHeightChange(height: number, lowHeight: number, highHeight: number): void {
+    const normalized: number = this.normalizeSheetHeightVp(height, lowHeight, highHeight)
+    if (height !== this.lastSheetHeightLogged) {
+      this.lastSheetHeightLogged = height
+      logger.info('MenuSheet',
+        `onHeightDidChange raw=${height} normalized=${normalized} low=${lowHeight} high=${highHeight} expanded=${this.menuExpanded}`)
+    }
+    const halfDelta: number = (highHeight - lowHeight) / 2
+    const nearLow: boolean = Math.abs(normalized - lowHeight) < halfDelta
+    const nearHigh: boolean = Math.abs(normalized - highHeight) < halfDelta
+    if (!nearLow && !nearHigh) {
+      return
+    }
+    const expanded: boolean = nearHigh
+    if (expanded === this.menuExpanded) {
+      // 已回落到当前档位：取消未决的反向切换（拖到一半松手弹回原档）
+      if (this.sheetSettleTimer >= 0) {
+        clearTimeout(this.sheetSettleTimer)
+        this.sheetSettleTimer = -1
+      }
+      return
+    }
+    // 高度值变化时重排防抖；吸附后同值重复回调不重排，值稳定后执行切换
+    if (height !== this.lastSheetHeight) {
+      this.lastSheetHeight = height
+      if (this.sheetSettleTimer >= 0) {
+        clearTimeout(this.sheetSettleTimer)
+      }
+      this.sheetSettleTimer = setTimeout((): void => {
+        this.sheetSettleTimer = -1
+        this.applyMenuExpanded(expanded)
+      }, 120)
+    }
+  }
+
+  /** 应用展开/收起：重建分页并保持可视位置（宫格高度带动画，新增行渐显、移除行淡出） */
+  private applyMenuExpanded(expanded: boolean): void {
+    if (!this.showMenu || expanded === this.menuExpanded) {
+      return
+    }
+    _QhState.UIContext.animateTo({ duration: 240, curve: Curve.EaseOut }, (): void => {
+      const perPageBefore: number = this.menuEffectiveRows() * 5
+      const firstVisibleIndex: number = this.menuPageIndex * perPageBefore
+      this.menuExpanded = expanded
+      this.buildMenuPages(true)
+      const perPageAfter: number = this.menuEffectiveRows() * 5
+      this.menuPageIndex = Math.max(0,
+        Math.min(Math.floor(firstVisibleIndex / perPageAfter), this.menuPages.length - 1))
+    })
+  }
+
+  /** 按定制菜单布局构建分页：每页（4 或 2）行 × 5 列；keepPosition=true 时保持当前页与展开态 */
+  buildMenuPages(keepPosition: boolean = false): void {
     const ids = appSettings.menu_layout !== ''
       ? appSettings.menu_layout.split(',')
       : MenuEntries.DEFAULT_MENU
@@ -946,17 +1036,24 @@ export class MenuViewModel {
         entries.push(e)
       }
     }
-    const perPage: number = this.menuRowsPerPage() * 5
-    logger.info('MenuPages', `widthBp=${QhState.widthBp} heightBp=${QhState.heightBp} rows=${this.menuRowsPerPage()} perPage=${perPage} winW=${QhState.windowWidth} winH=${QhState.windowHeight} ratio=${QhState.windowWidth > 0 ? Math.round(QhState.windowHeight / QhState.windowWidth * 100) / 100 : 0}`)
+    const perPage: number = this.menuEffectiveRows() * 5
+    logger.info('MenuPages', `widthBp=${QhState.widthBp} heightBp=${QhState.heightBp} rows=${this.menuEffectiveRows()} expanded=${this.menuExpanded} perPage=${perPage} winW=${QhState.windowWidth} winH=${QhState.windowHeight} ratio=${QhState.windowWidth > 0 ? Math.round(QhState.windowHeight / QhState.windowWidth * 100) / 100 : 0}`)
     const pages: MenuEntry[][] = []
     for (let i = 0; i < entries.length; i += perPage) {
       pages.push(entries.slice(i, i + perPage))
     }
     this.menuPages = pages
-    // 每次打开菜单回到第一页
-    this.menuPageIndex = 0
-    // 刷新书签列表（驱动「已收藏」高亮）
-    bookmarkVM.loadAll()
+    // 每次打开菜单回到第一页并复位展开态（展开/收起重建时保持当前页）
+    if (!keepPosition) {
+      this.menuExpanded = false
+      this.menuPageIndex = 0
+      if (this.sheetSettleTimer >= 0) {
+        clearTimeout(this.sheetSettleTimer)
+        this.sheetSettleTimer = -1
+      }
+      // 刷新书签列表（驱动「已收藏」高亮；拖拽展开/收起重建不刷新）
+      bookmarkVM.loadAll()
+    }
   }
 
   /** 是否为带状态条目（非默认状态时图标高亮） */

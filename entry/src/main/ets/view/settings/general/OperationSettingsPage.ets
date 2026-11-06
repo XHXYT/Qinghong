@@ -38,6 +38,16 @@ struct OperationSettingsPage {
         }
       }),
       new CustomItemInfo({
+        id: 'toolbar_swipe',
+        title: $r('app.string.toolbar_swipe'),
+        subtitle: $r('app.string.toolbar_swipe_desc'),
+        type: ItemActionType.TOGGLE,
+        value: appSettings.toolbar_swipe_enabled,
+        onChange: (v: string | boolean | number): void => {
+          appSettings.toolbar_swipe_enabled = v === true
+        }
+      }),
+      new CustomItemInfo({
         id: 'volume_key_paging',
         title: $r('app.string.volume_key_paging'),
         subtitle: $r('app.string.volume_key_paging_desc'),
@@ -49,13 +59,11 @@ struct OperationSettingsPage {
         }
       }),
       new CustomItemInfo({
-        id: 'player_gestures',
-        title: $r('app.string.player_gestures'),
-        subtitle: $r('app.string.player_gestures_desc'),
-        type: ItemActionType.TOGGLE,
-        value: appSettings.player_gestures,
+        id: 'video_settings',
+        title: $r('app.string.video_settings'),
+        type: ItemActionType.ROUTER,
         onChange: (v: string | boolean | number): void => {
-          appSettings.player_gestures = v === true
+          QhState.pushPage('settings_video', null)
         }
       }),
       new CustomItemInfo({
@@ -96,11 +104,11 @@ struct OperationSettingsPage {
     })
   }
 
-  /** 松手：回弹并按滑动方向打开滑动事件设置（位移超过阈值才触发） */
+  /** 松手：回弹并按滑动方向打开滑动事件设置（位移超过阈值且工具栏滑动事件开启时才触发） */
   private finishSwipe(): void {
     const offset: number = this.dragOffset
     this.snapBack()
-    if (Math.abs(offset) >= 24) {
+    if (appSettings.toolbar_swipe_enabled && Math.abs(offset) >= 24) {
       QhState.pushPage('settings_toolbar_event', offset < 0 ? 'swipe_left' : 'swipe_right')
     }
   }
@@ -165,6 +173,9 @@ struct OperationSettingsPage {
         .translate({ x: this.dragOffset })
         .gesture(PanGesture({ fingers: 1, direction: PanDirection.Horizontal })
           .onActionUpdate((e: GestureEvent) => {
+            if (!appSettings.toolbar_swipe_enabled) {
+              return
+            }
             this.dragOffset = e.offsetX
           })
           .onActionEnd(() => {

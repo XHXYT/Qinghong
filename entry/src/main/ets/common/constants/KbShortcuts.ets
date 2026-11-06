@@ -36,8 +36,11 @@ export const KB_SHORTCUTS: KbShortcutDef[] = [
   new KbShortcutDef('bookmarks', $r('app.string.bookmarks'), ['Ctrl', 'Shift'], -1, '', 'B'),
   new KbShortcutDef('history', $r('app.string.history'), ['Ctrl'], -1, '', 'H'),
   new KbShortcutDef('find_in_page', $r('app.string.find_in_page'), ['Ctrl'], -1, '', 'F'),
-  new KbShortcutDef('enter_url', $r('app.string.enter_url'), ['Ctrl'], -1, '', '1'),
+  new KbShortcutDef('enter_url', $r('app.string.enter_url'), ['Ctrl'], -1, '', 'L'),
   new KbShortcutDef('refresh', $r('app.string.refresh_page'), ['Ctrl'], KeyCode.KEYCODE_F5, 'F5', 'R'),
+  new KbShortcutDef('zoom_in', $r('app.string.kb_zoom_in'), ['Ctrl'], -1, '', '='),
+  new KbShortcutDef('zoom_out', $r('app.string.kb_zoom_out'), ['Ctrl'], -1, '', '-'),
+  new KbShortcutDef('zoom_reset', $r('app.string.kb_zoom_reset'), ['Ctrl'], -1, '', '0'),
   new KbShortcutDef('view_source', $r('app.string.view_source'), ['Ctrl'], -1, '', 'U'),
   new KbShortcutDef('add_bookmark', $r('app.string.add_bookmark'), ['Ctrl'], -1, '', 'D'),
   new KbShortcutDef('print_page', $r('app.string.print_web_page'), ['Ctrl'], -1, '', 'P')
@@ -53,6 +56,17 @@ export function kbKeyNameOf(code: number): string {
   }
   if (code >= KeyCode.KEYCODE_F1 && code <= KeyCode.KEYCODE_F12) {
     return `F${code - KeyCode.KEYCODE_F1 + 1}`
+  }
+  // 等号/加号键与小键盘加号同视为 '='（缩放放大），减号与小键盘减号同视为 '-'
+  if (code === KeyCode.KEYCODE_EQUALS || code === KeyCode.KEYCODE_NUMPAD_ADD) {
+    return '='
+  }
+  if (code === KeyCode.KEYCODE_MINUS || code === KeyCode.KEYCODE_NUMPAD_SUBTRACT) {
+    return '-'
+  }
+  // 小键盘数字归一为对应数字
+  if (code >= KeyCode.KEYCODE_NUMPAD_0 && code <= KeyCode.KEYCODE_NUMPAD_9) {
+    return String.fromCharCode(48 + code - KeyCode.KEYCODE_NUMPAD_0)
   }
   if (code === KeyCode.KEYCODE_TAB) {
     return 'Tab'
@@ -81,6 +95,17 @@ export function kbIsModifierCode(code: number): boolean {
     || code === KeyCode.KEYCODE_SHIFT_LEFT || code === KeyCode.KEYCODE_SHIFT_RIGHT
     || code === KeyCode.KEYCODE_ALT_LEFT || code === KeyCode.KEYCODE_ALT_RIGHT
     || code === KeyCode.KEYCODE_META_LEFT || code === KeyCode.KEYCODE_META_RIGHT
+}
+
+/** 按键码 → 数字（主键盘/小键盘 0-9，非数字返回 -1） */
+export function kbDigitOf(code: number): number {
+  if (code >= KeyCode.KEYCODE_0 && code <= KeyCode.KEYCODE_9) {
+    return code - KeyCode.KEYCODE_0
+  }
+  if (code >= KeyCode.KEYCODE_NUMPAD_0 && code <= KeyCode.KEYCODE_NUMPAD_9) {
+    return code - KeyCode.KEYCODE_NUMPAD_0
+  }
+  return -1
 }
 
 /**

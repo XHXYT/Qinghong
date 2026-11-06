@@ -35,12 +35,22 @@ import { downloadVM } from '../viewmodel/DownloadViewModel';
 import { DownloadConfirmDialog } from '../components/browser/DownloadConfirmDialog';
 import { assistantVM } from '../viewmodel/WebAssistantViewModel';
 import { WebHostedPlayerView, WebHostedPlayerSession } from '../components/browser/WebHostedPlayer';
+import { ExtBackgroundHosts } from '../components/extension/ExtBackgroundHosts';
+import { ExtPopupView } from '../components/extension/ExtPopupView';
+import { extensionVM } from '../viewmodel/ExtensionViewModel';
 
 @Entry
 @ComponentV2
 struct Index {
 
+  /** 扩展 popup 半模态开关：bindSheet isShow 需本地 @Local 布尔驱动（VM 回调同步），表达式参数对已打开 sheet 的关闭不可靠 */
+  @Local popupSheetVisible: boolean = false
+
   aboutToAppear(): void {
+    // 扩展 popup 开关回调 → 驱动 bindSheet isShow
+    extensionVM.onPopupVisibilityChanged = (open: boolean): void => {
+      this.popupSheetVisible = open
+    }
     // 主页背景明暗重估：背景图采样/背景主题 → 操作栏与搜索框黑/白字依据
     homeBg.refresh()
     this.applyWebDebuggingAccess()
@@ -284,15 +294,12 @@ struct Index {
     return !this.mergedBottom() && !this.doubleBottom()
   }
 
-  /** 状态栏沉浸色条颜色：与最顶行栏背景一致（标签栏在最上用其底色，否则地址栏/操作栏底色含色彩模式） */
+  /** 状态栏沉浸色条颜色：与最顶行栏背景一致（含色彩模式；渐变时为透明，由顶栏组延续渐变覆盖状态栏区域） */
   private topBarsBg(): ResourceColor {
-    if (this.mergedTop() && this.showTabBarRow()) {
-      return $r('sys.color.comp_background_primary')
-    }
     return ActionBarColor.bg($r('sys.color.comp_background_primary'))
   }
 
-  /** 内容区是否需要避让底部小白条（底部无操作栏避让时） */
+  /** 内容区是否需要避让底部小白条（合并上布局网页全屏铺至底边不避让；仅栏隐藏且查找栏在底时避让） */
   private needsBottomPadding(): boolean {
     if (this.readerActive()) {
       return false
@@ -304,7 +311,8 @@ struct Index {
       // 隐藏沉浸态网页延伸至小白条下；查找栏在底时仍需避让
       return browserVM.showFindBar
     }
-    return this.mergedTop()
+    // 合并上：底部无操作栏，小白条区域直接给网页；其余布局由底部操作栏自行避让
+    return false
   }
 
   /** 操作栏出入场动画：整组贴边滑出/滑入（时长曲线与显隐 animateTo 一致） */
@@ -405,6 +413,14 @@ struct Index {
     }
   }
 
+  /** 扩展 popup 半模态内容（bindSheet 承载） */
+  @Builder
+  extPopupBuilder() {
+    if (extensionVM.popupExt !== null) {
+      ExtPopupView({ ext: extensionVM.popupExt })
+    }
+  }
+
   /** 主页滑动导航判定：右滑后退（标签栈回退）、左滑前进（返回离开主页前的页面） */
   private handleSwipeNav(dx: number, dy: number): void {
     if (!appSettings.swipe_nav_enabled) {
@@ -423,6 +439,11 @@ struct Index {
   build() {
     Navigation(QhState.pageStack) {
       Stack({ alignContent: Alignment.Bottom }) {
+        // 扩展 background 隐藏宿主：1x1 铺底渲染（不可见、不交互），声明 background/service_worker 的扩展各挂一个；
+        // 扩展总开关关闭时整体卸载（后台停止），重新开启后随挂载重建
+        if (appSettings.extension_enabled) {
+          ExtBackgroundHosts()
+        }
         // 主页沉浸背景层：原生主页背景延伸至状态栏与底部操作栏/小白条区域
         if (this.homeImmersive() && !appSettings.isHomeHtmlMode()) {
           HomeBgLayer()
@@ -462,6 +483,8 @@ struct Index {
               .width('100%')
               // 顶部避让内化为栏容器内边距：背景层不再被整体推下，主页背景可铺至状态栏
               .padding({ top: QhState.topRectHeight })
+              // 色彩模式：页面顶部渐变的延续模拟（含状态栏内边距区域，下端衔接页面顶色；纯色时为全透明不绘制）
+              .linearGradient(ActionBarColor.gradient())
               // 抬升顶部栏层级：地址栏搜索联想面板可覆盖内容区渲染
               .zIndex(2)
               .transition(this.barTransition('top'))
@@ -478,6 +501,9 @@ struct Index {
                 }
                 .width('100%')
                 .height('100%')
+                // 活动标签置顶：Web 为原生视图，常驻挂载下若后台标签（Visibility.None）
+                // 叠在上层，其表面仍截获触摸/滚动手势，导致可见页无法滚动
+                .zIndex(tab.id === tabsVM.activeTabId ? 1 : 0)
                 // 组件快照目标：标签管理卡片窗口缩略图
                 .id(`tabc_${tab.id}`)
               }, (tab: TabInfo) => tab.id.toString())
@@ -538,7 +564,7 @@ struct Index {
               }
             }
             .layoutWeight(1)
-            // 操作栏不在底部（工具栏在上）或已自动隐藏时，由内容区避让底部小白条区域
+            // 仅栏隐藏且查找栏在底时避让小白条；合并上布局网页直接铺至屏幕底边
             .padding({ bottom: this.needsBottomPadding() ? QhState.bottomRectHeight : 0 })
             // 主页沉浸时背景由全屏主页背景层接管，内容区透明
             .backgroundColor(this.homeImmersive()
@@ -649,6 +675,19 @@ struct Index {
       .height('100%')
       // 主页整窗快照目标（标签管理卡片：背景层与内容一次截全）
       .id('mainRoot')
+      // 扩展 popup：居中半模态（SheetType.CENTER），内容为虚拟域 popup 文档
+      .bindSheet(this.popupSheetVisible, this.extPopupBuilder(), {
+        preferType: SheetType.CENTER,
+        width: '100%',
+        height: '62%',
+        dragBar: false,
+        showClose: true,
+        // 背景自适应各扩展 popup 实际页色（ExtPopupView 探测；未探测用系统默认）
+        backgroundColor: extensionVM.popupBg !== '' ? extensionVM.popupBg : $r('sys.color.comp_background_primary'),
+        onDisappear: (): void => {
+          extensionVM.closePopup()
+        }
+      })
       // 键盘快捷键：根节点按键分发（匹配设置页自定义组合）
       .onKeyEvent((e: KeyEvent) => {
         kbShortcutDispatch.handle(e)

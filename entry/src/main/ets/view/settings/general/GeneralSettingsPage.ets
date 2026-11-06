@@ -253,7 +253,6 @@ struct GeneralSettingsPage {
     g.items.push(this.routerItem('ad_block', $r('app.string.ad_block'), 'settings_adblock'))
     g.items.push(this.routerItem('site_settings', $r('app.string.site_settings'), 'settings_site'))
     g.items.push(this.routerItem('translate_settings', $r('app.string.translate_settings'), 'settings_translate'))
-    g.items.push(this.routerItem('video_settings', $r('app.string.video_settings'), 'settings_video'))
     g.items.push(this.routerItem('password_manager', $r('app.string.password_manager'), 'settings_password'))
     groups.push(g)
     // 搜索与主页

@@ -28,12 +28,41 @@ class KVdbUtil {
     try {
       this.kvManager = distributedKVStore.createKVManager(kvManagerConfig);
       console.info('Succeeded in creating KVManager.');
-      this.getKVStore()
     } catch (e) {
       const error = e as BusinessError;
       console.error(`Failed to create KVManager. Code:${error.code},message:${error.message}`);
       throw error;
     }
+    // 必须等待 store 打开完成：此前未 await，restoreSession 先于就绪执行，
+    // 每次启动报 Failed to get KVStore Code:15100002、会话保存恢复全失效
+    try {
+      await this.getKVStore();
+    } catch (e) {
+      const error = e as BusinessError;
+      if (error.code === 15100002) {
+        // 打开既有库时 options 与创建时不一致（旧版所建库）：删库重建。
+        // 本库仅存会话数据，重建至多丢失一次会话；不重建则打开必败
+        await this.dropAndRecreateStore();
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * 15100002 兜底：删除旧库后按当前 options 重建
+   */
+  private async dropAndRecreateStore(): Promise<void> {
+    console.warn('KVdbUtil: options mismatch (15100002), deleting and recreating KVStore.');
+    await new Promise<void>((resolve: (value: void) => void) => {
+      this.kvManager!.deleteKVStore(this.appId, this.storeId, (err: BusinessError) => {
+        if (err) {
+          console.warn(`KVdbUtil: deleteKVStore for recreate. Code:${err.code},message:${err.message}`);
+        }
+        resolve();
+      });
+    });
+    await this.getKVStore();
   }
 
   /**

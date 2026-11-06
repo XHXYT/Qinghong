@@ -74,6 +74,8 @@ export class SitePolicy {
   cameraMode: string = 'app'
   /** 麦克风权限：'app' 跟随应用 | 'allow' | 'ask' | 'block' */
   micMode: string = 'app'
+  /** 屏幕录制权限：'app' 跟随应用 | 'allow' | 'ask' | 'block' */
+  screenCaptureMode: string = 'app'
   /** 剪贴板文本读写：'allow' | 'ask' | 'block'（默认 allow） */
   clipboardMode: string = 'allow'
   /** 重定向：'allow' | 'ask' | 'block'（默认 allow；拦主框架非手势跨域自动跳转） */
@@ -82,6 +84,8 @@ export class SitePolicy {
   backNoReload: boolean = true
   /** 弹出式窗口：'allow' 直接放行 | 'ask' 先询问 | 'block' 拒绝（默认 ask） */
   popupMode: string = 'ask'
+  /** 网页文本编码 fallback（'utf-8' 内核默认；'gbk'/'gb18030'/'big5' 老站无 charset 声明时修复乱码） */
+  textEncoding: string = 'utf-8'
 }
 
 /** 权限三档（允许/优先询问/已禁止） */
@@ -155,6 +159,12 @@ export class SiteSettingsViewModel {
           new SiteOpt('wifi', $r('app.string.site_opt_image_wifi'))
         ], 'allow'),
         new SiteItemConfig('site_js', $r('app.string.site_js'), AB('allow'), 'allow'),
+        new SiteItemConfig('site_encoding', $r('app.string.site_encoding'), [
+          new SiteOpt('utf-8', 'UTF-8'),
+          new SiteOpt('gbk', 'GBK'),
+          new SiteOpt('gb18030', 'GB18030'),
+          new SiteOpt('big5', 'Big5')
+        ], 'utf-8'),
         new SiteItemConfig('site_cookies', $r('app.string.site_cookies'), [], 'allow'),
         new SiteItemConfig('site_popup', $r('app.string.site_popup'), P(), 'ask')
       ]),
@@ -169,6 +179,7 @@ export class SiteSettingsViewModel {
         new SiteItemConfig('site_location', $r('app.string.site_location'), P(), 'ask'),
         new SiteItemConfig('site_camera', $r('app.string.site_camera'), P(), 'ask'),
         new SiteItemConfig('site_microphone', $r('app.string.site_microphone'), P(), 'ask'),
+        new SiteItemConfig('site_screen_capture', $r('app.string.site_screen_capture'), P(), 'ask'),
         new SiteItemConfig('site_redirect', $r('app.string.site_redirect'), P(), 'allow'),
         new SiteItemConfig('site_vibration', $r('app.string.web_vibration'), [], 'off')
       ]),
@@ -359,10 +370,11 @@ export class SiteSettingsViewModel {
     // 合成策略
     const policy: SitePolicy = new SitePolicy()
     policy.host = host
-    // 字体缩放
+    // 字体缩放（覆盖 'global' = 跟随全局默认行）
     const fs: string = merged.get('site_font_size') ?? ''
-    if (fs !== '' && fs !== 'global') {
-      const n: number = Number(fs)
+    const fz: string = fs === 'global' ? SiteSettingsViewModel.getDefault('site_font_size') : fs
+    if (fz !== '' && fz !== 'global') {
+      const n: number = Number(fz)
       if (!Number.isNaN(n) && n > 0 && n <= 500) {
         policy.fontZoom = Math.round(n)
       }
@@ -381,6 +393,7 @@ export class SiteSettingsViewModel {
     policy.locationMode = SiteSettingsViewModel.permMode(merged.get('site_location') ?? '')
     policy.cameraMode = SiteSettingsViewModel.permMode(merged.get('site_camera') ?? '')
     policy.micMode = SiteSettingsViewModel.permMode(merged.get('site_microphone') ?? '')
+    policy.screenCaptureMode = SiteSettingsViewModel.permMode(merged.get('site_screen_capture') ?? '')
     // 剪贴板文本读写
     const cbv: string = merged.get('site_clipboard') ?? ''
     policy.clipboardMode = cbv === 'allow' || cbv === 'ask' || cbv === 'block' ? cbv : 'allow'
@@ -393,6 +406,10 @@ export class SiteSettingsViewModel {
     const pv: string = merged.get('site_popup') ?? ''
     policy.popupMode = pv === 'allow' || pv === 'ask' || pv === 'block'
       ? pv : (appSettings.popup_allowed ? 'allow' : 'ask')
+    // 网页编码（老站 GBK/Big5 无 charset 声明时 fallback；跟随应用 = UTF-8 内核默认）
+    const enc: string = merged.get('site_encoding') ?? ''
+    policy.textEncoding = enc === 'gbk' || enc === 'gb18030' || enc === 'big5' || enc === 'utf-8'
+      ? enc : 'utf-8'
     // 浏览器标识 / 电脑模式
     const uaId: string = merged.get('site_ua') ?? ''
     if (uaId !== '' && uaId !== 'global') {

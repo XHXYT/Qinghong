@@ -1,6 +1,7 @@
 import { AppConstants } from "../constants/AppConstants";
 import { preferenceUtil } from "../utils/persistence/PreferenceUtil";
 import { ConfigurationConstant } from "@kit.AbilityKit";
+import { webview } from "@kit.ArkWeb";
 
 /**
  * 自定义浏览器标识（UA 对：名称 + UA 字符串）
@@ -51,6 +52,8 @@ export class _UISettings {
   @Trace show_download_button: boolean = false
   /** 启用书签栏（配合 'top'/'bottom' 布局，贴操作栏内容侧） */
   @Trace show_bookmark_bar: boolean = false
+  /** 操作栏显示拓展按钮（扩展入口，默认关闭） */
+  @Trace show_extension_button: boolean = false
   /** 地址栏内容 'title' | 'url' | 'domain' */
   @Trace address_bar_content: string = 'title'
   /** 操作栏色彩模式（浏览网页时操作栏自适应页面 theme-color） */
@@ -84,6 +87,7 @@ export class _UISettings {
       "show_home_button": this.show_home_button,
       "show_download_button": this.show_download_button,
       "show_bookmark_bar": this.show_bookmark_bar,
+      "show_extension_button": this.show_extension_button,
       "address_bar_content": this.address_bar_content,
       "action_bar_color_mode": this.action_bar_color_mode
     };
@@ -111,6 +115,7 @@ export class _UISettings {
     this.show_home_button = (json["show_home_button"] as boolean) ?? this.show_home_button;
     this.show_download_button = (json["show_download_button"] as boolean) ?? this.show_download_button;
     this.show_bookmark_bar = (json["show_bookmark_bar"] as boolean) ?? this.show_bookmark_bar;
+    this.show_extension_button = (json["show_extension_button"] as boolean) ?? this.show_extension_button;
     const content = json["address_bar_content"] as string;
     if (content === 'title' || content === 'url' || content === 'domain') {
       this.address_bar_content = content;
@@ -120,7 +125,7 @@ export class _UISettings {
 
   @Monitor('color_mode', 'app_layout', 'auto_hide_action_bar', 'show_tab_bar',
     'show_home_button', 'show_download_button', 'show_bookmark_bar',
-    'address_bar_content', 'action_bar_color_mode')
+    'show_extension_button', 'address_bar_content', 'action_bar_color_mode')
   public async save(): Promise<void> {
     try {
       const jsonStr: string = JSON.stringify(this.toSyncData());
@@ -138,6 +143,7 @@ export class _UISettings {
     this.show_home_button = false;
     this.show_download_button = false;
     this.show_bookmark_bar = false;
+    this.show_extension_button = false;
     this.address_bar_content = 'title';
     this.action_bar_color_mode = false;
     this.save();
@@ -171,6 +177,8 @@ export class AppSettings {
   @Trace do_not_sell: boolean = false
   /** 隐私：智能防跟踪（跨站跟踪型网站请求不携带 Cookie，ArkWeb 内核执行） */
   @Trace intelligent_tracking_prevention: boolean = true
+  /** 隐私：允许第三方 Cookie（关闭后跨站 Cookie 被拒，部分网站登录可能异常） */
+  @Trace third_party_cookie: boolean = true
   /** 广告拦截总开关 */
   @Trace ad_block_enabled: boolean = true
   /** 广告拦截：启用内建规则 */
@@ -227,6 +235,8 @@ export class AppSettings {
   @Trace exit_clear_data: string = 'cache,app_cache'
   /** 高级：无图模式（不加载网页在线图片） */
   @Trace no_image_mode: boolean = false
+  /** 高级：应用切后台暂停全部网页 JS 定时器（省电，回前台自动恢复） */
+  @Trace pause_web_timers: boolean = false
   /** 高级：网页助手（视频/可下载资源时展示悬浮按钮入口） */
   @Trace web_assistant: boolean = true
   /** 高级：资源嗅探（网页助手菜单中的嗅探入口；依赖网页助手开启） */
@@ -241,8 +251,20 @@ export class AppSettings {
   @Trace web_vibration_enabled: boolean = false
   /** 高级：保留文本长按选择的触感反馈（网页振动关闭时独立生效） */
   @Trace web_haptic_enabled: boolean = true
+  /** 高级：点击状态栏回到网页顶部（ArkWeb backToTop，系统默认开启） */
+  @Trace back_to_top: boolean = true
+   /** 高级：白屏检测自动重试（导航后 5s 检测，白屏则刷新重试一次，同 URL 仅一次防循环） */
+   @Trace blank_screen_retry: boolean = true
+   /** 高级：网页滚动到边缘时回弹（ArkWeb overScrollMode ALWAYS；更改后新开标签生效） */
+   @Trace web_overscroll_bounce: boolean = false
+  /** 高级：关闭标签后立即释放网页内核资源（FAST_MODE；关闭则系统延迟释放 NORMAL_MODE，默认更流畅） */
+   @Trace web_fast_destroy: boolean = false
+   /** 禁止网页访问局域网（开=子资源局域网请求需 CORS 预检授权，未授权即拦截；内核默认开） */
+   @Trace web_block_private_network: boolean = true
   /** 高级：预解析加速（自动预连接高频访问的站点） */
   @Trace dns_preconnect_enabled: boolean = true
+  /** 高级：预加载网页（地址栏输入停顿时按回车目标预取/预连接，无痕标签不预热） */
+  @Trace web_prefetch: boolean = true
   /** 显示撤销关闭标签的提示 */
   @Trace show_undo_close_tip: boolean = true
   /** 打开网页时自动展开网页中折叠的内容 */
@@ -253,6 +275,8 @@ export class AppSettings {
   @Trace cookies_enabled: boolean = true
   /** 弹出式窗口：开启后网页可直接弹出新窗口（以新标签打开）；关闭时需先询问许可 */
   @Trace popup_allowed: boolean = false
+  /** 弹出式窗口为「询问」时，与当前页面同域名的窗口直接放行（about:blank 视为同域） */
+  @Trace popup_allow_same_host: boolean = true
   /** Cookies：拦截第三方 Cookies */
   @Trace cookies_block_third_party: boolean = false
   /** 站点设置默认值（JSON: key→档位标识；例外站点存 RDB 不参与同步） */
@@ -280,6 +304,8 @@ export class AppSettings {
   @Trace read_mode_serif: boolean = false
   /** 应用字体 family（空串 = 默认字体） */
   @Trace font_family: string = ''
+  /** 将所选字体应用到网页文字（等宽代码字体不受影响） */
+  @Trace web_font_enabled: boolean = false
   /** 密码管理器：提示保存密码（应用自建密码库） */
   @Trace password_save_prompt: boolean = true
   /** 密码管理器：托管给系统密码管理器（Web enableAutoFill） */
@@ -357,12 +383,14 @@ export class AppSettings {
   @Trace userscript_enabled: boolean = true
   /** 用户脚本：调试悬浮窗（页面右下角显示注入状态与 GM 调用计数） */
   @Trace userscript_debug: boolean = false
-  /** 操作设定：启用播放器手势（网页内全屏视频滑动调整进度/亮度/音量，功能预留） */
-  @Trace player_gestures: boolean = true
+  /** 扩展程序：启用扩展总开关（默认关；关闭后停止内容脚本注入、扩展页面宿主、后台宿主与 popup，且不显示扩展入口按钮） */
+  @Trace extension_enabled: boolean = false
   /** 键盘快捷键自定义（逗号分隔 id:key 覆盖项，空 = 全默认） */
   @Trace keyboard_shortcuts: string = ''
   /** 底部工具栏事件绑定（逗号分隔 事件id:动作id，未存条目 = 无操作） */
   @Trace toolbar_events: string = ''
+  /** 操作设定：工具栏滑动事件（底部工具栏左滑/右滑触发绑定动作，关闭后工具栏不再响应横滑） */
+  @Trace toolbar_swipe_enabled: boolean = true
   /** 下载配置：HLS 分片并发下载数（1-8，代理掐连接环境下并发成倍提速） */
   @Trace download_concurrency: number = 4
   /** 下载配置：同时下载任务数上限（1-4，超出排队等待） */
@@ -440,10 +468,35 @@ export class AppSettings {
       if (!jsonStr) return;
       const json: Record<string, Object> = JSON.parse(jsonStr);
       this.applySyncData(json);
+      // Web 销毁模式须在首个 Web 组件创建前应用（全局静态配置）
+      this.applyWebDestroyMode();
+      // 局域网访问限制同为全局静态配置，配置加载后立即应用
+      this.applyPrivateNetworkAccess();
 
       console.info("[AppSettings] App配置加载成功");
     } catch (e) {
       console.error("[AppSettings] JSON 解析失败，使用默认配置", e);
+    }
+  }
+
+  /** 高级：应用 Web 销毁模式（开=FAST_MODE 立即释放内核资源；关=NORMAL_MODE 系统延迟释放，默认） */
+  @Monitor('web_fast_destroy')
+  public applyWebDestroyMode(): void {
+    try {
+      webview.WebviewController.setWebDestroyMode(
+        this.web_fast_destroy ? webview.WebDestroyMode.FAST_MODE : webview.WebDestroyMode.NORMAL_MODE)
+    } catch (e) {
+      console.error('[AppSettings] setWebDestroyMode 失败', e)
+    }
+  }
+
+  /** 高级：应用局域网访问限制（开=enablePrivateNetworkAccess(true)，网页子资源访问局域网需预检授权；全局静态配置） */
+  @Monitor('web_block_private_network')
+  public applyPrivateNetworkAccess(): void {
+    try {
+      webview.WebviewController.enablePrivateNetworkAccess(this.web_block_private_network)
+    } catch (e) {
+      console.error('[AppSettings] enablePrivateNetworkAccess 失败', e)
     }
   }
 
@@ -462,6 +515,7 @@ export class AppSettings {
       "disable_webrtc_udp": this.disable_webrtc_udp,
       "do_not_sell": this.do_not_sell,
       "intelligent_tracking_prevention": this.intelligent_tracking_prevention,
+      "third_party_cookie": this.third_party_cookie,
       "ad_block_enabled": this.ad_block_enabled,
       "ad_block_builtin": this.ad_block_builtin,
       "geolocation_access": this.geolocation_access,
@@ -490,6 +544,7 @@ export class AppSettings {
       "video_kb_keys": this.video_kb_keys,
       "exit_clear_data": this.exit_clear_data,
       "no_image_mode": this.no_image_mode,
+      "pause_web_timers": this.pause_web_timers,
       "web_assistant": this.web_assistant,
       "resource_sniff": this.resource_sniff,
       "allow_debug_web": this.allow_debug_web,
@@ -497,12 +552,19 @@ export class AppSettings {
       "ignore_ssl_warning": this.ignore_ssl_warning,
       "web_vibration_enabled": this.web_vibration_enabled,
       "web_haptic_enabled": this.web_haptic_enabled,
+      "back_to_top": this.back_to_top,
+       "blank_screen_retry": this.blank_screen_retry,
+      "web_overscroll_bounce": this.web_overscroll_bounce,
+      "web_fast_destroy": this.web_fast_destroy,
+      "web_block_private_network": this.web_block_private_network,
       "dns_preconnect_enabled": this.dns_preconnect_enabled,
+      "web_prefetch": this.web_prefetch,
       "show_undo_close_tip": this.show_undo_close_tip,
       "auto_expand_web": this.auto_expand_web,
       "force_enable_zoom": this.force_enable_zoom,
       "cookies_enabled": this.cookies_enabled,
       "popup_allowed": this.popup_allowed,
+      "popup_allow_same_host": this.popup_allow_same_host,
       "cookies_block_third_party": this.cookies_block_third_party,
       "site_defaults": this.site_defaults,
       "night_mask_enabled": this.night_mask_enabled,
@@ -516,6 +578,7 @@ export class AppSettings {
       "read_mode_font_size": this.read_mode_font_size,
       "read_mode_serif": this.read_mode_serif,
       "font_family": this.font_family,
+      "web_font_enabled": this.web_font_enabled,
       "password_save_prompt": this.password_save_prompt,
       "system_password_manager": this.system_password_manager,
       "home_page_mode": this.home_page_mode,
@@ -554,9 +617,10 @@ export class AppSettings {
       "volume_key_paging": this.volume_key_paging,
       "userscript_enabled": this.userscript_enabled,
       "userscript_debug": this.userscript_debug,
-      "player_gestures": this.player_gestures,
+      "extension_enabled": this.extension_enabled,
       "keyboard_shortcuts": this.keyboard_shortcuts,
       "toolbar_events": this.toolbar_events,
+      "toolbar_swipe_enabled": this.toolbar_swipe_enabled,
       "download_concurrency": this.download_concurrency,
       "download_task_limit": this.download_task_limit,
       "download_notify": this.download_notify,
@@ -592,6 +656,8 @@ export class AppSettings {
     this.do_not_sell = (json["do_not_sell"] as boolean) ?? this.do_not_sell;
     this.intelligent_tracking_prevention =
       (json["intelligent_tracking_prevention"] as boolean) ?? this.intelligent_tracking_prevention;
+    this.third_party_cookie =
+      (json["third_party_cookie"] as boolean) ?? this.third_party_cookie;
     this.ad_block_enabled = (json["ad_block_enabled"] as boolean) ?? this.ad_block_enabled;
     this.ad_block_builtin = (json["ad_block_builtin"] as boolean) ?? this.ad_block_builtin;
     this.geolocation_access = (json["geolocation_access"] as boolean) ?? this.geolocation_access;
@@ -619,6 +685,7 @@ export class AppSettings {
     this.video_kb_keys = (json["video_kb_keys"] as string) ?? this.video_kb_keys;
     this.exit_clear_data = (json["exit_clear_data"] as string) ?? this.exit_clear_data;
     this.no_image_mode = (json["no_image_mode"] as boolean) ?? this.no_image_mode;
+    this.pause_web_timers = (json["pause_web_timers"] as boolean) ?? this.pause_web_timers;
     this.web_assistant = (json["web_assistant"] as boolean) ?? this.web_assistant;
     this.resource_sniff = (json["resource_sniff"] as boolean) ?? this.resource_sniff;
     this.allow_debug_web = (json["allow_debug_web"] as boolean) ?? this.allow_debug_web;
@@ -626,12 +693,19 @@ export class AppSettings {
     this.ignore_ssl_warning = (json["ignore_ssl_warning"] as boolean) ?? this.ignore_ssl_warning;
     this.web_vibration_enabled = (json["web_vibration_enabled"] as boolean) ?? this.web_vibration_enabled;
     this.web_haptic_enabled = (json["web_haptic_enabled"] as boolean) ?? this.web_haptic_enabled;
+    this.back_to_top = (json["back_to_top"] as boolean) ?? this.back_to_top;
+     this.blank_screen_retry = (json["blank_screen_retry"] as boolean) ?? this.blank_screen_retry;
+    this.web_overscroll_bounce = (json["web_overscroll_bounce"] as boolean) ?? this.web_overscroll_bounce;
+    this.web_fast_destroy = (json["web_fast_destroy"] as boolean) ?? this.web_fast_destroy;
+    this.web_block_private_network = (json["web_block_private_network"] as boolean) ?? this.web_block_private_network;
     this.dns_preconnect_enabled = (json["dns_preconnect_enabled"] as boolean) ?? this.dns_preconnect_enabled;
+    this.web_prefetch = (json["web_prefetch"] as boolean) ?? this.web_prefetch;
     this.show_undo_close_tip = (json["show_undo_close_tip"] as boolean) ?? this.show_undo_close_tip;
     this.auto_expand_web = (json["auto_expand_web"] as boolean) ?? this.auto_expand_web;
     this.force_enable_zoom = (json["force_enable_zoom"] as boolean) ?? this.force_enable_zoom;
     this.cookies_enabled = (json["cookies_enabled"] as boolean) ?? this.cookies_enabled;
     this.popup_allowed = (json["popup_allowed"] as boolean) ?? this.popup_allowed;
+    this.popup_allow_same_host = (json["popup_allow_same_host"] as boolean) ?? this.popup_allow_same_host;
     this.cookies_block_third_party = (json["cookies_block_third_party"] as boolean) ?? this.cookies_block_third_party;
     this.site_defaults = (json["site_defaults"] as string) ?? this.site_defaults;
     this.night_mask_enabled = (json["night_mask_enabled"] as boolean) ?? this.night_mask_enabled;
@@ -645,6 +719,7 @@ export class AppSettings {
     this.read_mode_font_size = (json["read_mode_font_size"] as number) ?? this.read_mode_font_size;
     this.read_mode_serif = (json["read_mode_serif"] as boolean) ?? this.read_mode_serif;
     this.font_family = (json["font_family"] as string) ?? this.font_family;
+    this.web_font_enabled = (json["web_font_enabled"] as boolean) ?? this.web_font_enabled;
     this.password_save_prompt = (json["password_save_prompt"] as boolean) ?? this.password_save_prompt;
     this.system_password_manager = (json["system_password_manager"] as boolean) ?? this.system_password_manager;
     this.home_page_mode = (json["home_page_mode"] as string) ?? this.home_page_mode;
@@ -683,9 +758,10 @@ export class AppSettings {
     this.volume_key_paging = (json["volume_key_paging"] as boolean) ?? this.volume_key_paging;
     this.userscript_enabled = (json["userscript_enabled"] as boolean) ?? this.userscript_enabled;
     this.userscript_debug = (json["userscript_debug"] as boolean) ?? this.userscript_debug;
-    this.player_gestures = (json["player_gestures"] as boolean) ?? this.player_gestures;
+    this.extension_enabled = (json["extension_enabled"] as boolean) ?? this.extension_enabled;
     this.keyboard_shortcuts = (json["keyboard_shortcuts"] as string) ?? this.keyboard_shortcuts;
     this.toolbar_events = (json["toolbar_events"] as string) ?? this.toolbar_events;
+    this.toolbar_swipe_enabled = (json["toolbar_swipe_enabled"] as boolean) ?? this.toolbar_swipe_enabled;
     const conc = json["download_concurrency"] as number;
     if (conc !== undefined && conc >= 1 && conc <= 8) {
       this.download_concurrency = Math.round(conc);
@@ -738,14 +814,14 @@ export class AppSettings {
   }
 
   @Monitor('search_engine_id', 'custom_engines', 'show_homepage_logo', 'restore_mode', 'default_incognito',
-    'do_not_track', 'disable_webrtc', 'disable_webrtc_udp', 'do_not_sell', 'intelligent_tracking_prevention', 'geolocation_access', 'language', 'screen_orientation', 'ua_mode', 'ua_desktop', 'desktop_mode', 'ua_simplify', 'custom_uas',     'video_player', 'video_gesture_enabled', 'video_gesture_double_tap', 'video_gesture_swipe_seek',
+    'do_not_track', 'disable_webrtc', 'disable_webrtc_udp', 'do_not_sell', 'intelligent_tracking_prevention', 'third_party_cookie', 'geolocation_access', 'language', 'screen_orientation', 'ua_mode', 'ua_desktop', 'desktop_mode', 'ua_simplify', 'custom_uas',     'video_player', 'video_gesture_enabled', 'video_gesture_double_tap', 'video_gesture_swipe_seek',
     'video_gesture_side_slide', 'video_gesture_tap_toggle', 'video_gesture_long_press', 'video_keyboard_shortcuts', 'video_kb_keys',
-    'exit_clear_data', 'no_image_mode', 'web_assistant', 'resource_sniff', 'allow_debug_web', 'disable_safe_browsing',
-    'ignore_ssl_warning', 'web_vibration_enabled', 'web_haptic_enabled', 'dns_preconnect_enabled',
+    'exit_clear_data', 'no_image_mode', 'pause_web_timers', 'web_assistant', 'resource_sniff', 'allow_debug_web', 'disable_safe_browsing',
+    'ignore_ssl_warning', 'web_vibration_enabled', 'web_haptic_enabled', 'back_to_top', 'blank_screen_retry', 'web_overscroll_bounce', 'web_fast_destroy', 'web_block_private_network', 'dns_preconnect_enabled', 'web_prefetch',
     'dns_doh_enabled', 'dns_doh_provider', 'dns_doh_custom',
     'proxy_enabled', 'proxy_type', 'proxy_host', 'proxy_port',
-    'show_undo_close_tip', 'auto_expand_web', 'force_enable_zoom', 'cookies_enabled', 'cookies_block_third_party', 'popup_allowed', 'site_defaults', 'ad_block_enabled', 'ad_block_builtin', 'night_mask_enabled', 'night_mask_opacity', 'night_mask_color', 'force_dark_web',
-    'read_mode_address_button', 'read_mode_confirm', 'read_mode_bg_color', 'read_mode_custom_bg', 'read_mode_font_size', 'read_mode_serif', 'font_family',
+    'show_undo_close_tip', 'auto_expand_web', 'force_enable_zoom', 'cookies_enabled', 'cookies_block_third_party', 'popup_allowed', 'popup_allow_same_host', 'site_defaults', 'ad_block_enabled', 'ad_block_builtin', 'night_mask_enabled', 'night_mask_opacity', 'night_mask_color', 'force_dark_web',
+    'read_mode_address_button', 'read_mode_confirm', 'read_mode_bg_color', 'read_mode_custom_bg', 'read_mode_font_size', 'read_mode_serif', 'font_family', 'web_font_enabled',
     'password_save_prompt', 'system_password_manager', 'home_page_mode', 'home_page_url',
     'home_logo_mode', 'home_logo_image', 'home_logo_text', 'home_logo_html',
     'home_search_radius', 'home_search_opacity', 'home_search_border_width', 'home_search_border_opacity',
@@ -754,7 +830,8 @@ export class AppSettings {
     'home_search_effect', 'home_search_blur', 'home_search_offset', 'home_search_height',
     'home_show_search_area', 'home_custom_css', 'home_custom_css_enabled',
     'search_suggest_sources',     'search_toolbar_enabled', 'search_toolbar_engines', 'menu_layout', 'long_press_menu', 'bookmark_folders',
-    'swipe_nav_enabled', 'volume_key_paging', 'player_gestures', 'keyboard_shortcuts', 'toolbar_events',
+    'swipe_nav_enabled', 'volume_key_paging', 'keyboard_shortcuts', 'toolbar_events', 'toolbar_swipe_enabled',
+    'userscript_enabled', 'userscript_debug', 'extension_enabled',
     'download_concurrency', 'download_task_limit', 'download_notify',
     'translate_target_lang', 'translate_bilingual', 'translate_always', 'translate_engine',
     'translate_deepl_key', 'translate_libre_url', 'translate_libre_key',
@@ -780,6 +857,7 @@ export class AppSettings {
     this.disable_webrtc_udp = false;
     this.do_not_sell = false;
     this.intelligent_tracking_prevention = true;
+    this.third_party_cookie = true;
     this.ad_block_enabled = true;
     this.ad_block_builtin = true;
     this.geolocation_access = true;
@@ -801,6 +879,7 @@ export class AppSettings {
     this.video_kb_keys = '';
     this.exit_clear_data = 'cache,app_cache';
     this.no_image_mode = false;
+    this.pause_web_timers = false;
     this.web_assistant = true;
     this.resource_sniff = true;
     this.allow_debug_web = true;
@@ -808,7 +887,13 @@ export class AppSettings {
     this.ignore_ssl_warning = false;
     this.web_vibration_enabled = false;
     this.web_haptic_enabled = true;
+    this.back_to_top = true;
+    this.blank_screen_retry = true;
+    this.web_overscroll_bounce = false;
+    this.web_fast_destroy = false;
+    this.web_block_private_network = true;
     this.dns_preconnect_enabled = true;
+    this.web_prefetch = true;
     this.dns_doh_enabled = false;
     this.dns_doh_provider = 'alidns';
     this.dns_doh_custom = '';
@@ -821,6 +906,7 @@ export class AppSettings {
     this.force_enable_zoom = false;
     this.cookies_enabled = true;
     this.popup_allowed = false;
+    this.popup_allow_same_host = true;
     this.cookies_block_third_party = false;
     this.site_defaults = '';
     this.night_mask_enabled = false;
@@ -834,6 +920,7 @@ export class AppSettings {
     this.read_mode_font_size = 18;
     this.read_mode_serif = false;
     this.font_family = '';
+    this.web_font_enabled = false;
     this.password_save_prompt = true;
     this.system_password_manager = false;
     this.home_page_mode = 'default';
@@ -872,9 +959,10 @@ export class AppSettings {
     this.volume_key_paging = false;
     this.userscript_enabled = true;
     this.userscript_debug = false;
-    this.player_gestures = true;
+    this.extension_enabled = false;
     this.keyboard_shortcuts = '';
     this.toolbar_events = '';
+    this.toolbar_swipe_enabled = true;
     this.download_concurrency = 4;
     this.download_task_limit = 3;
     this.download_notify = true;

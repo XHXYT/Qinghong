@@ -4,6 +4,7 @@ import { browserVM } from '../../viewmodel/BrowserViewModel';
 import { HomeImmersive } from '../../common/utils/HomeImmersive';
 import { homeBg } from '../../common/utils/HomeBg';
 import { ActionBarColor } from '../../common/utils/ActionBarColor';
+import { UISettings } from '../../common/entity/SettingsModel';
 import { faviconCache, FaviconCache } from '../../viewmodel/FaviconCache';
 import { menuVM } from '../../viewmodel/MenuViewModel';
 import { QhState } from '../../entryability/AppState';
@@ -48,12 +49,12 @@ const CHIP_GAP: number = 6
 @ComponentV2
 export struct BookmarkBar {
 
-  /** 芯片底色：主页沉浸暗背景用浅色半透明（白字可读），其余用通用底 */
+  /** 芯片底色：主页沉浸暗背景用浅色半透明（白字可读），色彩模式按页面色明暗叠层，其余用通用底 */
   private chipBg(): ResourceColor {
     if (HomeImmersive.active() && homeBg.dark) {
       return 'rgba(255,255,255,0.14)'
     }
-    return $r('sys.color.comp_background_tertiary')
+    return ActionBarColor.chipBg($r('sys.color.comp_background_tertiary'), UISettings.app_layout === 'top')
   }
 
   aboutToAppear(): void {
@@ -274,7 +275,7 @@ export struct BookmarkBar {
     } else {
       SymbolGlyph($r('sys.symbol.star'))
         .fontSize(12)
-        .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'))])
+        .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'), UISettings.app_layout === 'top')])
     }
   }
 
@@ -284,14 +285,14 @@ export struct BookmarkBar {
       SymbolGlyph($r('sys.symbol.folder'))
         .fontSize(12)
         .fontColor([this.dropFolderName === item.folderName ? Color.White
-          : ActionBarColor.fg($r('sys.color.font_secondary'))])
+          : ActionBarColor.fg($r('sys.color.font_secondary'), UISettings.app_layout === 'top')])
       Text(item.folderName)
         .fontSize(12)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .constraintSize({ maxWidth: 100 })
         .fontColor(this.dropFolderName === item.folderName ? Color.White
-          : ActionBarColor.fg($r('sys.color.font_primary')))
+          : ActionBarColor.fg($r('sys.color.font_primary'), UISettings.app_layout === 'top'))
     }
     .height(24)
     .padding({ left: 10, right: 10 })
@@ -359,7 +360,7 @@ export struct BookmarkBar {
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .constraintSize({ maxWidth: 120 })
-          .fontColor(ActionBarColor.fg($r('sys.color.font_primary')))
+          .fontColor(ActionBarColor.fg($r('sys.color.font_primary'), UISettings.app_layout === 'top'))
       }
       .height(24)
       .padding({ left: 10, right: 10 })
@@ -416,13 +417,13 @@ export struct BookmarkBar {
         Row({ space: 3 }) {
           SymbolGlyph($r('sys.symbol.folder'))
             .fontSize(12)
-            .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'))])
+            .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'), UISettings.app_layout === 'top')])
           Text(this.dragItem.folderName)
             .fontSize(12)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .constraintSize({ maxWidth: 140 })
-            .fontColor(ActionBarColor.fg($r('sys.color.font_primary')))
+            .fontColor(ActionBarColor.fg($r('sys.color.font_primary'), UISettings.app_layout === 'top'))
         }
         .height(24)
         .padding({ left: 10, right: 10 })
@@ -440,7 +441,7 @@ export struct BookmarkBar {
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .constraintSize({ maxWidth: 140 })
-            .fontColor(ActionBarColor.fg($r('sys.color.font_primary')))
+            .fontColor(ActionBarColor.fg($r('sys.color.font_primary'), UISettings.app_layout === 'top'))
         }
         .height(24)
         .padding({ left: 10, right: 10 })
@@ -478,9 +479,9 @@ export struct BookmarkBar {
         .width('100%')
         .height('100%')
         .align(Alignment.Start)
-        // 主页沉浸时背景透明，透出全屏主页背景层
+        // 主页沉浸时背景透明透出全屏主页背景层；色彩模式随操作栏自适应（渐变时透明由栏组渐变接管）
         .backgroundColor(HomeImmersive.active() ? Color.Transparent
-          : $r('sys.color.comp_background_primary'))
+          : ActionBarColor.bg($r('sys.color.comp_background_primary'), UISettings.app_layout === 'top'))
 
         if (this.dragItem !== null) {
           this.dragGhost()

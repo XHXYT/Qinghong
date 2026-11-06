@@ -1,6 +1,8 @@
 import { picker } from '@kit.CoreFileKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { NaviContainer, NaviBarButton } from '../../../components/NaviContainer';
+import { CustomListItem } from '../../../components/CusItemBuilder';
+import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
 import { appSettings } from '../../../common/entity/SettingsModel';
 import { QhState } from '../../../entryability/AppState';
 import { FontInfo, FontStore } from '../../../common/utils/FontStore';
@@ -15,9 +17,21 @@ export function SettingsFontBuilder() {
 struct FontPage {
 
   @Local fonts: FontInfo[] = []
+  @Local webFontItem: CustomItemInfo =
+    new CustomItemInfo({ id: 'web_font', type: ItemActionType.TOGGLE })
 
   aboutToAppear(): void {
     this.fonts = FontStore.list()
+    this.webFontItem = new CustomItemInfo({
+      id: 'web_font',
+      title: $r('app.string.web_font_apply'),
+      subtitle: $r('app.string.web_font_apply_desc'),
+      type: ItemActionType.TOGGLE,
+      value: appSettings.web_font_enabled,
+      onChange: (v: string | boolean | number): void => {
+        appSettings.web_font_enabled = v as boolean
+      }
+    })
   }
 
   private addFont(): void {
@@ -97,13 +111,29 @@ struct FontPage {
   @Builder
   pageContent() {
     List() {
+      // 应用到网页（通用开关行）
+      ListItem() {
+        Column() {
+          CustomListItem({
+            item: this.webFontItem,
+            itemPadding: { left: 16, right: 16, top: 12, bottom: 12 }
+          })
+        }
+        .width('100%')
+        .backgroundColor($r('app.color.background_color'))
+        .borderRadius(16)
+        .clip(true)
+      }
+      .width('100%')
+      .margin({ top: 10, bottom: 12 })
+
       // 可用字体
       ListItem() {
         Text($r('app.string.font_available'))
           .fontSize(14)
           .fontColor($r('sys.color.font_secondary'))
           .width('100%')
-          .padding({ left: 4, top: 10, bottom: 6 })
+          .padding({ left: 4, top: 2, bottom: 6 })
       }
       .width('100%')
 
@@ -134,7 +164,6 @@ struct FontPage {
         .clip(true)
       }
       .width('100%')
-      .margin({ bottom: 12 })
     }
     .width('100%')
     .height('100%')

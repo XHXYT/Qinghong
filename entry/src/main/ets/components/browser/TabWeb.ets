@@ -34,8 +34,12 @@ import { trackerVM } from '../../viewmodel/TrackerViewModel';
 import { inspectorVM } from '../../viewmodel/InspectorViewModel';
 import { faviconCache, FaviconCache } from '../../viewmodel/FaviconCache';
 import { scriptVM } from '../../viewmodel/ScriptViewModel';
+import { extensionVM } from '../../viewmodel/ExtensionViewModel';
+import { ExtensionResources, EXT_SCHEME_PREFIX } from '../../common/utils/ExtensionResources';
 import { translateVM } from '../../viewmodel/TranslateViewModel';
 import { GmValueRaw, GmDeleteValueRaw, GmOpenTabRaw, GmClipboardRaw, GmNotifyRaw, GmDownloadRaw, GmMenuRaw, GmMenuIdRaw } from '../../common/utils/GmRuntime';
+import { ExtNotifyRaw } from '../../common/utils/ChromeShim';
+import { kbShortcutDispatch } from '../../common/utils/KbShortcutDispatch';
 
 /** 网页选区矩形（CSS px，相对视口；由注入脚本返回的 JSON 解析而来） */
 interface SelectionRect {
@@ -44,6 +48,15 @@ interface SelectionRect {
   w: number
   h: number
   iw: number
+}
+
+/** HTML 文本/属性转义（错误页 URL 注入防 XSS） */
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 /**
@@ -116,6 +129,12 @@ class ClipboardBridge {
   /** 视频手势桥（__qhNative.videoRequest）：全屏左半屏上下滑调节窗口亮度 */
   videoRequest(api: string, arg: string): void {
     this.videoHandler(api, arg)
+  }
+
+  /** 已安装扩展商店 ID 集合（__qhNative.getInstalledExtIds，同步返回 JSON 数组字符串；
+   * 商店页注入 JS 据此把已安装扩展的"获取"按钮显示为"已安装"） */
+  getInstalledExtIds(): string {
+    return extensionVM.installedExtIdsJson()
   }
 }
 
@@ -198,6 +217,19 @@ export struct TabWeb {
   @Local authFailed: boolean = false
   private httpAuthDialog: CustomDialogController | undefined = undefined
 
+  /** JS 弹窗（alert/confirm/prompt）：类型 'alert' | 'confirm' | 'prompt' */
+  @Local jsKind: string = ''
+  /** JS 弹窗：来源站点 / 消息 / prompt 输入 */
+  @Local jsDlgHost: string = ''
+  @Local jsDlgMessage: string = ''
+  @Local jsDlgInput: string = ''
+  /** JS 弹窗：勾选「阻止此页更多弹窗」 */
+  @Local jsBlockMore: boolean = false
+  /** JS 弹窗：待回执的内核 result（按钮点击时消费） */
+  private pendingJsResult: JsResult | null = null
+  private jsAlertDialog: CustomDialogController | undefined = undefined
+  private jsConfirmDialog: CustomDialogController | undefined = undefined
+
   /** 长按/右键菜单：是否显示 */
   @Local ctxMenuVisible: boolean = false
   /** 长按/右键菜单：条目列表 */
@@ -235,6 +267,7 @@ export struct TabWeb {
   aboutToAppear(): void {
     this.initPasswordDialogs()
     this.initHttpAuthDialog()
+    this.initJsDialogs()
     this.netConn = connection.createNetConnection()
     this.netConn.on('netAvailable', () => {
       this.updateWifiState()
@@ -274,6 +307,11 @@ export struct TabWeb {
     }).catch(() => {
       this.wifiConnected = false
     })
+  }
+
+  /** 网页字体族：开启"应用到网页"且已选自定义字体时返回 family，否则空串（回落默认） */
+  private webFontFamily(): string {
+    return appSettings.web_font_enabled ? appSettings.font_family : ''
   }
 
   /** 当前是否允许加载在线图片（高级-无图模式优先级最高；其余按站点策略） */
@@ -344,7 +382,11 @@ export struct TabWeb {
   /** 文档加载前注入脚本：隐私脚本 + 剪贴板接管 + 长按菜单辅助 + 振动禁用（全局关闭时）+ 密码管理器 */
   /** 用户脚本：@run-at document-end/idle，按 URL 匹配后注入 */
   private injectUserScripts(url: string): void {
-    const code: string = scriptVM.onPageEndCode(url)
+    let code: string = scriptVM.onPageEndCode(url)
+    // 扩展 content_scripts：document-end/document_idle
+    code += extensionVM.onPageEndCode(url)
+    // 商店直装浮层（Chrome Web Store / Edge Add-ons 站点）
+    code += extensionVM.storePageCode(url)
     if (code !== '') {
       tabsVM.ensureController(this.tab).runJavaScript(code)
         .catch((): void => {
@@ -416,6 +458,68 @@ export struct TabWeb {
           scriptVM.gmUnregisterMenu(raw.menuId)
           break
         }
+        // ==== 扩展兼容层（__qhExtCore → __qhNative.gmRequest） ====
+        case 'extStorageGet':
+          extensionVM.extStorageGet(json, this.tab.controller)
+          break
+        case 'extStorageSet':
+          extensionVM.extStorageSet(json, this.tab.controller)
+          break
+        case 'extStorageRemove':
+          extensionVM.extStorageRemove(json, this.tab.controller)
+          break
+        case 'extStorageClear':
+          extensionVM.extStorageClear(json, this.tab.controller)
+          break
+        case 'extSendMsg':
+          extensionVM.extSendMessage(json, this.tab)
+          break
+        case 'extRespond':
+          extensionVM.extRespond(json)
+          break
+        case 'extStoreInstall':
+          extensionVM.extStoreInstall(json)
+          break
+        // ==== 扩展页面标签页（虚拟域 post-install/options）宿主沙箱路由 ====
+        case 'extSendMsgPopup':
+          extensionVM.extSendMsgFromPopup(json, tabsVM.ensureController(this.tab))
+          break
+        case 'extPortConnect':
+          // 内容脚本/标签内扩展页 runtime.connect → bg 宿主 onConnect
+          extensionVM.extPortConnect(json, tabsVM.ensureController(this.tab), 'tab', this.tab)
+          break
+        case 'extPortMsg':
+          extensionVM.extPortMsg(json, tabsVM.ensureController(this.tab))
+          break
+        case 'extPortDisconnect':
+          extensionVM.extPortDisconnect(json, tabsVM.ensureController(this.tab))
+          break
+        case 'extTabQuery':
+          extensionVM.extTabQuery(json, tabsVM.ensureController(this.tab))
+          break
+        case 'extTabSendMsg':
+          extensionVM.extTabSendMsg(json, tabsVM.ensureController(this.tab))
+          break
+        case 'extTabCreate':
+          extensionVM.extTabCreate(json, tabsVM.ensureController(this.tab))
+          break
+        case 'extExecuteScript':
+          extensionVM.extExecuteScript(json, tabsVM.ensureController(this.tab))
+          break
+        case 'extNotify': {
+          const notifyRaw: ExtNotifyRaw = JSON.parse(json) as ExtNotifyRaw
+          if (notifyRaw.text !== '') {
+            toastUtil.showToast({ message: notifyRaw.text })
+          }
+          break
+        }
+        case 'extWindowClose':
+          /* 扩展页 window.close()（Chrome 语义）→ 关当前标签；
+             延迟销毁避免在 javaScriptProxy 回调内卸载 Web */
+          setTimeout((): void => {
+            tabsVM.closeTab(this.tab.id)
+          }, 0)
+          break
         default:
           break
       }
@@ -481,6 +585,18 @@ export struct TabWeb {
     for (const item of scriptVM.docStartScriptItems()) {
       scripts.push(item)
     }
+    // 扩展 content_scripts：manifest run_at = document_start（matches 预过滤）
+    for (const item of extensionVM.docStartScriptItems()) {
+      scripts.push(item)
+    }
+    // 商店站原生安装按钮接管（crxsoso）：文档开始注入，保证监听先于页面按钮可点击
+    for (const item of extensionVM.storePageStartItems()) {
+      scripts.push(item)
+    }
+    // 扩展页面标签页（虚拟域 post-install/options 等）：注入宿主沙箱（含 core）
+    for (const item of extensionVM.extPageScriptItems()) {
+      scripts.push(item)
+    }
     return scripts
   }
 
@@ -503,7 +619,7 @@ export struct TabWeb {
     siteSettingsVM.registerLive(p.host, p)
   }
 
-  /** 应用 UA（域名级模式下由内核按 host 映射处理，实例级仅能力回退旧路径使用） */
+  /** 应用 UA（域名级模式下由内核按 host 映射处理，实例级仅能力回退时使用） */
   private applyUa(p: SitePolicy): void {
     if (UaUtils.hostUaMode()) {
       this.appliedUa = p.uaOverride
@@ -617,6 +733,11 @@ export struct TabWeb {
       toastUtil.showToast({ message: $r('app.string.popup_blocked_toast') })
       return
     }
+    // 询问：与当前页同域名的窗口直接放行（about:blank/空目标继承来源页源，视为同域）
+    if (appSettings.popup_allow_same_host && this.isSameHostPopup(event.targetUrl)) {
+      this.openPopupAsTab(event)
+      return
+    }
     const host: string = SiteSettingsViewModel.hostOf(this.tab.url)
     // autoCancel false：强制二选一，避免点外部关闭弹窗导致内核渲染持续阻塞
     toastUtil.showAlertDialog({
@@ -667,6 +788,15 @@ export struct TabWeb {
     } catch (e) {
       console.error(`[TabWeb] 拒绝弹窗失败: ${e}`)
     }
+  }
+
+  /** 弹出目标与当前页是否同域名（空目标/about:blank 由来源页 document.write 写入，视为同域） */
+  private isSameHostPopup(targetUrl: string): boolean {
+    if (targetUrl === '' || targetUrl === 'about:blank') {
+      return true
+    }
+    const targetHost: string = SiteSettingsViewModel.hostOf(targetUrl)
+    return targetHost !== '' && targetHost === SiteSettingsViewModel.hostOf(this.tab.url)
   }
 
   /**
@@ -847,6 +977,48 @@ export struct TabWeb {
         this.rememberPermission(origin, 'site_microphone', mode)
       }
     }
+  }
+
+  /**
+   * 网页屏幕录制授权（getDisplayMedia）：站点策略 allow/block 直接生效，其余弹窗询问；
+   * 弹窗决策写入单站点例外（rememberPermission → setOverride(host)，不碰全局默认）
+   */
+  private handleScreenCaptureRequest(event: OnScreenCaptureRequestEvent): void {
+    const handler: ScreenCaptureHandler = event.handler
+    const origin: string = handler.getOrigin()
+    if (this.policy.screenCaptureMode === 'allow') {
+      handler.grant({ captureMode: WebCaptureMode.HOME_SCREEN })
+      return
+    }
+    if (this.policy.screenCaptureMode === 'block') {
+      handler.deny()
+      return
+    }
+    toastUtil.showAlertDialog({
+      title: $r('app.string.web_permission_title'),
+      message: `${origin} ${ResourceUtils.getString($r('app.string.web_permission_use_screen'))}`,
+      autoCancel: true,
+      alignment: DialogAlignment.Center,
+      buttons: [
+        {
+          value: $r('app.string.allow'),
+          action: (): void => {
+            this.policy.screenCaptureMode = 'allow'
+            this.rememberPermission(origin, 'site_screen_capture', 'allow')
+            handler.grant({ captureMode: WebCaptureMode.HOME_SCREEN })
+          }
+        },
+        {
+          value: $r('app.string.deny'),
+          style: DialogButtonStyle.DEFAULT,
+          action: (): void => {
+            this.policy.screenCaptureMode = 'block'
+            this.rememberPermission(origin, 'site_screen_capture', 'block')
+            handler.deny()
+          }
+        }
+      ]
+    }, 'webScreenCapture')
   }
 
   /** 授权网页资源前先确保系统级摄像头/麦克风权限 */
@@ -1219,6 +1391,158 @@ export struct TabWeb {
     this.httpAuthDialog?.close()
   }
 
+  /** 初始化 JS 三大弹窗（alert 单按钮 / confirm+prompt 双按钮） */
+  private initJsDialogs(): void {
+    this.jsAlertDialog = new CustomDialogController({
+      builder: CustomContentDialog({
+        primaryTitle: $r('app.string.js_dialog_title'),
+        contentBuilder: (): void => {
+          this.jsDialogContent(false)
+        },
+        buttons: buildDialogButtons([$r('app.string.confirm')], false,
+          (index: number): void => {
+            this.finishJsDialog(true)
+          }),
+        contentAreaPadding: { top: 8, bottom: 8, left: 24, right: 24 }
+      }),
+      autoCancel: false,
+      alignment: DialogAlignment.Center,
+      cornerRadius: 32
+    })
+    this.jsConfirmDialog = new CustomDialogController({
+      builder: CustomContentDialog({
+        primaryTitle: $r('app.string.js_dialog_title'),
+        contentBuilder: (): void => {
+          this.jsDialogContent(true)
+        },
+        buttons: buildDialogButtons([$r('app.string.cancel'), $r('app.string.confirm')], false,
+          (index: number): void => {
+            this.finishJsDialog(index === 1)
+          }),
+        contentAreaPadding: { top: 8, bottom: 8, left: 24, right: 24 }
+      }),
+      autoCancel: false,
+      alignment: DialogAlignment.Center,
+      cornerRadius: 32
+    })
+  }
+
+  /** JS 弹窗正文：站点 / 消息 / prompt 输入框 / 阻止此页更多弹窗开关 */
+  @Builder
+  jsDialogContent(withCancel: boolean) {
+    Column({ space: 12 }) {
+      Text(this.jsDlgHost)
+        .fontSize(16)
+        .fontWeight(FontWeight.Medium)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Text(this.jsDlgMessage)
+        .fontSize(16)
+        .fontColor($r('sys.color.font_primary'))
+        .width('100%')
+        .textAlign(TextAlign.Start)
+      if (this.jsKind === 'prompt') {
+        TextInput({ text: this.jsDlgInput })
+          .height(48)
+          .fontSize(16)
+          .onChange((value: string): void => {
+            this.jsDlgInput = value
+          })
+      }
+      Row() {
+        Text($r('app.string.js_dialog_block'))
+          .fontSize(14)
+        Blank()
+        Toggle({ type: ToggleType.Switch, isOn: this.jsBlockMore })
+          .onChange((isOn: boolean): void => {
+            this.jsBlockMore = isOn
+          })
+      }
+      .width('100%')
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  /** JS alert()：本页已阻止时直接回执确定，否则弹应用风格对话框 */
+  private handleJsAlert(event: OnAlertEvent): boolean {
+    if (this.tab.jsDialogBlocked) {
+      event.result.handleConfirm()
+      return true
+    }
+    this.jsKind = 'alert'
+    this.jsDlgHost = SiteSettingsViewModel.hostOf(event.url)
+    this.jsDlgMessage = event.message
+    this.jsDlgInput = ''
+    this.jsBlockMore = false
+    this.pendingJsResult = event.result
+    this.jsAlertDialog?.open()
+    return true
+  }
+
+  /** JS confirm()：本页已阻止时直接回执取消，否则弹应用风格对话框 */
+  private handleJsConfirm(event: OnConfirmEvent): boolean {
+    if (this.tab.jsDialogBlocked) {
+      event.result.handleCancel()
+      return true
+    }
+    this.jsKind = 'confirm'
+    this.jsDlgHost = SiteSettingsViewModel.hostOf(event.url)
+    this.jsDlgMessage = event.message
+    this.jsDlgInput = ''
+    this.jsBlockMore = false
+    this.pendingJsResult = event.result
+    this.jsConfirmDialog?.open()
+    return true
+  }
+
+  /** JS prompt()：本页已阻止时直接回执取消，否则弹应用风格对话框（带输入框） */
+  private handleJsPrompt(event: OnPromptEvent): boolean {
+    if (this.tab.jsDialogBlocked) {
+      event.result.handleCancel()
+      return true
+    }
+    this.jsKind = 'prompt'
+    this.jsDlgHost = SiteSettingsViewModel.hostOf(event.url)
+    this.jsDlgMessage = event.message
+    this.jsDlgInput = event.value
+    this.jsBlockMore = false
+    this.pendingJsResult = event.result
+    this.jsConfirmDialog?.open()
+    return true
+  }
+
+  /** JS 弹窗按钮回执：按类型回执内核；勾选阻止则本页后续弹窗自动关闭（onPageBegin 复位） */
+  private finishJsDialog(confirmed: boolean): void {
+    const result: JsResult | null = this.pendingJsResult
+    this.pendingJsResult = null
+    if (this.jsBlockMore) {
+      this.tab.jsDialogBlocked = true
+    }
+    if (result === null) {
+      return
+    }
+    try {
+      if (this.jsKind === 'prompt') {
+        if (confirmed) {
+          result.handlePromptConfirm(this.jsDlgInput)
+        } else {
+          result.handleCancel()
+        }
+      } else if (this.jsKind === 'alert') {
+        result.handleConfirm()
+      } else {
+        if (confirmed) {
+          result.handleConfirm()
+        } else {
+          result.handleCancel()
+        }
+      }
+    } catch (e) {
+      console.error(`[TabWeb] JS 弹窗回执失败: ${e}`)
+    }
+  }
+
   /**
    * 注入脚本捕获登录凭据上报（__qhNative.passwordSubmit）：
    * 按设置与去重规则弹「保存/更新密码」提示
@@ -1285,7 +1609,9 @@ export struct TabWeb {
   }
 
   /**
-   * 色彩模式：提取页面 meta theme-color 供操作栏自适应（提取失败保持默认色）
+   * 色彩模式：提取页面顶部条带颜色供操作栏自适应（提取失败保持默认色）。
+   * 优先采样网页顶部（elementFromPoint 逐点取元素/祖先不透明背景色，检测 linear-gradient 渐变），
+   * 无采样结果回退 meta theme-color，再回退 body/html 背景；返回 ["#hex", "#hex"]，第二色为渐变端色（纯色为 ""）
    */
   private detectThemeColor(): void {
     if (!UISettings.action_bar_color_mode || this.tab.isHome) {
@@ -1296,8 +1622,29 @@ export struct TabWeb {
       return
     }
     const script: string =
-      '(function(){var m=document.querySelector(\'meta[name="theme-color"]\');' +
-      'return m&&m.content?m.content:""})()'
+      '(function(){' +
+      'function hx(c){var s="";for(var i=0;i<c.length;i++){var h=Math.round(c[i]).toString(16);s+=h.length<2?"0"+h:h}return "#"+s}' +
+      'function pc(t){var m=t.match(/rgba?\\([^)]+\\)/);if(!m)return null;' +
+      'var p=m[0].substring(m[0].indexOf("(")+1,m[0].indexOf(")")).split(",");' +
+      'if(p.length<3)return null;if(p.length>3&&parseFloat(p[3])<0.9)return null;' +
+      'return[parseFloat(p[0]),parseFloat(p[1]),parseFloat(p[2])]}' +
+      'function eb(el){var g=0;while(el&&g<24){var st=getComputedStyle(el);' +
+      'var bi=st.backgroundImage||"";' +
+      'if(bi.indexOf("linear-gradient")>=0){var cs=bi.match(/rgba?\\([^)]+\\)/g);' +
+      'if(cs&&cs.length>0){var a=pc(cs[0]);if(a){var b=pc(cs[cs.length-1]);' +
+      'return{c:a,g:b&&b[0]===a[0]&&b[1]===a[1]&&b[2]===a[2]?null:b}}}}' +
+      'var k=pc(st.backgroundColor);if(k)return{c:k,g:null};el=el.parentElement;g++}return null}' +
+      'function at(x,y){var el=document.elementFromPoint(x,y);return el?eb(el):null}' +
+      'var w=innerWidth,r=[0,0,0],n=0,ga=null,gb=null;' +
+      'for(var y=2;y<=44;y+=7){for(var i=1;i<=3;i++){var q=at(w*i/4,y);' +
+      'if(q){r[0]+=q.c[0];r[1]+=q.c[1];r[2]+=q.c[2];n++;if(q.g&&!ga){ga=q.c;gb=q.g}}}}' +
+      'if(n>0){if(ga&&gb)return JSON.stringify([hx(ga),hx(gb)]);' +
+      'return JSON.stringify([hx([r[0]/n,r[1]/n,r[2]/n]),""])}' +
+      'var m=document.querySelector(\'meta[name="theme-color"]\');' +
+      'if(m&&m.content)return JSON.stringify([m.content,""]);' +
+      'var b=eb(document.body)||eb(document.documentElement);' +
+      'return b?JSON.stringify([hx(b.c),""]):""' +
+      '})()'
     c.runJavaScript(script)
       .then((raw: string) => {
         let v: string = raw
@@ -1308,8 +1655,17 @@ export struct TabWeb {
             // 保持原值
           }
         }
-        if (v !== '' && v.startsWith('#')) {
-          this.tab.themeColor = v
+        if (v === '') {
+          return
+        }
+        try {
+          const pair: string[] = JSON.parse(v) as string[]
+          if (pair.length === 2 && pair[0].startsWith('#')) {
+            this.tab.themeColor = pair[0]
+            this.tab.themeColor2 = pair[1].startsWith('#') ? pair[1] : ''
+          }
+        } catch (e) {
+          // 解析失败保持默认色
         }
       })
       .catch((): void => {
@@ -1526,8 +1882,81 @@ export struct TabWeb {
     })
   }
 
-  /** 取网页当前选中文本（含输入框/文本域选区） */
+  /** 内核上报的当前选中文本（onTextSelectionChange 缓存；含 iframe 内跨帧选区，导航时重置） */
+  private selTextCache: string = ''
+
+  /** 白屏检测：已自动重试过的 URL（同 URL 仅重试一次防慢页面循环刷新；离开该 URL 后重置） */
+  private blankRetryUrl: string = ''
+
+  /**
+   * 构建应用风格错误页 HTML（onOverrideErrorPage 返回值，主框架加载失败时替代内核默认错误页）：
+   * 深浅色自适应 + 常见错误码文案映射 + 重试链接（点击重载原 URL）
+   */
+  private buildErrorPageHtml(event: OnErrorReceiveEvent): string {
+    const url: string = event.request.getRequestUrl()
+    const code: number = event.error.getErrorCode()
+    let host: string = SiteSettingsViewModel.hostOf(url)
+    if (host === '') {
+      host = url
+    }
+    const tipRes: Resource = code === -2 ? $r('app.string.error_page_dns')
+      : code === -106 ? $r('app.string.error_page_offline')
+        : code === -109 ? $r('app.string.error_page_unreachable')
+          : code === -118 ? $r('app.string.error_page_timeout')
+            : $r('app.string.error_page_generic')
+    const title: string = ResourceUtils.getString($r('app.string.error_page_title'))
+    const tip: string = ResourceUtils.getString(tipRes)
+    const retry: string = ResourceUtils.getString($r('app.string.error_page_retry'))
+    return `<!DOCTYPE html><html><head><meta charset="utf-8">` +
+      `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+      `<style>body{margin:0;display:flex;align-items:center;justify-content:center;` +
+      `min-height:100vh;background:#f1f3f5;color:#182431;text-align:center;` +
+      `font-family:system-ui,-apple-system,sans-serif}` +
+      `.card{padding:0 32px;max-width:420px}` +
+      `.icon{color:#a8a8a8}` +
+      `h1{font-size:20px;font-weight:600;margin:24px 0 8px}` +
+      `p.tip{font-size:15px;color:#6b7280;margin:0;line-height:1.6}` +
+      `p.host{font-size:13px;color:#9aa0a6;margin:10px 0 0;word-break:break-all}` +
+      `a.btn{display:inline-block;margin-top:28px;padding:10px 44px;border-radius:24px;` +
+      `background:#0a59f7;color:#ffffff;text-decoration:none;font-size:15px}` +
+      `p.code{margin-top:22px;font-size:12px;color:#b0b6bd}` +
+      `@media(prefers-color-scheme:dark){body{background:#121212;color:#e6e6e6}` +
+      `p.tip{color:#a6a6a6}p.host{color:#7d7d7d}p.code{color:#5c5c5c}.icon{color:#5f5f5f}}` +
+      `</style></head><body><div class="card">` +
+      `<svg class="icon" width="72" height="72" viewBox="0 0 24 24" fill="none" ` +
+      `stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">` +
+      `<path d="m3 3 18 18"/><path d="M5.6 5.7A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 2.5-.8"/>` +
+      `<path d="M21.5 15.2a4.5 4.5 0 0 0-2.9-4.2A7 7 0 0 0 10 5.2"/>` +
+      `</svg>` +
+      `<h1>${title}</h1><p class="tip">${tip}</p><p class="host">${escapeHtml(host)}</p>` +
+      `<a class="btn" href="${escapeHtml(url)}">${retry}</a>` +
+      `<p class="code">ERROR ${code}</p>` +
+      `</div></body></html>`
+  }
+
+  /** 白屏检测回调：同 URL 仅自动重试一次，重试后仍白屏提示手动刷新 */
+  private handleDetectedBlankScreen(event: BlankScreenDetectionEventInfo): void {
+    if (!appSettings.blank_screen_retry) {
+      return
+    }
+    if (event.url !== this.blankRetryUrl) {
+      this.blankRetryUrl = event.url
+      toastUtil.showToast({ message: $r('app.string.blank_screen_retrying'), duration: 2000 })
+      try {
+        tabsVM.ensureController(this.tab).refresh()
+      } catch (e) {
+        console.error(`[TabWeb] 白屏自动重试失败: ${e}`)
+      }
+      return
+    }
+    toastUtil.showToast({ message: $r('app.string.blank_screen_manual'), duration: 2500 })
+  }
+
+  /** 取网页当前选中文本：优先内核缓存（跨帧准确、零往返），空则兜底 runJavaScript 读主帧+输入框选区 */
   private async fetchSelectionText(): Promise<string> {
+    if (this.selTextCache !== '') {
+      return this.selTextCache
+    }
     try {
       const c = tabsVM.ensureController(this.tab)
       const raw: string = await c.runJavaScript(
@@ -1732,6 +2161,14 @@ export struct TabWeb {
           ProxyUtils.onWebAttach()
           AdvancedSecurityUtils.onWebAttach()
           hostsVM.onWebAttach()
+          // 音频静音：Web 重挂时恢复该标签静音态（后台销毁重建后 setAudioMuted 状态丢失）
+          if (this.tab.audioMuted) {
+            try {
+              tabsVM.ensureController(this.tab).setAudioMuted(true)
+            } catch (e) {
+              console.error(`[TabWeb] 恢复静音态失败: ${e}`)
+            }
+          }
           this.applyAdsBlockEnable()
           this.applyIntelligentTrackingPrevention()
           // 安全浏览需在页面加载前设置（onPageBegin 时首屏加载已开始）
@@ -1743,22 +2180,33 @@ export struct TabWeb {
         .onlineImageAccess(this.imageAllowedOnline())
         .javaScriptAccess(this.policy.jsEnabled)
         .textZoomRatio(this.policy.fontZoom)
+        // 网页编码 fallback：老站 GBK/Big5 无 charset 声明时按站点策略解码（默认 UTF-8 内核行为）
+        .defaultTextEncodingFormat(this.policy.textEncoding)
         .forceEnableZoom(appSettings.force_enable_zoom)
         .darkMode(appSettings.force_dark_web ? WebDarkMode.On : WebDarkMode.Auto)
         .forceDarkAccess(appSettings.force_dark_web)
+        .webStandardFont(this.webFontFamily())
+        .webSansSerifFont(this.webFontFamily())
+        .webSerifFont(this.webFontFamily())
         .javaScriptOnDocumentStart(this.documentStartScripts())
         .javaScriptProxy({
           object: this.clipboardBridge,
           name: '__qhNative',
           methodList: ['clipboardRequest', 'passwordSubmit', 'inspectEvent', 'actionBarScroll',
-            'actionBarTapToggle', 'gmRequest', 'sniffMedia', 'videoRequest'],
+            'actionBarTapToggle', 'gmRequest', 'sniffMedia', 'videoRequest', 'getInstalledExtIds'],
           controller: tabsVM.ensureController(this.tab)
         })
         .copyOptions(this.policy.clipboardMode === 'block' ? CopyOptions.None : CopyOptions.LocalDevice)
         .enableHapticFeedback(appSettings.web_vibration_enabled || appSettings.web_haptic_enabled)
+        // 点击状态栏回到网页顶部（ArkWeb backToTop，系统特性，默认开启）
+        .backToTop(appSettings.back_to_top)
         .enableAutoFill(appSettings.system_password_manager)
         .multiWindowAccess(true)
         .allowWindowOpenMethod(true)
+        // B6：捏合缩放过程连续平滑缩放（默认关，内核松手才应用缩放会跳变）
+        .pinchSmooth(true)
+        // B6：边缘回弹（默认关=内核 NEVER；开=ALWAYS 橡皮筋回弹，新开标签生效）
+        .overScrollMode(appSettings.web_overscroll_bounce ? OverScrollMode.ALWAYS : OverScrollMode.NEVER)
         // 视频托管：内核级接管网页媒体（官方 enableNativeMediaPlayer 机制，全屏托管播放器播放）；
         // 待触发标志或已有托管会话时开启，其余时间交给内核自播
         .enableNativeMediaPlayer({
@@ -1767,6 +2215,16 @@ export struct TabWeb {
         })
         .onWindowNew((event: OnWindowNewEvent) => {
           this.handleWindowNew(event)
+        })
+        // JS 三大对话框（alert/confirm/prompt）：返回 true 应用接管，统一应用风格 + 可阻止本页更多弹窗
+        .onAlert((event: OnAlertEvent): boolean => {
+          return this.handleJsAlert(event)
+        })
+        .onConfirm((event: OnConfirmEvent): boolean => {
+          return this.handleJsConfirm(event)
+        })
+        .onPrompt((event: OnPromptEvent): boolean => {
+          return this.handleJsPrompt(event)
         })
         .onActivateContent(() => {
           // window.open 复用已绑定窗口名时，将对应标签切换到前台
@@ -1806,17 +2264,26 @@ export struct TabWeb {
           if (this.tab.viewSourceHtml !== '') {
             return false
           }
+          const reqUrl: string = event.data.getRequestUrl()
+          // 商店桌面 UA 走域名级 setUserAgentForHosts（UaUtils.onWebAttach 注册）：
+          // 导航栈内同步 setCustomUserAgent 同样触发内核重入断言（真机实测 SIGTRAP），
+          // onLoadIntercept 内禁止任何实例级 UA 设置
           // 导航发起前用缓存策略提前应用，保证 UA 对本次主框架请求生效
           const p: SitePolicy | null =
-            siteSettingsVM.cachedPolicy(SiteSettingsViewModel.hostOf(event.data.getRequestUrl()))
+            siteSettingsVM.cachedPolicy(SiteSettingsViewModel.hostOf(reqUrl))
           if (p !== null) {
             this.applyPolicy(p)
           }
           return this.interceptRedirect(event)
         })
         // 网络日志数据源：轻量记录每个请求（仅字符串处理，无痕标签不记录），
-        // 返回 null 按原方式加载（真机已验证该用法无副作用）
+        // 返回 null 按原方式加载（真机已验证该用法无副作用）；
+        // 扩展资源请求（虚拟域/chrome-extension://）由 ExtensionResources 从沙箱目录服务
         .onInterceptRequest((event: OnInterceptRequestEvent) => {
+          const reqUrl: string = event.request.getRequestUrl()
+          if (ExtensionResources.isExtRequest(reqUrl)) {
+            return ExtensionResources.respond(reqUrl, `${_QhState.Context.filesDir}/extensions`)
+          }
           if (!this.tab.isIncognito) {
             netLogVM.recordRequest(this.tab.id, event.request, event.request.isMainFrame())
           }
@@ -1849,6 +2316,18 @@ export struct TabWeb {
           console.error(`[TabWeb] 资源加载失败 ${event.error.getErrorCode()}: ` +
             `${event.request.getRequestUrl()} ${event.error.getErrorInfo()}`)
         })
+        // 主框架加载失败：返回应用风格错误页替代内核默认页（深浅色自适应 + 错误码文案 + 重试链接）
+        .onOverrideErrorPage((event: OnErrorReceiveEvent): string => {
+          return this.buildErrorPageHtml(event)
+        })
+        // 白屏检测：导航后 5s 一次 17 点采样（用户交互后不检测，无误报路径）
+        .blankScreenDetectionConfig({
+          enable: appSettings.blank_screen_retry,
+          detectionTiming: [5]
+        } as BlankScreenDetectionConfig)
+        .onDetectedBlankScreen((event: BlankScreenDetectionEventInfo) => {
+          this.handleDetectedBlankScreen(event)
+        })
         .onHttpErrorReceive((event: OnHttpErrorReceiveEvent) => {
           // HTTP 层错误诊断日志（4xx/5xx 不触发 onErrorReceive）
           netLogVM.markHttpError(this.tab.id, event.request.getRequestUrl())
@@ -1865,6 +2344,9 @@ export struct TabWeb {
         })
         .onPermissionRequest((event: OnPermissionRequestEvent) => {
           this.handlePermissionRequest(event)
+        })
+        .onScreenCaptureRequest((event: OnScreenCaptureRequestEvent) => {
+          this.handleScreenCaptureRequest(event)
         })
         .onSslErrorEventReceive((event: OnSslErrorEventReceiveEvent) => {
           if (appSettings.ignore_ssl_warning) {
@@ -1897,6 +2379,14 @@ export struct TabWeb {
           }
           // HTTP 认证：进入新页面说明已通过认证，清空防死循环 guard
           this.authGuard.clear()
+          // JS 弹窗：新页面解除「阻止此页更多弹窗」
+          this.tab.jsDialogBlocked = false
+          // 文本选区：新页面清空选中文本缓存
+          this.selTextCache = ''
+          // 白屏检测：导航到不同 URL 后重置自动重试 guard（同 URL 刷新流程内保持，防循环）
+          if (event.url !== this.blankRetryUrl) {
+            this.blankRetryUrl = ''
+          }
           // 元素审查：绑定标签导航时清选点与选中态（面板保留）
           inspectorVM.resetForNavigation(this.tab.id)
           // 用户脚本：清空本标签已注册的 GM 菜单命令（新页面由脚本重新注册）
@@ -1913,6 +2403,7 @@ export struct TabWeb {
           this.tab.readerable = false
           // 色彩模式：新页面 theme-color 重新提取
           this.tab.themeColor = ''
+          this.tab.themeColor2 = ''
           browserVM.updateNavState(this.tab)
         })
         .onPageEnd((event: OnPageEndEvent) => {
@@ -1922,6 +2413,7 @@ export struct TabWeb {
             return
           }
           this.tab.url = event.url
+          tabsVM.notifyTabInfoChanged(this.tab)
           this.tab.progress = 100
           this.applyBackForwardCache()
           this.autofillPassword()
@@ -1947,11 +2439,32 @@ export struct TabWeb {
             return
           }
           this.tab.title = event.title
+          tabsVM.notifyTabInfoChanged(this.tab)
+        })
+        // 网页音频状态：播放/停止回写 TabInfo（标签角标展示）
+        .onAudioStateChanged((event: OnAudioStateChangedEvent) => {
+          this.tab.audioPlaying = event.playing
+        })
+        // 双指缩放百分比浮层：手势中实时显示，停 800ms 自动隐藏（newScale 即百分数）
+        .onScaleChange((event: OnScaleChangeEvent) => {
+          console.info(`[TabWeb] onScaleChange old=${event.oldScale} new=${event.newScale}`)
+          this.handleScaleChange(event.newScale)
+        })
+        // 键盘快捷键：Web 聚焦时先于内核拦截（命中组合返回 true 消费，其余透传网页）
+        .onInterceptKeyEvent((e: KeyEvent): boolean => {
+          return kbShortcutDispatch.handle(e)
         })
         // 控制台消息捕获（元素审查-调试页数据源），返回 false 保持默认输出行为
         .onConsole((event: OnConsoleEvent): boolean => {
           const m = event.message
           const lv = m.getMessageLevel()
+          /* 临时诊断：扩展页（scheme 标签页）console Error/Warn 转发 hilog，
+             定位 post-install 页卡加载（TabWeb 常规 console 只进 inspectorVM 不进 hilog） */
+          if ((lv === MessageLevel.Error || lv === MessageLevel.Warn)
+            && (this.tab.url.startsWith(EXT_SCHEME_PREFIX)
+              || m.getSourceId().startsWith(EXT_SCHEME_PREFIX))) {
+            console.warn(`[TabWeb ext console] ${m.getMessage().substring(0, 300)} @ ${m.getSourceId()}:${m.getLineNumber()}`)
+          }
           const level: string = lv === MessageLevel.Error ? 'error'
             : lv === MessageLevel.Warn ? 'warn'
               : lv === MessageLevel.Debug ? 'debug' : 'log'
@@ -1978,6 +2491,10 @@ export struct TabWeb {
             return false
           }
         } as EditMenuOptions)
+        // 文本选区变化：内核原生上报选中文本（含 iframe 内跨帧选区），缓存供菜单动作直取
+        .onTextSelectionChange((selectionText: string) => {
+          this.selTextCache = selectionText
+        })
         .onDownloadStart((event: OnDownloadStartEvent) => {
           downloadVM.download(event.url, this.tab.url)
         })
@@ -1990,6 +2507,11 @@ export struct TabWeb {
           .backgroundColor(appSettings.maskColorHex())
           .opacity(appSettings.night_mask_opacity / 100)
           .hitTestBehavior(HitTestMode.None)
+      }
+
+      // 双指缩放百分比浮层
+      if (browserVM.zoomPercent >= 0) {
+        this.scaleOverlay()
       }
 
       // 网页元素长按/右键菜单（自定义接管）
@@ -2089,6 +2611,72 @@ export struct TabWeb {
     } catch (e) {
       // 刷新失败时保持现状，下次导航自然恢复
     }
+  }
+
+  /**
+   * 双指缩放/快捷键缩放百分比浮层：缩放变化即显示，停 800ms 自动隐藏；
+   * 加载中（重加载恢复缩放等）视为自动触发：纯数字、短时隐藏；否则手动触发：带步进按钮
+   */
+  private handleScaleChange(scale: number): void {
+    if (scale <= 0) {
+      return
+    }
+    const loading: boolean = this.tab.progress > 0 && this.tab.progress < 100
+    this.tab.zoomPercent = scale
+    browserVM.showZoomOverlay(Math.round(scale), !loading)
+  }
+
+  /**
+   * 双指缩放百分比浮层（样式对齐视频手势提示：半透明黑底白字圆角）；
+   * 手动触发带 −/+ 步进按钮（透明命中，空白区域透传网页触摸），自动触发纯数字
+   */
+  @Builder
+  scaleOverlay() {
+    Column() {
+      if (browserVM.zoomManual) {
+        Row({ space: 2 }) {
+          Text('−')
+            .fontSize(22)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(Color.White)
+            .width(36)
+            .height(36)
+            .textAlign(TextAlign.Center)
+            .onClick(() => {
+              browserVM.zoomStep(-1)
+            })
+          Text(`${browserVM.zoomPercent}%`)
+            .fontColor(Color.White)
+            .fontSize(16)
+            .constraintSize({ minWidth: 64 })
+            .textAlign(TextAlign.Center)
+          Text('+')
+            .fontSize(20)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(Color.White)
+            .width(36)
+            .height(36)
+            .textAlign(TextAlign.Center)
+            .onClick(() => {
+              browserVM.zoomStep(1)
+            })
+        }
+        .padding({ left: 4, right: 4, top: 6, bottom: 6 })
+        .backgroundColor('#80000000')
+        .borderRadius(18)
+      } else {
+        Text(`${browserVM.zoomPercent}%`)
+          .fontColor(Color.White)
+          .fontSize(16)
+          .padding({ left: 28, right: 28, top: 12, bottom: 12 })
+          .backgroundColor('#80000000')
+          .borderRadius(16)
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Center)
+    .hitTestBehavior(browserVM.zoomManual ? HitTestMode.Transparent : HitTestMode.None)
+    .padding({ top: 36 })
   }
 
   /** 长按/右键自定义菜单覆盖层：透明捕获层 + 浮动文字面板 */

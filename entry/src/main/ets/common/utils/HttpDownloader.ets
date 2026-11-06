@@ -8,7 +8,7 @@ import { appSettings } from '../entity/SettingsModel';
 const logger = createLogger('HttpDownloader')
 
 /** 浏览器式 UA，降低 CDN 拒绝概率 */
-const BROWSER_UA: string =
+export const BROWSER_UA: string =
   'Mozilla/5.0 (Linux; Android 12) Mobile AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 /** 暂停/中止标记：置 aborted 后流式下载在下一个数据块处中止并抛 'aborted' */
@@ -349,8 +349,9 @@ export class HttpDownloader {
    * 命中应用代理分流时注入自定义代理（下载与内核同套「走代理」规则，按 URL 域名匹配）：
    * http 代理走 usingProxy；socks 代理走 usingSocks5Proxy（优先级高于 usingProxy，http 层强制直连）；
    * 未命中分流不动配置（维持系统默认代理行为）。
+   * 公开供其他原生 http 请求方（扩展下载等）复用同一套分流。
    */
-  private static applyProxy(url: string, options: http.HttpRequestOptions): void {
+  static applyProxy(url: string, options: http.HttpRequestOptions): void {
     if (!ProxyUtils.shouldProxyUrl(url)) {
       return
     }

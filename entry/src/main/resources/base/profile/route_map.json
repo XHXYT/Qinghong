@@ -56,6 +56,11 @@
       "buildFunction": "PrivacyReportBuilder"
     },
     {
+      "name": "settings_website_data",
+      "pageSourceFile": "src/main/ets/view/settings/general/WebsiteDataPage.ets",
+      "buildFunction": "WebsiteDataBuilder"
+    },
+    {
       "name": "settings_advanced",
       "pageSourceFile": "src/main/ets/view/settings/AdvancedSettingsPage.ets",
       "buildFunction": "AdvancedSettingsBuilder"
@@ -64,6 +69,16 @@
       "name": "settings_script",
       "pageSourceFile": "src/main/ets/view/settings/general/ScriptPage.ets",
       "buildFunction": "ScriptPageBuilder"
+    },
+    {
+      "name": "settings_extension",
+      "pageSourceFile": "src/main/ets/view/settings/general/ExtensionPage.ets",
+      "buildFunction": "ExtensionPageBuilder"
+    },
+    {
+      "name": "settings_extension_detail",
+      "pageSourceFile": "src/main/ets/view/settings/general/ExtensionDetailPage.ets",
+      "buildFunction": "ExtensionDetailPageBuilder"
     },
     {
       "name": "settings_script_edit",

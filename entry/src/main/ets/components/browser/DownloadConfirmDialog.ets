@@ -2,11 +2,17 @@ import { CustomContentDialog } from '@kit.ArkUI';
 import { downloadVM } from '../../viewmodel/DownloadViewModel';
 import { buildDialogButtons } from '../dialog/AppContentDialog';
 import { PublicDownloadDir } from '../../common/utils/PublicDownloadDir';
+import { extensionVM } from '../../viewmodel/ExtensionViewModel';
+import { toastUtil } from '../../common/utils/ToastUtils';
+import { ResourceUtils } from '../../common/utils/ResourceUtil';
+import { appSettings } from '../../common/entity/SettingsModel';
 
 /**
  * 下载确认弹窗：接管下载事件后先确认再下载（文件名可编辑）。
  * 复用系统 CustomContentDialog（与其他弹窗同款按钮布局与风格）；
  * 组件挂载即打开弹窗，确认/取消清空 pending 后由根页卸载并关闭。
+ * .crx 文件（扩展安装包）：扩展功能开启时附加「安装」按钮（直装不落盘），
+ * 原下载按钮文案变「仅下载」，按钮组为 取消 / 仅下载 / 安装。
  */
 @ComponentV2
 export struct DownloadConfirmDialog {
@@ -14,21 +20,56 @@ export struct DownloadConfirmDialog {
   @Local name: string = ''
   private ctrl: CustomDialogController | null = null
 
+  /** 待下载文件是否为 .crx 扩展安装包（按原始文件名判断，不受用户改名影响；扩展总开关关闭时不出安装入口） */
+  private isCrxPending(): boolean {
+    const p = downloadVM.pending
+    return p !== null && p.fileName.toLowerCase().endsWith('.crx') && appSettings.extension_enabled
+  }
+
+  /** 安装 .crx（清空待确认状态后走扩展直装，不落盘不进下载列表） */
+  private installPending(): void {
+    const p = downloadVM.pending
+    if (p === null) {
+      return
+    }
+    downloadVM.cancelDownload()
+    toastUtil.showToast({ message: ResourceUtils.getString($r('app.string.ext_installing')) })
+    extensionVM.installFromUrl(p.url).then((ok: boolean): void => {
+      const res: Resource = ok ? $r('app.string.ext_install_success') : $r('app.string.ext_install_fail')
+      toastUtil.showToast({ message: ResourceUtils.getString(res) })
+    })
+  }
+
   aboutToAppear(): void {
     const p = downloadVM.pending
     this.name = p !== null ? p.fileName : ''
+    const crx: boolean = this.isCrxPending()
+    const labels: ResourceStr[] = crx
+      ? [$r('app.string.cancel'), $r('app.string.download_only'), $r('app.string.ext_store_install_short')]
+      : [$r('app.string.cancel'), $r('app.string.download_action')]
     this.ctrl = new CustomDialogController({
       builder: CustomContentDialog({
         primaryTitle: $r('app.string.download_confirm_title'),
         contentBuilder: (): void => {
           this.dialogContent()
         },
-        buttons: buildDialogButtons([$r('app.string.cancel'), $r('app.string.download_action')], false,
+        buttons: buildDialogButtons(labels, false,
           (index: number): void => {
-            if (index === 1) {
-              downloadVM.confirmDownload(this.name)
+            if (crx) {
+              // 取消 / 仅下载 / 安装
+              if (index === 2) {
+                this.installPending()
+              } else if (index === 1) {
+                downloadVM.confirmDownload(this.name)
+              } else {
+                downloadVM.cancelDownload()
+              }
             } else {
-              downloadVM.cancelDownload()
+              if (index === 1) {
+                downloadVM.confirmDownload(this.name)
+              } else {
+                downloadVM.cancelDownload()
+              }
             }
           }),
         contentAreaPadding: { top: 8, bottom: 8, left: 24, right: 24 }

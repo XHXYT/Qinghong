@@ -10,6 +10,7 @@ import { BookmarkEditor } from './BookmarkEditor';
 import { ActionBarColor } from '../../common/utils/ActionBarColor';
 import { HomeImmersive } from '../../common/utils/HomeImmersive';
 import { toolbarEventRunner } from '../../common/utils/ToolbarEventRunner';
+import { appSettings } from '../../common/entity/SettingsModel';
 
 /**
  * 底部工具栏（纯视图）：返回/前进/主页/标签管理/菜单
@@ -147,10 +148,10 @@ export struct BrowserToolbar {
   menuSheetBuilder() {
     Column() {
       Swiper() {
-        ForEach(menuVM.menuPages, (page: MenuEntry[]) => {
+        ForEach(menuVM.menuPages, (page: MenuEntry[], pageIndex: number) => {
           Column() {
             Grid() {
-              ForEach(page, (e: MenuEntry) => {
+              ForEach(menuVM.menuPages[pageIndex], (e: MenuEntry, idx: number) => {
                 GridItem() {
                   this.menuEntryItem(e)
                 }
@@ -167,19 +168,26 @@ export struct BrowserToolbar {
                   menuVM.showMenu = false
                 }
               }))
+              .transition(TransitionEffect.asymmetric(
+                TransitionEffect.OPACITY
+                  .animation({ duration: 180, delay: Math.floor(idx / 5) * 40, curve: Curve.EaseOut })
+                  .combine(TransitionEffect.translate({ y: 14 })
+                    .animation({ duration: 180, delay: Math.floor(idx / 5) * 40, curve: Curve.EaseOut })),
+                TransitionEffect.OPACITY.animation({ duration: 100, curve: Curve.EaseIn })
+              ))
               }, (e: MenuEntry): string => e.id)
             }
-            .rowsTemplate(menuVM.menuRowsPerPage() === 4 ? '1fr 1fr 1fr 1fr' : '1fr 1fr')
+            .rowsTemplate(menuVM.menuEffectiveRows() === 4 ? '1fr 1fr 1fr 1fr' : '1fr 1fr')
             .columnsTemplate('1fr 1fr 1fr 1fr 1fr')
             .scrollBar(BarState.Off)
             .columnsGap(4)
             .rowsGap(19)
             .width('100%')
-            .height(menuVM.menuRowsPerPage() * 46 + (menuVM.menuRowsPerPage() - 1) * 19)
+            .height(menuVM.menuEffectiveRows() * 46 + (menuVM.menuEffectiveRows() - 1) * 19)
             .padding({ left: 4, right: 4 })
             Row()
               .width('100%')
-              .height(menuVM.menuRowsPerPage() === 4 ? 36 : 29)
+              .height(menuVM.menuEffectiveRows() === 4 ? 36 : 29)
           }
           .width('100%')
         }, (page: MenuEntry[], pageIndex: number): string => pageIndex.toString())
@@ -194,7 +202,7 @@ export struct BrowserToolbar {
     }
     .width('100%')
     .height('100%')
-    .justifyContent(menuVM.menuRowsPerPage() === 4 ? FlexAlign.End : FlexAlign.Start)
+    .justifyContent(menuVM.menuEffectiveRows() === 4 ? FlexAlign.End : FlexAlign.Start)
     .padding({ top: 18, bottom: QhState.bottomRectHeight - 12 })
   }
 
@@ -240,7 +248,7 @@ export struct BrowserToolbar {
       Row() {
         SymbolGlyph($r('sys.symbol.house'))
           .fontSize(25)
-          .fontColor([ActionBarColor.fg($r('sys.color.font_primary'))])
+          .fontColor([ActionBarColor.fg($r('sys.color.font_primary'), false)])
       }
       .layoutWeight(1)
       .height('100%')
@@ -262,7 +270,7 @@ export struct BrowserToolbar {
           Text(`${tabsVM.tabCount}`)
             .fontSize(12)
             .fontWeight(FontWeight.Medium)
-            .fontColor(ActionBarColor.fg($r('sys.color.font_primary')))
+            .fontColor(ActionBarColor.fg($r('sys.color.font_primary'), false))
             .maxLines(1)
         }
         .width(21)
@@ -270,7 +278,7 @@ export struct BrowserToolbar {
         .alignContent(Alignment.Center)
         .border({
           width: 1.5,
-          color: ActionBarColor.fg($r('sys.color.font_primary')),
+          color: ActionBarColor.fg($r('sys.color.font_primary'), false),
           radius: 4
         })
       }
@@ -291,7 +299,7 @@ export struct BrowserToolbar {
         SymbolGlyph($r('sys.symbol.square_grid_2x2'))
           .fontSize(25)
           .fontWeight(FontWeight.Normal)
-          .fontColor([ActionBarColor.fg($r('sys.color.font_primary'))])
+          .fontColor([ActionBarColor.fg($r('sys.color.font_primary'), false)])
       }
       .layoutWeight(1)
       .height('100%')
@@ -304,11 +312,15 @@ export struct BrowserToolbar {
         toolbarEventRunner.run('menu_long')
       }))
       .bindSheet(menuVM.showMenu!!, this.menuSheetBuilder(), {
-        height: 175 + menuVM.menuSheetExtraHeight(),
+        height: menuVM.menuSheetOpenHeight(175),
+        detents: menuVM.menuSheetDetents(175),
         enableOutsideInteractive: false,
         dragBar: false,
         showClose: false,
         backgroundColor: $r('sys.color.comp_background_primary'),
+        onHeightDidChange: (height: number): void => {
+          menuVM.onMenuSheetHeightChange(height, 175, 175 + menuVM.menuExpandHeightDelta())
+        },
         onDisappear: () => {
           menuVM.showMenu = false
         }
@@ -322,7 +334,7 @@ export struct BrowserToolbar {
       this.handleToolbarTouch(event)
     })
     .backgroundColor(HomeImmersive.active() ? Color.Transparent
-      : ActionBarColor.bg($r('sys.color.comp_background_primary')))
+      : ActionBarColor.bg($r('sys.color.comp_background_primary'), false))
     .bindSheet(menuVM.showSheet!!, this.sheetBuilder(), {
       height: menuVM.sheetKind === 'font' ? 172 : (menuVM.sheetKind === 'save' ? 252 : menuVM.pickerHeight),
       dragBar: true,
@@ -339,7 +351,7 @@ export struct BrowserToolbar {
     })
     // 主页沉浸时背景透明，透出全屏主页背景层
     .backgroundColor(HomeImmersive.active() ? Color.Transparent
-      : ActionBarColor.bg($r('sys.color.comp_background_primary')))
+      : ActionBarColor.bg($r('sys.color.comp_background_primary'), false))
     .bindSheet(menuVM.showBookmarkEditor!!, this.bookmarkEditorBuilder(), {
       height: 560,
       dragBar: true,
@@ -367,7 +379,7 @@ export struct BrowserToolbar {
   }
 
   navColor(enabled: boolean): ResourceColor {
-    return enabled ? ActionBarColor.fg($r('sys.color.font_primary')) : ActionBarColor.fg($r('sys.color.font_tertiary'))
+    return enabled ? ActionBarColor.fg($r('sys.color.font_primary'), false) : ActionBarColor.fg($r('sys.color.font_tertiary'), false)
   }
 
   /** 横滑起点（工具栏左滑/右滑事件，onTouch 检测） */
@@ -383,7 +395,7 @@ export struct BrowserToolbar {
    */
   handleToolbarTouch(event: TouchEvent): void {
     if (event.type === TouchType.Down) {
-      if (event.touches.length !== 1) {
+      if (event.touches.length !== 1 || !appSettings.toolbar_swipe_enabled) {
         this.swipeTracking = false
         return
       }

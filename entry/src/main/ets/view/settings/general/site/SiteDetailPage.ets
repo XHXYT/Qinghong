@@ -139,7 +139,10 @@ struct SiteDetailPage {
     const effective: string = o !== null ? o.value : SiteSettingsViewModel.getDefault(cfg.key)
     const item: CustomItemInfo = this.itemOf(cfg)
     if (cfg.key === FONT_SIZE_KEY) {
-      item.value = this.fontLabel(effective)
+      // 无覆盖 = 跟随全局（与半模态开关状态一致），有覆盖显示覆盖值
+      item.value = o === null
+        ? ResourceUtils.getString($r('app.string.site_opt_follow_global'))
+        : this.fontLabel(o.value)
     } else {
       item.value = cfg.isToggle ? effective === 'on' : SiteSettingsViewModel.labelOf(cfg, effective)
     }
@@ -200,9 +203,10 @@ struct SiteDetailPage {
   private syncFontSize(): void {
     const o: SiteSettingInfo | null = this.overrideMap.get(FONT_SIZE_KEY) ?? null
     const effective: string = o !== null ? o.value : SiteSettingsViewModel.getDefault(FONT_SIZE_KEY)
-    this.fontFollowGlobal = effective === 'global'
+    // 无覆盖 = 跟随全局；覆盖 'global' = 显式跟随全局
+    this.fontFollowGlobal = o === null || o.value === 'global'
     if (this.fontFollowGlobal) {
-      // 切自定义时的初值：沿用全局默认
+      // 滑条停在全局生效值（切自定义时的初值）
       this.fontSizeCustom = Number(SiteSettingsViewModel.getDefault(FONT_SIZE_KEY))
     } else {
       this.fontSizeCustom = Number(effective)
@@ -252,14 +256,14 @@ struct SiteDetailPage {
     this.showSheet = true
   }
 
-  /** 切换跟随全局：恢复则移除覆盖，自定义则以当前滑条值建档 */
+  /** 切换跟随全局：开启存 'global'（与例外编辑一致，解析为全局默认行），关闭以当前滑条值建档 */
   private toggleFollowGlobal(): void {
     if (this.fontFollowGlobal) {
       siteSettingsVM.setOverride(this.site, FONT_SIZE_KEY, `${this.fontSizeCustom}`).then((): void => {
         this.load()
       })
     } else {
-      siteSettingsVM.removeOverride(this.site, FONT_SIZE_KEY).then((): void => {
+      siteSettingsVM.setOverride(this.site, FONT_SIZE_KEY, 'global').then((): void => {
         this.load()
       })
     }

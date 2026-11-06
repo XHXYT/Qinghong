@@ -1,4 +1,5 @@
-import { KB_SHORTCUTS, KbShortcutDef, kbKeyNameOf, kbIsModifierCode } from '../constants/KbShortcuts';
+import { KeyCode } from '@kit.InputKit';
+import { KB_SHORTCUTS, KbShortcutDef, kbKeyNameOf, kbIsModifierCode, kbDigitOf } from '../constants/KbShortcuts';
 import { appSettings } from '../entity/SettingsModel';
 import { browserVM } from '../../viewmodel/BrowserViewModel';
 import { tabsVM, TabInfo } from '../../viewmodel/TabsViewModel';
@@ -16,9 +17,30 @@ class KbShortcutDispatch {
     if (e.type !== KeyType.Down || kbIsModifierCode(e.keyCode)) {
       return false
     }
+    // Esc：仅当有本应用浮层可关闭时消费，否则透传给网页（退出全屏视频、关闭网页弹窗等）
+    if (e.keyCode === KeyCode.KEYCODE_ESCAPE && !this.modOn(e, 'Ctrl')
+      && !this.modOn(e, 'Shift') && !this.modOn(e, 'Alt')) {
+      if (browserVM.showFindBar) {
+        browserVM.showFindBar = false
+        return true
+      }
+      if (menuVM.showMenu) {
+        menuVM.showMenu = false
+        return true
+      }
+      return false
+    }
     for (const def of KB_SHORTCUTS) {
       if (this.match(e, def)) {
         this.run(def.id)
+        return true
+      }
+    }
+    // Ctrl+数字直达标签：1-8 第 n 个标签，9 最后一个；置于自定义表之后，用户改键优先
+    if (this.modOn(e, 'Ctrl') && !this.modOn(e, 'Shift') && !this.modOn(e, 'Alt')) {
+      const n: number = kbDigitOf(e.keyCode)
+      if (n >= 1) {
+        this.switchTabByNumber(n)
         return true
       }
     }
@@ -110,6 +132,15 @@ class KbShortcutDispatch {
       case 'refresh':
         browserVM.refresh()
         break
+      case 'zoom_in':
+        browserVM.zoomStep(1)
+        break
+      case 'zoom_out':
+        browserVM.zoomStep(-1)
+        break
+      case 'zoom_reset':
+        browserVM.zoomStep(0)
+        break
       case 'view_source':
         menuVM.openViewSource()
         break
@@ -136,6 +167,18 @@ class KbShortcutDispatch {
     }
     const next: number = (idx + step + count) % count
     tabsVM.switchTab(tabsVM.tabs[next].id)
+  }
+
+  /** 数字直达标签（1-8 第 n 个，9 最后一个；越界不切换但仍消费按键） */
+  private switchTabByNumber(n: number): void {
+    const count: number = tabsVM.tabs.length
+    if (count === 0) {
+      return
+    }
+    const idx: number = n === 9 ? count - 1 : n - 1
+    if (idx >= 0 && idx < count) {
+      tabsVM.switchTab(tabsVM.tabs[idx].id)
+    }
   }
 }
 

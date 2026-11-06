@@ -57,6 +57,8 @@ export class TabInfo {
   @Trace readerable: boolean = false
   /** 页面 theme-color meta（操作栏色彩模式自适应用；'' = 未提取） */
   @Trace themeColor: string = ''
+  /** 页面顶部渐变第二色（色彩模式渐变延续模拟用；'' = 纯色） */
+  @Trace themeColor2: string = ''
   /** 操作栏隐藏态（自动隐藏：滑动/点击切换；按标签记忆，导航时重置） */
   @Trace actionBarHidden: boolean = false
   /** 网页视频全屏中（HTML5 全屏请求：应用隐藏所有栏，视频区铺满全屏） */
@@ -71,6 +73,14 @@ export class TabInfo {
   programmaticNav: boolean = false
   /** 弹出式窗口转开的标签（window.close 时可整标签关闭） */
   isPopupWindow: boolean = false
+  /** 本页 JS 弹窗已阻止（对话框勾选「阻止此页更多弹窗」；onPageBegin 复位） */
+  jsDialogBlocked: boolean = false
+  /** 网页音频播放中（onAudioStateChanged 回写；标签角标） */
+  @Trace audioPlaying: boolean = false
+  /** 网页音频已静音（点角标切换；Web 重挂时重新应用） */
+  @Trace audioMuted: boolean = false
+  /** 页面当前缩放百分比（100=原始；onScaleChange 与键盘缩放回写，键盘缩放步进基线） */
+  zoomPercent: number = 100
   /** 查看源码：捕获的页面 HTML（非空 = 源码视图标签；瞬态，不随会话持久化） */
   viewSourceHtml: string = ''
   /** 原生视图标签（非空 = 标签容器渲染原生组件而非 Web；瞬态，不随会话持久化）：network-log */
@@ -100,6 +110,10 @@ export class TabsViewModel {
   /** 是否显示撤销关闭提示条 */
   @Trace showUndoTip: boolean = false
   private undoTipTimer: number = -1
+
+  /** 标签生命周期事件回调（'created'|'updated'|'activated'|'removed'）：
+   *  扩展兼容层 chrome.tabs 事件源（ExtensionViewModel 注册）；null = 无订阅方 */
+  tabEventSink: ((event: string, tab: TabInfo) => void) | null = null
 
   private nextId: number = 1
   private saveTimer: number = -1
@@ -276,6 +290,8 @@ export class TabsViewModel {
     // 离开当前标签前截取其窗口快照
     this.captureActiveSnapshot()
     this.activeTabId = tab.id
+    this.emitTabEvent('created', tab)
+    this.emitTabEvent('activated', tab)
     if (url) {
       this.navigate(tab, url)
     } else {
@@ -436,6 +452,7 @@ export class TabsViewModel {
         return
       }
     }
+    this.emitTabEvent('updated', tab)
     this.saveSessionDebounced()
   }
 
@@ -465,6 +482,7 @@ export class TabsViewModel {
     tab.canForward = tab.lastWebUrl !== ''
     tab.controller = null
     tab.actionBarHidden = false
+    this.emitTabEvent('updated', tab)
     this.saveSessionDebounced()
   }
 
@@ -477,7 +495,24 @@ export class TabsViewModel {
       this.captureActiveSnapshot()
     }
     this.activeTabId = id
+    this.emitTabEvent('activated', this.tabById(id))
     this.saveSessionDebounced()
+  }
+
+  /**
+   * 切换标签音频静音状态（标签角标点击）：置 TabInfo 标记并向已挂载的 Web 实例应用；
+   * Web 未挂载（后台被销毁/恢复中）时仅记状态，重挂时 onControllerAttached 补应用
+   */
+  toggleTabMute(tab: TabInfo): void {
+    tab.audioMuted = !tab.audioMuted
+    const c = tab.controller
+    if (c) {
+      try {
+        c.setAudioMuted(tab.audioMuted)
+      } catch (e) {
+        logger.error('toggleTabMute', `标签 ${tab.id} setAudioMuted 失败: ${e}`)
+      }
+    }
   }
 
   /**
@@ -571,6 +606,18 @@ export class TabsViewModel {
     return t === undefined ? null : t
   }
 
+  /** 派发标签生命周期事件到扩展兼容层（chrome.tabs.onCreated/onUpdated/onActivated/onRemoved） */
+  private emitTabEvent(event: string, tab: TabInfo | null): void {
+    if (this.tabEventSink !== null && tab !== null) {
+      this.tabEventSink(event, tab)
+    }
+  }
+
+  /** 网页事件回写 url/title 后通知扩展层（TabWeb onPageEnd/onTitleReceive → tabs.onUpdated） */
+  notifyTabInfoChanged(tab: TabInfo): void {
+    this.emitTabEvent('updated', tab)
+  }
+
   /**
    * 关闭标签并切换到指定标签（标签栈返回：关闭"后面"的标签回退到打开它的标签）
    */
@@ -578,6 +625,7 @@ export class TabsViewModel {
     this.closeTab(id)
     if (this.hasTab(targetId)) {
       this.activeTabId = targetId
+      this.emitTabEvent('activated', this.tabById(targetId))
       this.saveSessionDebounced()
     }
   }
@@ -597,6 +645,7 @@ export class TabsViewModel {
     }
     tab.controller = null
     this.tabs.splice(idx, 1)
+    this.emitTabEvent('removed', tab)
     this.scheduleUndoTip(tab)
     if (this.tabs.length === 0) {
       this.newTab('', null, false)
@@ -605,6 +654,7 @@ export class TabsViewModel {
     if (this.activeTabId === id) {
       const nextIdx = Math.min(idx, this.tabs.length - 1)
       this.activeTabId = this.tabs[nextIdx].id
+      this.emitTabEvent('activated', this.tabs[nextIdx])
     }
     this.saveSessionDebounced()
   }
@@ -656,6 +706,8 @@ export class TabsViewModel {
     }
     this.tabs.push(tab)
     this.activeTabId = tab.id
+    this.emitTabEvent('created', tab)
+    this.emitTabEvent('activated', tab)
     this.saveSessionDebounced()
   }
 
@@ -682,6 +734,7 @@ export class TabsViewModel {
         t.snapshot.release()
         t.snapshot = null
       }
+      this.emitTabEvent('removed', t)
     }
     this.clearUndoTip()
     this.tabs = []

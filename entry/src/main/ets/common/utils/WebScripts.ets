@@ -7,7 +7,7 @@ export class WebScripts {
 
   /**
    * 隐私与增强脚本：不跟踪/不出售/禁用WebRTC/自动展开全文
-   * （广告拦截由 ArkWeb 原生 AdsBlock 引擎处理，不再注入隐藏脚本）
+   * （广告拦截由 ArkWeb 原生 AdsBlock 引擎处理）
    */
   static privacyScripts(): Array<ScriptItem> {
     const scripts: Array<ScriptItem> = []
@@ -47,7 +47,6 @@ export class WebScripts {
           "for(var j=0;j<KWS.length;j++){if(t.indexOf(KWS[j])>=0){hit=true;break;}}" +
           "if(hit){el.__qe=1;try{el.click();}catch(e){}}" +
           "}}" +
-          "}" +
           "function run(){qe();setTimeout(qe,800);setTimeout(qe,2000);}" +
           "if(document.readyState==='loading'){" +
           "document.addEventListener('DOMContentLoaded',run);" +

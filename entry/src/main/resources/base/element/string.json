@@ -441,6 +441,158 @@
       "value": "脚本"
     },
     {
+      "name": "settings_extension",
+      "value": "扩展程序"
+    },
+    {
+      "name": "ext_empty",
+      "value": "暂无扩展"
+    },
+    {
+      "name": "ext_compat_note",
+      "value": "兼容 Chrome 扩展（MV2/MV3）的 content_scripts 注入、chrome.storage 与 i18n；复制 Chrome Web Store 或 Edge Add-ons 扩展页链接即可安装"
+    },
+    {
+      "name": "ext_master_enable",
+      "value": "启用扩展程序"
+    },
+    {
+      "name": "ext_not_enabled_hint",
+      "value": "拓展功能似乎没有启用喔"
+    },
+    {
+      "name": "ext_install_url",
+      "value": "从链接安装"
+    },
+    {
+      "name": "ext_url_hint",
+      "value": "扩展链接（CRX 直链 / Chrome 或 Edge 商店页）"
+    },
+    {
+      "name": "ext_url_invalid",
+      "value": "链接无效"
+    },
+    {
+      "name": "ext_import",
+      "value": "导入本地扩展（.crx / .zip）"
+    },
+    {
+      "name": "ext_added",
+      "value": "安装成功"
+    },
+    {
+      "name": "ext_download_failed",
+      "value": "安装失败"
+    },
+    {
+      "name": "ext_imported",
+      "value": "导入成功"
+    },
+    {
+      "name": "ext_import_failed",
+      "value": "导入失败"
+    },
+    {
+      "name": "ext_delete_confirm",
+      "value": "删除该扩展及其全部数据？"
+    },
+    {
+      "name": "ext_manage",
+      "value": "管理扩展"
+    },
+    {
+      "name": "ext_no_popup",
+      "value": "该扩展没有弹出页面"
+    },
+    {
+      "name": "ext_store_install",
+      "value": "添加扩展"
+    },
+    {
+      "name": "ext_store_install_short",
+      "value": "安装"
+    },
+    {
+      "name": "ext_store_installed",
+      "value": "已安装"
+    },
+    {
+      "name": "ext_installing",
+      "value": "正在安装，请稍等…"
+    },
+    {
+      "name": "ext_install_success",
+      "value": "扩展安装成功"
+    },
+    {
+      "name": "ext_install_fail",
+      "value": "扩展安装失败"
+    },
+    {
+      "name": "ext_installed",
+      "value": "已安装"
+    },
+    {
+      "name": "ext_get_more",
+      "value": "获取扩展"
+    },
+    {
+      "name": "ext_store_chrome",
+      "value": "谷歌插件商店"
+    },
+    {
+      "name": "ext_store_edge",
+      "value": "微软插件商店"
+    },
+    {
+      "name": "ext_detail",
+      "value": "详细信息"
+    },
+    {
+      "name": "ext_remove",
+      "value": "移除"
+    },
+    {
+      "name": "ext_enable",
+      "value": "启用"
+    },
+    {
+      "name": "ext_id",
+      "value": "扩展 ID"
+    },
+    {
+      "name": "ext_install_source",
+      "value": "安装来源"
+    },
+    {
+      "name": "ext_install_time",
+      "value": "安装时间"
+    },
+    {
+      "name": "ext_update_time",
+      "value": "更新时间"
+    },
+    {
+      "name": "ext_local_import",
+      "value": "本地导入"
+    },
+    {
+      "name": "ext_permissions",
+      "value": "权限"
+    },
+    {
+      "name": "ext_host_permissions",
+      "value": "主机权限"
+    },
+    {
+      "name": "ext_options_page",
+      "value": "扩展选项页"
+    },
+    {
+      "name": "ext_removed",
+      "value": "已移除"
+    },
+    {
       "name": "script_enable",
       "value": "启用脚本"
     },
@@ -1857,6 +2009,10 @@
       "value": "下载"
     },
     {
+      "name": "download_only",
+      "value": "仅下载"
+    },
+    {
       "name": "download_settings",
       "value": "下载配置"
     },
@@ -2073,6 +2229,14 @@
       "value": "删除该字体？"
     },
     {
+      "name": "web_font_apply",
+      "value": "应用到网页"
+    },
+    {
+      "name": "web_font_apply_desc",
+      "value": "网页文字使用所选字体显示，代码等宽字体不受影响"
+    },
+    {
       "name": "operations_settings",
       "value": "操作设定"
     },
@@ -2081,20 +2245,20 @@
       "value": "滑动屏幕前进后退"
     },
     {
+      "name": "toolbar_swipe",
+      "value": "工具栏滑动事件"
+    },
+    {
+      "name": "toolbar_swipe_desc",
+      "value": "在底部工具栏上左右滑动以触发指定的操作"
+    },
+    {
       "name": "volume_key_paging",
       "value": "使用音量键翻页"
     },
     {
       "name": "volume_key_paging_desc",
       "value": "在网页中一般为控制上下滚动"
-    },
-    {
-      "name": "player_gestures",
-      "value": "启用播放器手势"
-    },
-    {
-      "name": "player_gestures_desc",
-      "value": "条件允许的情况下，在网页内全屏播放视频时允许滑动屏幕以调整视频进度、屏幕亮度、设备音量"
     },
     {
       "name": "keyboard_shortcuts",
@@ -2469,6 +2633,14 @@
       "value": "跨站跟踪型网站的请求不携带 Cookie"
     },
     {
+      "name": "third_party_cookie",
+      "value": "允许第三方 Cookie"
+    },
+    {
+      "name": "third_party_cookie_desc",
+      "value": "跨站 Cookie 常用于广告跟踪，关闭后部分网站登录或功能可能异常"
+    },
+    {
       "name": "disable_webrtc",
       "value": "禁用 WebRTC"
     },
@@ -2523,6 +2695,14 @@
     {
       "name": "no_image_mode_desc",
       "value": "不加载网页中的在线图片以节省流量"
+    },
+    {
+      "name": "pause_web_timers",
+      "value": "后台暂停网页定时器"
+    },
+    {
+      "name": "pause_web_timers_desc",
+      "value": "应用切到后台时暂停全部网页的 JavaScript 定时任务以节省电量，回到前台自动恢复"
     },
     {
       "name": "web_assistant",
@@ -2797,6 +2977,10 @@
       "value": "麦克风"
     },
     {
+      "name": "site_screen_capture",
+      "value": "屏幕录制"
+    },
+    {
       "name": "site_redirect",
       "value": "网站重定向"
     },
@@ -2935,6 +3119,10 @@
     {
       "name": "web_permission_use_both",
       "value": "想要使用你的摄像头和麦克风"
+    },
+    {
+      "name": "web_permission_use_screen",
+      "value": "想要录制你的屏幕"
     },
     {
       "name": "popup_ask_desc",
@@ -3294,6 +3482,7 @@
     { "name": "tab_bar", "value": "标签栏" },
   { "name": "home_button", "value": "主页按钮" },
   { "name": "download_button", "value": "下载按钮" },
+  { "name": "extension_button", "value": "拓展按钮" },
   { "name": "bookmark_bar", "value": "书签栏" },
   { "name": "parent_folder", "value": "返回上级" },
     { "name": "tab_bar_layout_hint", "value": "标签栏需配合工具栏在上或在下的布局使用，请选择：" },
@@ -3430,6 +3619,49 @@
     { "name": "translate_baidu_appid", "value": "百度 APP ID" },
     { "name": "translate_baidu_key", "value": "百度密钥" },
     { "name": "translate_youdao_appid", "value": "有道应用 ID" },
-    { "name": "translate_youdao_secret", "value": "有道应用密钥" }
+    { "name": "translate_youdao_secret", "value": "有道应用密钥" },
+    { "name": "js_dialog_title", "value": "网页消息" },
+    { "name": "js_dialog_block", "value": "阻止此页更多弹窗" },
+    { "name": "popup_allow_same_host", "value": "允许同域名窗口" },
+    { "name": "popup_allow_same_host_desc", "value": "弹出式窗口设为「询问」时，与当前页面同域名的窗口直接放行" },
+    { "name": "back_to_top", "value": "点击状态栏回顶" },
+    { "name": "back_to_top_desc", "value": "轻点状态栏时回到网页顶部" },
+    { "name": "blank_screen_retry", "value": "白屏自动重试" },
+    { "name": "blank_screen_retry_desc", "value": "网页加载后仍白屏时自动刷新重试一次" },
+    { "name": "blank_screen_retrying", "value": "检测到页面渲染异常，正在重试" },
+    { "name": "blank_screen_manual", "value": "页面可能未正确显示，请下拉刷新重试" },
+    { "name": "error_page_title", "value": "无法打开此网页" },
+    { "name": "error_page_dns", "value": "找不到服务器，请检查网址或网络设置" },
+    { "name": "error_page_offline", "value": "网络连接已断开，请检查网络后重试" },
+    { "name": "error_page_unreachable", "value": "无法连接到服务器" },
+    { "name": "error_page_timeout", "value": "连接超时，请稍后重试" },
+    { "name": "error_page_generic", "value": "网页加载失败，请稍后重试" },
+    { "name": "error_page_retry", "value": "重试" },
+    { "name": "website_data", "value": "网站数据" },
+    { "name": "website_data_desc", "value": "查看和管理各网站在本机存储的数据" },
+    { "name": "website_data_summary", "value": "总占用 %s · 共 %s 个站点" },
+    { "name": "website_data_empty", "value": "暂无网站数据" },
+    { "name": "website_data_empty_hint", "value": "网站使用本地存储后，数据会显示在这里" },
+    { "name": "website_data_clear_title", "value": "清除全部网站数据" },
+    { "name": "website_data_clear_confirm", "value": "将删除所有网站的本地存储数据，不影响 Cookie 和浏览记录。" },
+    { "name": "website_data_cleared", "value": "已清除网站数据" },
+    { "name": "web_fast_destroy", "value": "关闭标签后立即释放内存" },
+    { "name": "web_fast_destroy_desc", "value": "立即销毁网页内核资源以节省内存，关闭标签时可能轻微卡顿；关闭则由系统延迟释放，更流畅" },
+    { "name": "site_encoding", "value": "网页编码" },
+    { "name": "web_prefetch", "value": "预加载网页" },
+    { "name": "web_prefetch_desc", "value": "地址栏输入停顿时提前加载或连接将打开的网页，加快打开速度；无痕标签不预热" },
+    { "name": "kb_zoom_in", "value": "放大" },
+    { "name": "kb_zoom_out", "value": "缩小" },
+    { "name": "kb_zoom_reset", "value": "重置缩放" },
+    { "name": "web_block_private_network", "value": "禁止网页访问局域网" },
+    { "name": "web_block_private_network_desc", "value": "网页请求局域网资源前需目标服务器 CORS 预检授权，拦截未授权的局域网探测" },
+    { "name": "advanced_group_browsing", "value": "网页浏览" },
+    { "name": "advanced_group_performance", "value": "加载与性能" },
+    { "name": "advanced_group_security", "value": "安全" },
+    { "name": "kb_switch_tab_num", "value": "切换到对应标签页" },
+    { "name": "kb_switch_tab_last", "value": "切换到最后一个标签页" },
+    { "name": "kb_esc_close", "value": "关闭查找栏和菜单" },
+    { "name": "web_overscroll_bounce", "value": "边缘回弹" },
+    { "name": "web_overscroll_bounce_desc", "value": "网页滚动到边缘时产生回弹效果；更改后对新打开的标签生效" }
   ]
 }

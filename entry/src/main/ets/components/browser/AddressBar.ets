@@ -10,6 +10,8 @@ import { hitokoto } from '../../common/utils/Hitokoto';
 import { menuVM } from '../../viewmodel/MenuViewModel';
 import { searchVM } from '../../viewmodel/SearchViewModel';
 import { SearchSuggestPanel } from './SearchSuggestPanel';
+import { ExtToolbarButton } from '../extension/ExtToolbarButton';
+import { EXT_SCHEME_PREFIX } from '../../common/utils/ExtensionResources';
 
 /**
  * 地址栏显示文本（按地址栏内容设置：标题/地址/域名，标题为空回退域名）
@@ -34,6 +36,11 @@ export struct AddressEntryIcon {
   /** 图标字号（地址栏 19，合并栏胶囊按容器高度缩小） */
   @Param iconSize: number = 19
 
+  /** 是否处于顶部操作栏（底部栏不做页面色前景适配，传 ActionBarColor.fg 的 atTop） */
+  @Param suggestBelow: boolean = true
+  /** 是否位于顶部位（false=底部位不跟随页面色自适应） */
+  @Param atTop: boolean = true
+
   /** 长按菜单：切换搜索引擎 */
   @Builder
   engineMenuBuilder() {
@@ -54,10 +61,13 @@ export struct AddressEntryIcon {
     .borderRadius(16)
   }
 
-  /** 最左图标：主页态搜索图标 / 网页态按连接安全状态切换（勾盾/警示盾/锁盾） */
+  /** 最左图标：主页态搜索图标 / 扩展页 root / 网页态按连接安全状态切换（勾盾/警示盾/锁盾） */
   private entryIcon(): Resource {
     const tab = tabsVM.activeTab
     if (tab !== null && !tab.isHome) {
+      if (tab.url.startsWith(EXT_SCHEME_PREFIX)) {
+        return $r('sys.symbol.root')
+      }
       const state: string = UrlUtils.secureStateOf(tab.url)
       if (state === 'insecure') {
         return $r('sys.symbol.exclamationmark_shield_fill')
@@ -76,7 +86,7 @@ export struct AddressEntryIcon {
     if (tab !== null && !tab.isHome && UrlUtils.secureStateOf(tab.url) === 'insecure') {
       return '#E84026'
     }
-    return ActionBarColor.fg($r('sys.color.font_secondary'))
+    return ActionBarColor.fg($r('sys.color.font_secondary'), this.atTop)
   }
 
   build() {
@@ -121,8 +131,8 @@ export struct AddressBar {
   build() {
     Column() {
       if (tabsVM.activeTab && !tabsVM.activeTab.isHome) {
-        Row({ space: 8 }) {
-          AddressEntryIcon()
+        Row({ space: 12 }) {
+          AddressEntryIcon({ atTop: this.suggestBelow })
           TextInput({
             text: this.editing ? this.editText
               : addressDisplayText(tabsVM.activeTab.url, tabsVM.activeTab.title),
@@ -131,13 +141,12 @@ export struct AddressBar {
             .fontSize(15)
             // 占位符显式对齐正文字号（默认 16fp 会显大）
             .placeholderFont({ size: 15 })
-            .fontColor(ActionBarColor.fg($r('sys.color.font_primary')))
-            .placeholderColor(ActionBarColor.fg($r('sys.color.font_secondary')))
-            .caretColor(ActionBarColor.fg($r('sys.color.font_primary')))
+            .fontColor(ActionBarColor.fg($r('sys.color.font_primary'), this.suggestBelow))
+            .placeholderColor(ActionBarColor.fg($r('sys.color.font_secondary'), this.suggestBelow))
+            .caretColor(ActionBarColor.fg($r('sys.color.font_primary'), this.suggestBelow))
             .layoutWeight(1)
             .height(44)
             .backgroundColor(Color.Transparent)
-            .padding({ left: 8, right: 0 })
             .borderRadius(0)
             .enterKeyType(EnterKeyType.Search)
             .onFocus(() => {
@@ -166,45 +175,49 @@ export struct AddressBar {
             && !browserVM.isReaderActive(tabsVM.activeTab.id)) {
             SymbolGlyph($r('sys.symbol.doc_plaintext'))
               .fontSize(20)
-              .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'))])
+              .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'), this.suggestBelow)])
               .onClick(() => {
                 browserVM.enterReaderWithConfirm()
               })
           }
 
-          // 刷新按钮（阅读模式入口右侧）
+          // 刷新按钮
           SymbolGlyph($r('sys.symbol.arrow_2_circlepath'))
-            .fontSize(19)
-            .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'))])
-            .margin({ right: 14 })
+            .fontSize(20)
+            .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'), this.suggestBelow)])
             .onClick(() => {
               browserVM.refresh()
             })
+
+          // 扩展入口（拼图按钮：刷新按钮右侧，菜单向下/向上随布局；操作栏设置开关 + 扩展总开关控制）
+          if (UISettings.show_extension_button && appSettings.extension_enabled) {
+            ExtToolbarButton({ anchor: this.suggestBelow ? 'top' : 'bottom' })
+          }
         }
         .width('100%')
         .height(44)
         .alignItems(VerticalAlign.Center)
-        .padding({ left: 16 })
+        .padding({ left: 12, right: 12 })
 
         // 进度条
         if (tabsVM.activeTab.progress < 100) {
           Progress({ value: tabsVM.activeTab.progress, total: 100, type: ProgressType.Linear })
             .width('100%')
             .height(2)
-            .color(ActionBarColor.fg(QhState.currentThemeColor))
+            .color(ActionBarColor.fg(QhState.currentThemeColor, this.suggestBelow))
             .backgroundColor(Color.Transparent)
         }
       } else if (tabsVM.activeTab && tabsVM.activeTab.isHome) {
         // 主页态：地址栏直接输入搜索或直达
         Row({ space: 8 }) {
-          AddressEntryIcon()
+          AddressEntryIcon({ atTop: this.suggestBelow })
           TextInput({ text: this.editText, placeholder: hitokoto.quote !== '' ? hitokoto.quote : $r('app.string.search_hint') })
             .fontSize(15)
             // 占位符显式对齐正文字号（默认 16fp 会显大）
             .placeholderFont({ size: 15 })
-            .fontColor(ActionBarColor.fg($r('sys.color.font_primary')))
-            .placeholderColor(ActionBarColor.fg($r('sys.color.font_secondary')))
-            .caretColor(ActionBarColor.fg($r('sys.color.font_primary')))
+            .fontColor(ActionBarColor.fg($r('sys.color.font_primary'), this.suggestBelow))
+            .placeholderColor(ActionBarColor.fg($r('sys.color.font_secondary'), this.suggestBelow))
+            .caretColor(ActionBarColor.fg($r('sys.color.font_primary'), this.suggestBelow))
             .layoutWeight(1)
             .height(44)
             .backgroundColor(Color.Transparent)
@@ -229,10 +242,15 @@ export struct AddressBar {
           // 扫码入口（菜单项同款）
           SymbolGlyph($r('sys.symbol.line_viewfinder'))
             .fontSize(19)
-            .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'))])
+            .fontColor([ActionBarColor.fg($r('sys.color.font_secondary'), this.suggestBelow)])
             .onClick(() => {
               menuVM.startScan()
             })
+
+          // 扩展入口（主页态常驻右上角，与网页态地址栏一致，便于随时打开扩展 popup；操作栏设置开关 + 扩展总开关控制）
+          if (UISettings.show_extension_button && appSettings.extension_enabled) {
+            ExtToolbarButton({ anchor: this.suggestBelow ? 'top' : 'bottom', bar: 'addr' })
+          }
         }
         .width('100%')
         .height(44)
@@ -270,6 +288,6 @@ export struct AddressBar {
     .width('100%')
     // 主页沉浸时背景透明，透出全屏主页背景层
     .backgroundColor(HomeImmersive.active() ? Color.Transparent
-      : ActionBarColor.bg($r('sys.color.comp_background_primary')))
+      : ActionBarColor.bg($r('sys.color.comp_background_primary'), this.suggestBelow))
   }
 }

@@ -83,6 +83,11 @@ export class BrowserViewModel {
   @Trace gameMode: boolean = false
   /** 游戏模式：上次按返回键时间戳（2 秒内再按退出） */
   private lastGameBackAt: number = 0
+  /** 缩放百分比浮层当前值（-1 隐藏；双指捏合与键盘缩放共用） */
+  @Trace zoomPercent: number = -1
+  /** 缩放浮层是否手动触发（显示 −/+ 步进按钮，消失更慢） */
+  @Trace zoomManual: boolean = false
+  private zoomOverlayTimer: number = -1
 
   constructor() {
   }
@@ -106,6 +111,59 @@ export class BrowserViewModel {
   /** 指定标签当前是否处于阅读模式 */
   isReaderActive(tabId: number): boolean {
     return this.showReader && this.readerArticle.tabId === tabId
+  }
+
+  /** 显示缩放百分比浮层：手动触发带步进按钮、3s 隐藏；自动触发（重加载等）纯数字、800ms 隐藏 */
+  showZoomOverlay(percent: number, manual: boolean): void {
+    this.zoomPercent = percent
+    this.zoomManual = manual
+    if (this.zoomOverlayTimer !== -1) {
+      clearTimeout(this.zoomOverlayTimer)
+    }
+    this.zoomOverlayTimer = setTimeout((): void => {
+      this.zoomOverlayTimer = -1
+      this.zoomPercent = -1
+      this.zoomManual = false
+    }, manual ? 3000 : 800)
+  }
+
+  /** 立即隐藏缩放百分比浮层 */
+  hideZoomOverlay(): void {
+    if (this.zoomOverlayTimer !== -1) {
+      clearTimeout(this.zoomOverlayTimer)
+      this.zoomOverlayTimer = -1
+    }
+    this.zoomPercent = -1
+    this.zoomManual = false
+  }
+
+  /** 活动标签网页缩放步进：1=放大(+25%) -1=缩小(-20%) 0=重置(100%)；手动触发浮层 */
+  zoomStep(dir: number): void {
+    const tab: TabInfo | null = tabsVM.activeTab
+    if (tab === null || tab.isHome) {
+      return
+    }
+    let next: number = tab.zoomPercent > 0 ? tab.zoomPercent : 100
+    try {
+      const controller: webview.WebviewController = tabsVM.ensureController(tab)
+      if (dir > 0) {
+        controller.zoomIn()
+        next = next * 1.25
+      } else if (dir < 0) {
+        controller.zoomOut()
+        next = next * 0.8
+      } else {
+        controller.zoom(1)
+        next = 100
+      }
+    } catch (error) {
+      const err = error as BusinessError
+      logger.error(`zoomStep dir=${dir} failed: ${err.code} ${err.message}`)
+      return
+    }
+    next = Math.max(25, Math.min(500, Math.round(next)))
+    tab.zoomPercent = next
+    this.showZoomOverlay(next, true)
   }
 
   /** 进入游戏模式：隐藏系统状态栏/导航栏，应用内所有栏随 gameMode 一并隐藏 */

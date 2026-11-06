@@ -7,6 +7,7 @@ import { BookmarkDao } from '../common/utils/database/impl/BookmarkDao';
 import { HistoryDao } from '../common/utils/database/impl/HistoryDao';
 import { appSettings } from '../common/entity/SettingsModel';
 import { tabsVM } from './TabsViewModel';
+import { PrefetchUtils } from '../common/utils/PrefetchUtils';
 import { createLogger } from '../common/utils/Logger';
 
 const logger = createLogger('SearchViewModel')
@@ -88,6 +89,10 @@ export class SearchViewModel {
       this.clearTimer = -1
     }
     this.inputText = input
+    // 回车目标预热（输入即 URL 整页预取；合成搜索预连接；无痕跳过）
+    const activeTab = tabsVM.activeTab
+    PrefetchUtils.scheduleWarm(input, incognito,
+      activeTab !== null && !activeTab.isHome && activeTab.controller !== null ? activeTab.controller : null)
     const seq = ++this.requestSeq
     const result = await this.computeSuggestions(input, incognito)
     // 防止过期请求覆盖新输入
@@ -209,6 +214,7 @@ export class SearchViewModel {
    */
   clear(): void {
     this.requestSeq++
+    PrefetchUtils.cancel()
     this.suggestions = []
     this.inputText = ''
   }

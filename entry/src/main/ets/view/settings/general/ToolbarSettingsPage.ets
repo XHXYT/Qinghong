@@ -1,8 +1,9 @@
 import { SettingsScaffold, SettingsSection } from '../../../components/SettingsScaffold';
-import { UISettings } from '../../../common/entity/SettingsModel';
+import { UISettings, appSettings } from '../../../common/entity/SettingsModel';
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
 import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../../../components/SheetPicker';
 import { ResourceUtils } from '../../../common/utils/ResourceUtil';
+import { toastUtil } from '../../../common/utils/ToastUtils';
 
 
 @Builder
@@ -109,6 +110,18 @@ struct ToolbarSettingsPage {
       UISettings.show_download_button = v === true
     }
   })
+  private extensionButtonItem: CustomItemInfo = new CustomItemInfo({
+    id: 'show_extension_button',
+    title: $r('app.string.extension_button'),
+    type: ItemActionType.TOGGLE,
+    onChange: (v: string | boolean | number): void => {
+      UISettings.show_extension_button = v === true
+      // 开启扩展按钮但扩展功能未启用：提示引导
+      if (v === true && !appSettings.extension_enabled) {
+        toastUtil.showToast({ message: $r('app.string.ext_not_enabled_hint') })
+      }
+    }
+  })
   private colorModeItem: CustomItemInfo = new CustomItemInfo({
     id: 'action_bar_color_mode',
     title: $r('app.string.action_bar_color_mode'),
@@ -134,8 +147,9 @@ struct ToolbarSettingsPage {
     this.bookmarkBarItem.value = UISettings.show_bookmark_bar
     this.homeButtonItem.value = UISettings.show_home_button
     this.downloadButtonItem.value = UISettings.show_download_button
+    this.extensionButtonItem.value = UISettings.show_extension_button
     this.colorModeItem.value = UISettings.action_bar_color_mode
-    const items: CustomItemInfo[] = [this.appLayoutItem, this.autoHideItem, this.addressContentItem]
+    const items: CustomItemInfo[] = [this.appLayoutItem, this.autoHideItem, this.addressContentItem, this.extensionButtonItem]
     if (UISettings.app_layout === 'top' || UISettings.app_layout === 'bottom') {
       items.push(this.tabBarItem, this.bookmarkBarItem, this.homeButtonItem, this.downloadButtonItem)
     }
@@ -246,10 +260,17 @@ struct ToolbarSettingsPage {
         .fontSize(10)
         .fontColor([$r('sys.color.font_secondary')])
       this.miniTextLine(60)
+      Row()
+        .layoutWeight(1)
+      if (UISettings.show_extension_button && appSettings.extension_enabled) {
+        SymbolGlyph($r('sys.symbol.root'))
+          .fontSize(12)
+          .fontColor([$r('sys.color.font_secondary')])
+      }
     }
     .width('100%')
     .height(18)
-    .padding({ left: 8 })
+    .padding({ left: 8, right: 8 })
     .backgroundColor($r('sys.color.comp_background_primary'))
     .alignItems(VerticalAlign.Center)
   }
@@ -316,6 +337,11 @@ struct ToolbarSettingsPage {
       }
       if (!UISettings.show_tab_bar) {
         this.miniTabCountBox()
+      }
+      if (UISettings.show_extension_button && appSettings.extension_enabled) {
+        SymbolGlyph($r('sys.symbol.root'))
+          .fontSize(12)
+          .fontColor([$r('sys.color.font_primary')])
       }
       SymbolGlyph($r('sys.symbol.square_grid_2x2'))
         .fontSize(12)

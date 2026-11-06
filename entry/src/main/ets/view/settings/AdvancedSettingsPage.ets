@@ -24,8 +24,9 @@ struct AdvancedSettingsPage {
 
   aboutToAppear(): void {
     this.initDialogs()
-    const items: CustomItemInfo[] = []
-    items.push(new CustomItemInfo({
+    // 网页浏览
+    const gBrowsing = new SettingsSection('browsing', $r('app.string.advanced_group_browsing'))
+    gBrowsing.items.push(new CustomItemInfo({
       id: 'no_image_mode',
       title: $r('app.string.no_image_mode'),
       subtitle: $r('app.string.no_image_mode_desc'),
@@ -33,6 +34,16 @@ struct AdvancedSettingsPage {
       value: appSettings.no_image_mode,
       onChange: (v: string | boolean | number): void => {
         appSettings.no_image_mode = v as boolean
+      }
+    }))
+    gBrowsing.items.push(new CustomItemInfo({
+      id: 'pause_web_timers',
+      title: $r('app.string.pause_web_timers'),
+      subtitle: $r('app.string.pause_web_timers_desc'),
+      type: ItemActionType.TOGGLE,
+      value: appSettings.pause_web_timers,
+      onChange: (v: string | boolean | number): void => {
+        appSettings.pause_web_timers = v as boolean
       }
     }))
     // 保留长按选择振动：网页振动开启时被强制开启，置灰无意义
@@ -47,7 +58,7 @@ struct AdvancedSettingsPage {
         appSettings.web_haptic_enabled = v as boolean
       }
     })
-    items.push(new CustomItemInfo({
+    gBrowsing.items.push(new CustomItemInfo({
       id: 'web_vibration_enabled',
       title: $r('app.string.web_vibration'),
       subtitle: $r('app.string.web_vibration_desc'),
@@ -58,8 +69,50 @@ struct AdvancedSettingsPage {
         hapticItem.enabled = v !== true
       }
     }))
-    items.push(hapticItem)
-    items.push(new CustomItemInfo({
+    gBrowsing.items.push(hapticItem)
+    gBrowsing.items.push(new CustomItemInfo({
+      id: 'back_to_top',
+      title: $r('app.string.back_to_top'),
+      subtitle: $r('app.string.back_to_top_desc'),
+      type: ItemActionType.TOGGLE,
+      value: appSettings.back_to_top,
+      onChange: (v: string | boolean | number): void => {
+        appSettings.back_to_top = v as boolean
+      }
+    }))
+    gBrowsing.items.push(new CustomItemInfo({
+      id: 'blank_screen_retry',
+      title: $r('app.string.blank_screen_retry'),
+      subtitle: $r('app.string.blank_screen_retry_desc'),
+      type: ItemActionType.TOGGLE,
+      value: appSettings.blank_screen_retry,
+      onChange: (v: string | boolean | number): void => {
+        appSettings.blank_screen_retry = v as boolean
+      }
+    }))
+    gBrowsing.items.push(new CustomItemInfo({
+      id: 'web_overscroll_bounce',
+      title: $r('app.string.web_overscroll_bounce'),
+      subtitle: $r('app.string.web_overscroll_bounce_desc'),
+      type: ItemActionType.TOGGLE,
+      value: appSettings.web_overscroll_bounce,
+      onChange: (v: string | boolean | number): void => {
+        appSettings.web_overscroll_bounce = v as boolean
+      }
+    }))
+    // 加载与性能
+    const gPerf = new SettingsSection('performance', $r('app.string.advanced_group_performance'))
+    gPerf.items.push(new CustomItemInfo({
+      id: 'web_fast_destroy',
+      title: $r('app.string.web_fast_destroy'),
+      subtitle: $r('app.string.web_fast_destroy_desc'),
+      type: ItemActionType.TOGGLE,
+      value: appSettings.web_fast_destroy,
+      onChange: (v: string | boolean | number): void => {
+        appSettings.web_fast_destroy = v as boolean
+      }
+    }))
+    gPerf.items.push(new CustomItemInfo({
       id: 'dns_preconnect_enabled',
       title: $r('app.string.dns_preconnect'),
       subtitle: $r('app.string.dns_preconnect_desc'),
@@ -70,6 +123,18 @@ struct AdvancedSettingsPage {
         DnsUtils.applyPreconnect()
       }
     }))
+    gPerf.items.push(new CustomItemInfo({
+      id: 'web_prefetch',
+      title: $r('app.string.web_prefetch'),
+      subtitle: $r('app.string.web_prefetch_desc'),
+      type: ItemActionType.TOGGLE,
+      value: appSettings.web_prefetch,
+      onChange: (v: string | boolean | number): void => {
+        appSettings.web_prefetch = v as boolean
+      }
+    }))
+    // 网页助手（组标题复用功能名）
+    const gAssistant = new SettingsSection('assistant', $r('app.string.web_assistant'))
     // 资源嗅探：依赖网页助手（总开关关闭时禁用并联动关闭）
     const sniffItem: CustomItemInfo = new CustomItemInfo({
       id: 'resource_sniff',
@@ -82,7 +147,7 @@ struct AdvancedSettingsPage {
         appSettings.resource_sniff = v as boolean
       }
     })
-    items.push(new CustomItemInfo({
+    gAssistant.items.push(new CustomItemInfo({
       id: 'web_assistant',
       title: $r('app.string.web_assistant'),
       subtitle: $r('app.string.web_assistant_desc'),
@@ -98,8 +163,10 @@ struct AdvancedSettingsPage {
         sniffItem.enabled = appSettings.web_assistant
       }
     }))
-    items.push(sniffItem)
-    items.push(new CustomItemInfo({
+    gAssistant.items.push(sniffItem)
+    // 安全
+    const gSecurity = new SettingsSection('security', $r('app.string.advanced_group_security'))
+    gSecurity.items.push(new CustomItemInfo({
       id: 'allow_debug_web',
       title: $r('app.string.allow_debug_web'),
       type: ItemActionType.TOGGLE,
@@ -113,7 +180,7 @@ struct AdvancedSettingsPage {
         }
       }
     }))
-    items.push(new CustomItemInfo({
+    gSecurity.items.push(new CustomItemInfo({
       id: 'disable_safe_browsing',
       title: $r('app.string.disable_safe_browsing'),
       subtitle: $r('app.string.disable_safe_browsing_desc'),
@@ -134,7 +201,17 @@ struct AdvancedSettingsPage {
         }
       }
     }))
-    items.push(new CustomItemInfo({
+    gSecurity.items.push(new CustomItemInfo({
+      id: 'web_block_private_network',
+      title: $r('app.string.web_block_private_network'),
+      subtitle: $r('app.string.web_block_private_network_desc'),
+      type: ItemActionType.TOGGLE,
+      value: appSettings.web_block_private_network,
+      onChange: (v: string | boolean | number): void => {
+        appSettings.web_block_private_network = v as boolean
+      }
+    }))
+    gSecurity.items.push(new CustomItemInfo({
       id: 'ignore_ssl_warning',
       title: $r('app.string.ignore_ssl_warning'),
       subtitle: $r('app.string.ignore_ssl_warning_desc'),
@@ -150,10 +227,8 @@ struct AdvancedSettingsPage {
         }
       }
     }))
-    this.items = items
-    const section: SettingsSection = new SettingsSection('advanced')
-    section.items = items
-    this.sections = [section]
+    this.items = gBrowsing.items.concat(gPerf.items).concat(gAssistant.items).concat(gSecurity.items)
+    this.sections = [gBrowsing, gPerf, gAssistant, gSecurity]
   }
 
   private initDialogs(): void {

@@ -26,6 +26,8 @@ export interface NaviBarButtonInit {
   menuItems?: ContextMenuItem[]
   /** 点击事件 */
   action?: () => void
+  /** 置灰禁用（图标/文字变灰、不可点击） */
+  disabled?: boolean
 }
 
 /**
@@ -41,6 +43,7 @@ export class NaviBarButton {
   backgroundColor: ResourceColor = $r('sys.color.comp_background_tertiary')
   menuItems: ContextMenuItem[] = []
   action: (() => void) | undefined = undefined
+  disabled: boolean = false
 
   constructor(init?: NaviBarButtonInit) {
     if (init) {
@@ -53,6 +56,7 @@ export class NaviBarButton {
       if (init.backgroundColor !== undefined) this.backgroundColor = init.backgroundColor
       if (init.menuItems !== undefined) this.menuItems = init.menuItems
       if (init.action !== undefined) this.action = init.action
+      if (init.disabled !== undefined) this.disabled = init.disabled
     }
   }
 }
@@ -216,11 +220,11 @@ export struct NaviContainer {
     if (this.buttons[index].symbol !== undefined) {
       SymbolGlyph(this.buttons[index].symbol)
         .fontSize(this.buttons[index].iconSize)
-        .fontColor([this.buttons[index].fontColor])
+        .fontColor([this.buttons[index].disabled ? $r('sys.color.font_tertiary') : this.buttons[index].fontColor])
     } else if (this.buttons[index].text !== undefined) {
       Text(this.buttons[index].text)
         .fontSize(15)
-        .fontColor(this.buttons[index].fontColor)
+        .fontColor(this.buttons[index].disabled ? $r('sys.color.font_tertiary') : this.buttons[index].fontColor)
     }
   }
 
@@ -254,6 +258,7 @@ export struct NaviContainer {
       .borderRadius(this.buttons[index].height / 2)
       .justifyContent(FlexAlign.Center)
       .backgroundColor(this.buttons[index].backgroundColor)
+      .enabled(!this.buttons[index].disabled)
       .onClick(() => {
         this.btnMenuItems = this.buttons[index].menuItems
         this.btnMenuShow = true
@@ -273,6 +278,7 @@ export struct NaviContainer {
       .borderRadius(this.buttons[index].height / 2)
       .justifyContent(FlexAlign.Center)
       .backgroundColor(this.buttons[index].backgroundColor)
+      .enabled(!this.buttons[index].disabled)
       .onClick(() => {
         this.doAction(index)
       })

@@ -22,8 +22,10 @@ import { siteSettingsVM } from '../viewmodel/SiteSettingsViewModel';
 import { hostsVM } from '../viewmodel/HostsViewModel';
 import { DnsUtils } from '../common/utils/DnsUtils';
 import { scriptVM } from '../viewmodel/ScriptViewModel';
+import { extensionVM } from '../viewmodel/ExtensionViewModel';
 import { ShortcutViewModel } from '../viewmodel/ShortcutViewModel';
 import { DataClearer } from '../common/utils/DataClearer';
+import { EXT_SCHEME } from '../common/utils/ExtensionResources';
 import { webview } from '@kit.ArkWeb';
 import { TextReader, WindowManager } from '@kit.SpeechKit';
 
@@ -31,6 +33,8 @@ const logger = createLogger('EntryAbility')
 
 export default class EntryAbility extends UIAbility {
   private avoidManager: AvoidanceManager | undefined = undefined;
+  /** 后台已暂停网页定时器标记（仅恢复本应用主动暂停的状态） */
+  private webTimersPaused: boolean = false;
   private avoidListener: (avoidance: SmartAvoidance) => void = (newAvoidance) => {
     QhState.bottomRectHeight = newAvoidance.bottom
     QhState.topRectHeight = newAvoidance.top
@@ -39,6 +43,20 @@ export default class EntryAbility extends UIAbility {
   }
 
   async onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): Promise<void> {
+    // 扩展自定义协议注册：必须在 Web 引擎初始化前（首个 Web 组件创建前）执行
+    try {
+      webview.WebviewController.customizeSchemes([{
+        schemeName: EXT_SCHEME,
+        isSupportCORS: true,
+        isSupportFetch: true,
+        isStandard: true,
+        isSecure: true,
+        isCspBypassing: true
+      }]);
+      logger.info('Init', `customizeSchemes ${EXT_SCHEME} registered`);
+    } catch (error) {
+      logger.error('Init', `customizeSchemes failed: ${error}`);
+    }
     try {
       await this.initAppEnvironment();
       logger.info('Init', 'App environment initialized successfully.');
@@ -112,11 +130,20 @@ export default class EntryAbility extends UIAbility {
         toastUtil.initContext(_QhState.UIContext, this.context)
         // 注册沙箱内自定义字体（依赖 UIContext）
         FontStore.registerAll()
+        // 应用第三方 Cookie 开关（内核不持久化，每次启动需重设）
+        try {
+          webview.WebCookieManager.putAcceptThirdPartyCookieEnabled(appSettings.third_party_cookie)
+        } catch (error) {
+          logger.error('Init', `putAcceptThirdPartyCookieEnabled failed: ${error}`)
+        }
       // 初始化广告拦截引擎与统计（规则装载到 ArkWeb 原生 AdsBlock 引擎）
       adBlockEngine.init()
       adBlockStore.load()
       // 用户脚本列表预载（Web 组件创建时需要生成 document-start 注入项）
       scriptVM.loadAll().then((): void => {
+      })
+      // 扩展列表预载（content_scripts 的 document-start 注入项依赖）
+      extensionVM.loadAll().then((): void => {
       })
       // 订阅规则文件较大，延迟到主页首帧渲染后再合并装载；
       // 规则内容哈希未变化时跳过，利用内核持久化避免重复编译解析
@@ -158,10 +185,28 @@ export default class EntryAbility extends UIAbility {
 
   onForeground(): void {
     logger.info('Lifecycle', 'EntryAbility onForeground');
+    // 恢复被后台暂停的网页 JS 定时器
+    if (this.webTimersPaused) {
+      this.webTimersPaused = false
+      try {
+        webview.WebviewController.resumeAllTimers()
+      } catch (error) {
+        logger.error('Lifecycle', `resumeAllTimers failed: ${error}`)
+      }
+    }
   }
 
   onBackground(): void {
     logger.info('Lifecycle', 'EntryAbility onBackground');
+    // 后台暂停全部网页 JS 定时器（省电，回前台恢复）
+    if (appSettings.pause_web_timers && !this.webTimersPaused) {
+      this.webTimersPaused = true
+      try {
+        webview.WebviewController.pauseAllTimers()
+      } catch (error) {
+        logger.error('Lifecycle', `pauseAllTimers failed: ${error}`)
+      }
+    }
   }
 
   // --- 核心初始化 ---

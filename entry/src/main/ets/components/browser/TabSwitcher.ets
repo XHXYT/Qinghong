@@ -41,6 +41,16 @@ export struct TabSwitcher {
               .fontSize(13)
               .fontColor([Color.White])
           }
+          // 播放角标：播放中显示小喇叭，点击切换静音/恢复
+          if (tab.audioPlaying) {
+            SymbolGlyph(tab.audioMuted ? $r('sys.symbol.speaker_slash') : $r('sys.symbol.speaker_wave_2'))
+              .fontSize(14)
+              .fontColor([tab.isIncognito ? Color.White : $r('sys.color.font_secondary')])
+              .padding(6)
+              .onClick(() => {
+                tabsVM.toggleTabMute(tab)
+              })
+          }
           SymbolGlyph($r('sys.symbol.xmark'))
             .fontSize(14)
             .fontColor([tab.isIncognito ? Color.White : $r('sys.color.font_secondary')])

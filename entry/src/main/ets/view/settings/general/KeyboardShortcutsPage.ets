@@ -147,7 +147,7 @@ struct KeyboardShortcutsPage {
     })
   }
 
-  /** 快捷键卡片 */
+  /** 快捷键卡片（自定义行 + 固定组合行） */
   @Builder
   pageFooter() {
     SettingsCard({
@@ -163,6 +163,41 @@ struct KeyboardShortcutsPage {
     ForEach(this.shortcuts, (s: KbShortcut) => {
       this.shortcutRow(s)
     }, (s: KbShortcut) => s.id)
+    Divider()
+      .color($r('sys.color.comp_divider'))
+      .margin({ left: 16, right: 16 })
+    this.fixedKeyRow(['Ctrl', '1…8'], $r('app.string.kb_switch_tab_num'))
+    this.fixedKeyRow(['Ctrl', '9'], $r('app.string.kb_switch_tab_last'))
+    this.fixedKeyRow(['Esc'], $r('app.string.kb_esc_close'))
+  }
+
+  /** 固定组合行（键帽展示，不可编辑） */
+  @Builder
+  fixedKeyRow(keys: string[], label: ResourceStr) {
+    Row() {
+      Row({ space: 4 }) {
+        ForEach(keys, (k: string, idx: number) => {
+          if (idx > 0) {
+            Text('+')
+              .fontSize(12)
+              .fontColor($r('sys.color.font_tertiary'))
+          }
+          this.keyCap(k)
+        }, (k: string) => k)
+      }
+      .alignItems(VerticalAlign.Center)
+
+      Text(label)
+        .fontSize(15)
+        .fontColor($r('sys.color.font_primary'))
+        .layoutWeight(1)
+        .textAlign(TextAlign.End)
+        .padding({ left: 12 })
+    }
+    .width('100%')
+    .height(48)
+    .padding({ left: 16, right: 16 })
+    .alignItems(VerticalAlign.Center)
   }
 
   /** 键帽 */

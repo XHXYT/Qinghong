@@ -20,6 +20,7 @@ struct SettingsPage {
     items.push(this.routerItem('settings_privacy', $r('app.string.settings_privacy')))
     items.push(this.routerItem('settings_advanced', $r('app.string.settings_advanced')))
     items.push(this.routerItem('settings_script', $r('app.string.settings_script')))
+    items.push(this.routerItem('settings_extension', $r('app.string.settings_extension')))
     items.push(this.routerItem('about', $r('app.string.about')))
     this.items = items
   }

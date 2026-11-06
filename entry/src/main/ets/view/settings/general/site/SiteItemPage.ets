@@ -50,6 +50,8 @@ struct SiteItemPage {
   @Local forceZoomItem: CustomItemInfo = new CustomItemInfo({ id: 'force_zoom', type: ItemActionType.TOGGLE })
   // Cookies 专属：拦截第三方开关
   @Local thirdPartyItem: CustomItemInfo = new CustomItemInfo({ id: 'cookies_third', type: ItemActionType.TOGGLE })
+  // 弹出式窗口专属：允许同域名窗口（「询问」档放行与当前页同域的弹出）
+  @Local sameHostItem: CustomItemInfo = new CustomItemInfo({ id: 'popup_same_host', type: ItemActionType.TOGGLE })
   @Local globalFontCustom: number = 100
   // 例外站点字体编辑半模态
   @Local showFontSheet: boolean = false
@@ -206,6 +208,9 @@ struct SiteItemPage {
     }
     this.buildDefaultItem(config)
     this.applyLock(this.defaultItem)
+    if (this.isPopup) {
+      this.buildSameHostItem()
+    }
     if (this.isFont) {
       this.globalFontCustom = Number(SiteSettingsViewModel.getDefault(this.itemKey))
     }
@@ -277,6 +282,20 @@ struct SiteItemPage {
         }
       })
     }
+  }
+
+  /** 弹出式窗口专属：「询问」档时与当前页同域名的窗口直接放行 */
+  private buildSameHostItem(): void {
+    this.sameHostItem = new CustomItemInfo({
+      id: 'popup_same_host',
+      title: $r('app.string.popup_allow_same_host'),
+      subtitle: $r('app.string.popup_allow_same_host_desc'),
+      type: ItemActionType.TOGGLE,
+      value: appSettings.popup_allow_same_host,
+      onChange: (v: string | boolean | number): void => {
+        appSettings.popup_allow_same_host = v === true
+      }
+    })
   }
 
   private buildForceZoomItem(): void {
@@ -797,6 +816,21 @@ struct SiteItemPage {
       .borderRadius(16)
       .clip(true)
       .margin({ top: 10 })
+
+      // 弹出式窗口：允许同域名窗口开关
+      if (this.isPopup) {
+        ListItem() {
+          CustomListItem({
+            item: this.sameHostItem,
+            itemPadding: { left: 16, right: 16, top: 13, bottom: 13 }
+          })
+        }
+        .width('100%')
+        .backgroundColor($r('app.color.background_color'))
+        .borderRadius(16)
+        .clip(true)
+        .margin({ top: 12 })
+      }
 
       // 弹出式窗口：三态说明（允许直接打开 / 询问需确认 / 拒绝阻止；站点例外优先于全局默认）
       if (this.isPopup) {

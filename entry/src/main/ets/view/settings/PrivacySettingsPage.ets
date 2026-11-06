@@ -1,4 +1,5 @@
 import { SettingsScaffold, SettingsSection } from '../../components/SettingsScaffold';
+import { webview } from '@kit.ArkWeb';
 import { appSettings } from '../../common/entity/SettingsModel';
 import { CustomItemInfo, ItemActionType } from '../../common/entity/CusItemInfo';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
@@ -62,6 +63,31 @@ struct PrivacySettingsPage {
             })
           }
         }
+      }
+    }))
+    items.push(new CustomItemInfo({
+      id: 'third_party_cookie',
+      title: $r('app.string.third_party_cookie'),
+      subtitle: $r('app.string.third_party_cookie_desc'),
+      type: ItemActionType.TOGGLE,
+      value: appSettings.third_party_cookie,
+      onChange: (v: string | boolean | number): void => {
+        const target = v === true
+        appSettings.third_party_cookie = target
+        try {
+          webview.WebCookieManager.putAcceptThirdPartyCookieEnabled(target)
+        } catch (e) {
+          console.error(`[PrivacySettings] putAcceptThirdPartyCookieEnabled 失败: ${e}`)
+        }
+      }
+    }))
+    items.push(new CustomItemInfo({
+      id: 'website_data',
+      title: $r('app.string.website_data'),
+      subtitle: $r('app.string.website_data_desc'),
+      type: ItemActionType.ROUTER,
+      onChange: (v: string | boolean | number): void => {
+        QhState.pushPage('settings_website_data', null)
       }
     }))
     items.push(new CustomItemInfo({

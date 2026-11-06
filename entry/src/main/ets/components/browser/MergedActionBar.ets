@@ -1,7 +1,7 @@
 import { QhState } from '../../entryability/AppState';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
 import { browserVM } from '../../viewmodel/BrowserViewModel';
-import { UISettings } from '../../common/entity/SettingsModel';
+import { UISettings, appSettings } from '../../common/entity/SettingsModel';
 import { MenuEntry } from '../../common/constants/MenuEntries';
 import { SheetPicker } from '../SheetPicker';
 import { menuVM } from '../../viewmodel/MenuViewModel';
@@ -17,6 +17,7 @@ import { homeBg } from '../../common/utils/HomeBg';
 import { toolbarEventRunner } from '../../common/utils/ToolbarEventRunner';
 import { scriptVM } from '../../viewmodel/ScriptViewModel';
 import { GmMenuCommand } from '../../common/utils/GmRuntime';
+import { ExtToolbarButton } from '../extension/ExtToolbarButton';
 
 /**
  * 合并操作栏（返回/前进/地址胶囊/标签/菜单单行合并），
@@ -161,7 +162,7 @@ export struct MergedActionBar {
             ForEach(scriptVM.activeTabMenuCommands(), (c: GmMenuCommand) => {
               Text(c.name)
                 .fontSize(13)
-                .fontColor(ActionBarColor.fg(QhState.currentThemeColor))
+                .fontColor(ActionBarColor.fg(QhState.currentThemeColor, this.barPosition === 'top'))
                 .padding({ left: 14, right: 14, top: 7, bottom: 7 })
                 .backgroundColor($r('sys.color.comp_background_tertiary'))
                 .borderRadius(16)
@@ -184,10 +185,10 @@ export struct MergedActionBar {
           .margin({ left: 16, right: 16 })
       }
       Swiper() {
-        ForEach(menuVM.menuPages, (page: MenuEntry[]) => {
+        ForEach(menuVM.menuPages, (page: MenuEntry[], pageIndex: number) => {
           Column() {
             Grid() {
-              ForEach(page, (e: MenuEntry) => {
+              ForEach(menuVM.menuPages[pageIndex], (e: MenuEntry, idx: number) => {
                 GridItem() {
                   this.menuEntryItem(e)
                 }
@@ -204,19 +205,26 @@ export struct MergedActionBar {
                   menuVM.showMenu = false
                 }
               }))
+              .transition(TransitionEffect.asymmetric(
+                TransitionEffect.OPACITY
+                  .animation({ duration: 180, delay: Math.floor(idx / 5) * 40, curve: Curve.EaseOut })
+                  .combine(TransitionEffect.translate({ y: 14 })
+                    .animation({ duration: 180, delay: Math.floor(idx / 5) * 40, curve: Curve.EaseOut })),
+                TransitionEffect.OPACITY.animation({ duration: 100, curve: Curve.EaseIn })
+              ))
               }, (e: MenuEntry): string => e.id)
             }
-            .rowsTemplate(menuVM.menuRowsPerPage() === 4 ? '1fr 1fr 1fr 1fr' : '1fr 1fr')
+            .rowsTemplate(menuVM.menuEffectiveRows() === 4 ? '1fr 1fr 1fr 1fr' : '1fr 1fr')
             .columnsTemplate('1fr 1fr 1fr 1fr 1fr')
             .scrollBar(BarState.Off)
             .columnsGap(4)
             .rowsGap(19)
             .width('100%')
-            .height(menuVM.menuRowsPerPage() * 46 + (menuVM.menuRowsPerPage() - 1) * 19)
+            .height(menuVM.menuEffectiveRows() * 46 + (menuVM.menuEffectiveRows() - 1) * 19)
             .padding({ left: 4, right: 4 })
             Row()
               .width('100%')
-              .height(menuVM.menuRowsPerPage() === 4 ? 36 : 29)
+              .height(menuVM.menuEffectiveRows() === 4 ? 36 : 29)
           }
           .width('100%')
         }, (page: MenuEntry[], pageIndex: number): string => pageIndex.toString())
@@ -231,7 +239,7 @@ export struct MergedActionBar {
     }
     .width('100%')
     .height('100%')
-    .justifyContent(menuVM.menuRowsPerPage() === 4 ? FlexAlign.End : FlexAlign.Start)
+    .justifyContent(menuVM.menuEffectiveRows() === 4 ? FlexAlign.End : FlexAlign.Start)
     .padding({ top: 18, bottom: QhState.bottomRectHeight - 12 })
   }
 
@@ -244,10 +252,10 @@ export struct MergedActionBar {
     return addressDisplayText(tab.url, tab.title)
   }
 
-  /** 地址胶囊底色：色彩模式时按页面色深浅取半透明黑/白；主页沉浸时按主页背景明暗取半透明底 */
+  /** 地址胶囊底色：色彩模式且位于顶部时按页面色深浅取半透明黑/白；主页沉浸时按主页背景明暗取半透明底 */
   private pillBg(): ResourceColor {
     const tab = tabsVM.activeTab
-    if (tab !== null && tab.themeColor !== '') {
+    if (this.barPosition === 'top' && UISettings.action_bar_color_mode && tab !== null && tab.themeColor !== '') {
       return ActionBarColor.isDarkColor(tab.themeColor) ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)'
     }
     if (HomeImmersive.active()) {
@@ -257,15 +265,9 @@ export struct MergedActionBar {
   }
 
   navColor(enabled: boolean): ResourceColor {
-    return enabled ? ActionBarColor.fg($r('sys.color.font_primary')) : ActionBarColor.fg($r('sys.color.font_tertiary'))
+    return enabled ? ActionBarColor.fg($r('sys.color.font_primary'), this.barPosition === 'top') : ActionBarColor.fg($r('sys.color.font_tertiary'), this.barPosition === 'top')
   }
 
-  /** 横滑起点（工具栏左滑/右滑事件，onTouch 检测） */
-  private swipeDownX: number = 0
-  private swipeDownY: number = 0
-  private swipeTracking: boolean = false
-  /** 拖动中工具栏整行实时位移（抬指回弹动画归零） */
-  @Local swipeOffsetX: number = 0
   /** 地址胶囊内联输入（编辑中聚焦完整地址，失焦回退显示文本） */
   @Local editing: boolean = false
   @Local editText: string = ''
@@ -281,50 +283,6 @@ export struct MergedActionBar {
   onHomeModeChange(): void {
     this.editing = false
     this.editText = ''
-  }
-
-  /**
-   * 工具栏横滑检测：onTouch 直收触摸流（沿 hit-test 链必达，不受手势仲裁影响）；
-   * 拖动中整行跟手位移（±80vp 封顶），抬指横向主导且 ≥25vp 时触发左滑/右滑事件并回弹
-   */
-  handleToolbarTouch(event: TouchEvent): void {
-    if (event.type === TouchType.Down) {
-      if (event.touches.length !== 1) {
-        this.swipeTracking = false
-        return
-      }
-      const t: TouchObject = event.changedTouches[0]
-      this.swipeDownX = t.x
-      this.swipeDownY = t.y
-      this.swipeTracking = true
-      this.swipeOffsetX = 0
-    } else if (event.type === TouchType.Move && this.swipeTracking) {
-      if (event.touches.length !== 1) {
-        return
-      }
-      const t: TouchObject = event.changedTouches[0]
-      const dx: number = t.x - this.swipeDownX
-      this.swipeOffsetX = Math.max(-80, Math.min(80, dx))
-    } else if (event.type === TouchType.Up && this.swipeTracking) {
-      this.swipeTracking = false
-      const t: TouchObject = event.changedTouches[0]
-      const dx: number = t.x - this.swipeDownX
-      const dy: number = t.y - this.swipeDownY
-      this.reboundSwipe()
-      if (Math.abs(dx) >= 25 && Math.abs(dx) > Math.abs(dy)) {
-        toolbarEventRunner.run(dx < 0 ? 'swipe_left' : 'swipe_right')
-      }
-    } else if (event.type === TouchType.Cancel) {
-      this.swipeTracking = false
-      this.reboundSwipe()
-    }
-  }
-
-  /** 抬指回弹：整行位移动画归零 */
-  private reboundSwipe(): void {
-    this.getUIContext().animateTo({ duration: 250, curve: Curve.Friction }, (): void => {
-      this.swipeOffsetX = 0
-    })
   }
 
   build() {
@@ -369,7 +327,7 @@ export struct MergedActionBar {
           Stack() {
             SymbolGlyph($r('sys.symbol.house'))
               .fontSize(23)
-              .fontColor([ActionBarColor.fg($r('sys.color.font_primary'))])
+              .fontColor([ActionBarColor.fg($r('sys.color.font_primary'), this.barPosition === 'top')])
           }
           .width(40)
           .height('100%')
@@ -389,7 +347,7 @@ export struct MergedActionBar {
 
         // 地址胶囊：内联输入，回车直达或搜索；最左图标与地址栏同款（盾牌/搜索，点击=顶弹面板，长按=引擎菜单）
         Row({ space: 6 }) {
-          AddressEntryIcon({ iconSize: 14 })
+          AddressEntryIcon({ iconSize: 14, atTop: this.barPosition === 'top' })
           TextInput({
             text: this.editing ? this.editText : this.pillText(),
             placeholder: $r('app.string.search_hint')
@@ -398,9 +356,9 @@ export struct MergedActionBar {
             // 占位符显式对齐正文字号：不设时按默认 16fp 渲染，获焦切占位符后显大且 30 高胶囊显示不全
             .placeholderFont({ size: 14 })
             .maxLines(1)
-            .fontColor(ActionBarColor.fg($r('sys.color.font_primary')))
-            .placeholderColor(ActionBarColor.fg($r('sys.color.font_secondary')))
-            .caretColor(ActionBarColor.fg($r('sys.color.font_primary')))
+            .fontColor(ActionBarColor.fg($r('sys.color.font_primary'), this.barPosition === 'top'))
+            .placeholderColor(ActionBarColor.fg($r('sys.color.font_secondary'), this.barPosition === 'top'))
+            .caretColor(ActionBarColor.fg($r('sys.color.font_primary'), this.barPosition === 'top'))
             .layoutWeight(1)
             .height('100%')
             .backgroundColor(Color.Transparent)
@@ -442,7 +400,7 @@ export struct MergedActionBar {
           Stack() {
             SymbolGlyph($r('sys.symbol.arrow_down_circle'))
               .fontSize(23)
-              .fontColor([ActionBarColor.fg($r('sys.color.font_primary'))])
+              .fontColor([ActionBarColor.fg($r('sys.color.font_primary'), this.barPosition === 'top')])
           }
           .width(40)
           .height('100%')
@@ -461,7 +419,7 @@ export struct MergedActionBar {
               Text(`${tabsVM.tabCount}`)
                 .fontSize(11)
                 .fontWeight(FontWeight.Medium)
-                .fontColor(ActionBarColor.fg($r('sys.color.font_primary')))
+                .fontColor(ActionBarColor.fg($r('sys.color.font_primary'), this.barPosition === 'top'))
                 .maxLines(1)
             }
             .width(19)
@@ -469,7 +427,7 @@ export struct MergedActionBar {
             .alignContent(Alignment.Center)
             .border({
               width: 1.5,
-              color: ActionBarColor.fg($r('sys.color.font_primary')),
+              color: ActionBarColor.fg($r('sys.color.font_primary'), this.barPosition === 'top'),
               radius: 4
             })
           }
@@ -487,11 +445,17 @@ export struct MergedActionBar {
           }))
         }
 
+        // 扩展（拼图按钮：PC 浏览器扩展入口样式，菜单按钮左侧；操作栏设置开关 + 扩展总开关控制）
+        if (UISettings.show_extension_button && appSettings.extension_enabled) {
+          ExtToolbarButton({ anchor: this.barPosition })
+            .margin({ top: 3 })
+        }
+
         // 菜单
         Stack() {
           SymbolGlyph($r('sys.symbol.square_grid_2x2'))
             .fontSize(23)
-            .fontColor([ActionBarColor.fg($r('sys.color.font_primary'))])
+            .fontColor([ActionBarColor.fg($r('sys.color.font_primary'), this.barPosition === 'top')])
         }
         .width(40)
         .height('100%')
@@ -505,11 +469,16 @@ export struct MergedActionBar {
           toolbarEventRunner.run('menu_long')
         }))
         .bindSheet(menuVM.showMenu!!, this.menuSheetBuilder(), {
-          height: (scriptVM.activeTabMenuCommands().length > 0 ? 240 : 175) + menuVM.menuSheetExtraHeight(),
+          height: menuVM.menuSheetOpenHeight(scriptVM.activeTabMenuCommands().length > 0 ? 240 : 175),
+          detents: menuVM.menuSheetDetents(scriptVM.activeTabMenuCommands().length > 0 ? 240 : 175),
           enableOutsideInteractive: false,
           dragBar: false,
           showClose: false,
           backgroundColor: $r('sys.color.comp_background_primary'),
+          onHeightDidChange: (height: number): void => {
+            const base: number = scriptVM.activeTabMenuCommands().length > 0 ? 240 : 175
+            menuVM.onMenuSheetHeightChange(height, base, base + menuVM.menuExpandHeightDelta())
+          },
           onDisappear: () => {
             menuVM.showMenu = false
           }
@@ -519,18 +488,13 @@ export struct MergedActionBar {
       .height(34)
       .padding({ left: 4, right: 4 })
       .alignItems(VerticalAlign.Center)
-      // 工具栏左滑/右滑事件（onTouch 检测，见 handleToolbarTouch）；拖动整行跟手位移
-      .translate({ x: this.swipeOffsetX })
-      .onTouch((event: TouchEvent): void => {
-        this.handleToolbarTouch(event)
-      })
 
       // 进度条
       if (tabsVM.activeTab && tabsVM.activeTab.progress < 100) {
         Progress({ value: tabsVM.activeTab.progress, total: 100, type: ProgressType.Linear })
           .width('100%')
           .height(2)
-          .color(ActionBarColor.fg(QhState.currentThemeColor))
+          .color(ActionBarColor.fg(QhState.currentThemeColor, this.barPosition === 'top'))
           .backgroundColor(Color.Transparent)
       }
 
@@ -565,7 +529,7 @@ export struct MergedActionBar {
     })
     // 主页沉浸时背景透明，透出全屏主页背景层
     .backgroundColor(HomeImmersive.active() ? Color.Transparent
-      : ActionBarColor.bg($r('sys.color.comp_background_primary')))
+      : ActionBarColor.bg($r('sys.color.comp_background_primary'), this.barPosition === 'top'))
     .bindSheet(menuVM.showSheet!!, this.sheetBuilder(), {
       height: menuVM.sheetKind === 'font' ? 172 : (menuVM.sheetKind === 'save' ? 252 : menuVM.pickerHeight),
       dragBar: true,
