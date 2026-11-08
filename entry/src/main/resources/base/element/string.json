@@ -417,6 +417,62 @@
       "value": "轻鸿是一款轻快好用的鸿蒙浏览器，支持多标签、无痕模式、书签、历史与下载管理。"
     },
     {
+      "name": "basic_info",
+      "value": "基本信息"
+    },
+    {
+      "name": "app_version",
+      "value": "应用版本"
+    },
+    {
+      "name": "web_engine",
+      "value": "Web 内核"
+    },
+    {
+      "name": "web_engine_desc",
+      "value": "当前内核：%s\n\n轻鸿使用鸿蒙 ArkWeb 内核渲染网页，系统提供 M114 / M132 / M144 / 常青等多档内核版本，当前应用使用上述版本。"
+    },
+    {
+      "name": "project_intro",
+      "value": "项目介绍"
+    },
+    {
+      "name": "project_links",
+      "value": "项目"
+    },
+    {
+      "name": "author_home",
+      "value": "作者主页"
+    },
+    {
+      "name": "project_repo",
+      "value": "项目仓库"
+    },
+    {
+      "name": "open_source",
+      "value": "开源许可"
+    },
+    {
+      "name": "open_source_license",
+      "value": "开源协议"
+    },
+    {
+      "name": "open_source_license_desc",
+      "value": "轻鸿基于 GNU General Public License v3.0 开源，你可以自由使用、修改和分发，但衍生作品需以相同协议开源。"
+    },
+    {
+      "name": "third_party_libs",
+      "value": "三方开源库"
+    },
+    {
+      "name": "third_party_libs_footer",
+      "value": "感谢以上开源项目对 HarmonyOS 生态的贡献"
+    },
+    {
+      "name": "view_repo",
+      "value": "查看仓库"
+    },
+    {
       "name": "remove",
       "value": "移除"
     },
@@ -443,6 +499,10 @@
     {
       "name": "settings_extension",
       "value": "扩展程序"
+    },
+    {
+      "name": "settings_extension_entry",
+      "value": "拓展"
     },
     {
       "name": "ext_empty",
@@ -1941,6 +2001,10 @@
       "value": "未识别到二维码"
     },
     {
+      "name": "qinghong_deep_link_unknown",
+      "value": "没有这个页面"
+    },
+    {
       "name": "text_menu_copy",
       "value": "复制"
     },
@@ -2527,6 +2591,10 @@
     {
       "name": "restore_always",
       "value": "总是恢复"
+    },
+    {
+      "name": "restore_keep",
+      "value": "总是保留"
     },
     {
       "name": "restore_ask",
@@ -3337,6 +3405,58 @@
       "value": "将清除全部跟踪统计数据，不影响广告拦截功能"
     },
     {
+      "name": "privacy_report_summary_itp_hits",
+      "value": "已阻止 %s 次跨站跟踪"
+    },
+    {
+      "name": "privacy_report_section_ads",
+      "value": "广告拦截"
+    },
+    {
+      "name": "privacy_report_section_itp",
+      "value": "智能防跟踪（ITP）"
+    },
+    {
+      "name": "privacy_report_bypass",
+      "value": "豁免此域名"
+    },
+    {
+      "name": "privacy_report_bypass_done",
+      "value": "已加入豁免列表"
+    },
+    {
+      "name": "privacy_report_bypass_exists",
+      "value": "该域名已在豁免列表中"
+    },
+    {
+      "name": "itp_bypass_title",
+      "value": "防跟踪豁免列表"
+    },
+    {
+      "name": "itp_bypass_desc",
+      "value": "管理不受智能防跟踪限制的域名"
+    },
+    {
+      "name": "itp_bypass_add",
+      "value": "添加域名"
+    },
+    {
+      "name": "itp_bypass_add_hint",
+      "value": "输入域名，如 example.com"
+    },
+    {
+      "name": "itp_bypass_empty",
+      "value": "暂无豁免域名，可从隐私报告的跟踪详情中添加"
+    },
+    {
+      "name": "itp_bypass_invalid",
+      "value": "域名无效或已存在"
+    },
+    {
+      "name": "itp_bypass_remove_confirm",
+      "value": "将把 %s 从防跟踪豁免列表中移除"
+    },
+    {
       "name": "tracker_cat_ads",
       "value": "广告投放"
     },
@@ -3627,7 +3747,7 @@
     { "name": "back_to_top", "value": "点击状态栏回顶" },
     { "name": "back_to_top_desc", "value": "轻点状态栏时回到网页顶部" },
     { "name": "blank_screen_retry", "value": "白屏自动重试" },
-    { "name": "blank_screen_retry_desc", "value": "网页加载后仍白屏时自动刷新重试一次" },
+    { "name": "blank_screen_retry_desc", "value": "网页加载后仍白屏时自动刷新重试一次；加载卡住诊断不受此开关影响" },
     { "name": "blank_screen_retrying", "value": "检测到页面渲染异常，正在重试" },
     { "name": "blank_screen_manual", "value": "页面可能未正确显示，请下拉刷新重试" },
     { "name": "error_page_title", "value": "无法打开此网页" },
@@ -3662,6 +3782,23 @@
     { "name": "kb_switch_tab_last", "value": "切换到最后一个标签页" },
     { "name": "kb_esc_close", "value": "关闭查找栏和菜单" },
     { "name": "web_overscroll_bounce", "value": "边缘回弹" },
-    { "name": "web_overscroll_bounce_desc", "value": "网页滚动到边缘时产生回弹效果；更改后对新打开的标签生效" }
+    { "name": "web_overscroll_bounce_desc", "value": "网页滚动到边缘时产生回弹效果；更改后对新打开的标签生效" },
+    { "name": "web_min_font_size", "value": "最小字号" },
+    { "name": "web_min_font_size_desc", "value": "小于该字号的网页文字会被放大显示，便于阅读；更改后对新打开的标签生效" },
+    { "name": "web_text_autosizing", "value": "文本自动适配" },
+    { "name": "web_text_autosizing_desc", "value": "自动放大窄屏页面上的密集小字；排版被撑乱时可关闭，更改后对新打开的标签生效" },
+    { "name": "diag_title", "value": "网页暂时无法加载" },
+    { "name": "diag_seg_device", "value": "浏览器" },
+    { "name": "diag_seg_network", "value": "网络" },
+    { "name": "diag_seg_site", "value": "网站" },
+    { "name": "diag_checking", "value": "正在检测网络连接..." },
+    { "name": "diag_device_fail", "value": "设备未连接网络，请检查 WLAN 或移动数据" },
+    { "name": "diag_net_fail", "value": "网络已连接但无法访问互联网，请检查网络或稍后重试" },
+    { "name": "diag_site_fail", "value": "无法连接到该网站，可能站点故障或被屏蔽" },
+    { "name": "diag_slow", "value": "网络连接正常，站点响应缓慢，请稍候或刷新重试" },
+    { "name": "diag_btn_settings", "value": "设置网络" },
+    { "name": "diag_btn_wait", "value": "继续等待" },
+    { "name": "diag_btn_retry", "value": "刷新重试" },
+    { "name": "diag_settings_fail", "value": "无法打开系统设置" }
   ]
 }

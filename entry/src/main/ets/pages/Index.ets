@@ -71,6 +71,7 @@ struct Index {
    */
   private registerExternalUrlHandler(): void {
     QhState.externalUrlHandler = (url: string): void => {
+      console.info(`[Index] 外部链接处理器开新标签: ${url}`)
       tabsVM.newTab(url)
     }
   }
@@ -159,12 +160,24 @@ struct Index {
   }
 
   private async initTabs(): Promise<void> {
-    await tabsVM.restoreSession()
-    // 冷启动：消费外部拉起（默认浏览器协议）的链接
+    // 会话恢复失败不阻塞后续：外部链接消费与自动同步照常执行
+    try {
+      await tabsVM.restoreSession()
+    } catch (e) {
+      console.error(`[Index] 会话恢复失败: ${e}`)
+    }
+    // 冷启动：消费外部拉起（默认浏览器协议）的链接；
+    // 恢复/全新启动后活动标签为空白主页时直接导航（keep 模式免留多余空标签），否则开新标签
     if (QhState.pendingOpenUrl) {
       const url = QhState.pendingOpenUrl
       QhState.pendingOpenUrl = ''
-      tabsVM.newTab(url)
+      console.info(`[Index] 冷启动消费待开链接: ${url}`)
+      const active = tabsVM.activeTab
+      if (active !== null && active.isHome && active.url === '') {
+        tabsVM.navigate(active, url)
+      } else {
+        tabsVM.newTab(url)
+      }
     }
     // 开启了自动同步则启动时合并本地与云端数据（不阻塞界面）
     syncVM.autoSyncIfNeeded()

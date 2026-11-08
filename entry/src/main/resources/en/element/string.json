@@ -417,6 +417,62 @@
       "value": "QingHong is a fast and lightweight HarmonyOS browser with multi-tab, incognito mode, bookmarks, history and download management."
     },
     {
+      "name": "basic_info",
+      "value": "Basic Information"
+    },
+    {
+      "name": "app_version",
+      "value": "App Version"
+    },
+    {
+      "name": "web_engine",
+      "value": "Web Engine"
+    },
+    {
+      "name": "web_engine_desc",
+      "value": "Current engine: %s\n\nQingHong renders web pages with the HarmonyOS ArkWeb engine. The system offers multiple engine versions (M114 / M132 / M144 / Evergreen), and this app currently uses the one shown above."
+    },
+    {
+      "name": "project_intro",
+      "value": "About the Project"
+    },
+    {
+      "name": "project_links",
+      "value": "Project"
+    },
+    {
+      "name": "author_home",
+      "value": "Author Homepage"
+    },
+    {
+      "name": "project_repo",
+      "value": "Project Repository"
+    },
+    {
+      "name": "open_source",
+      "value": "Open Source"
+    },
+    {
+      "name": "open_source_license",
+      "value": "Open Source License"
+    },
+    {
+      "name": "open_source_license_desc",
+      "value": "QingHong is open-sourced under the GNU General Public License v3.0. You are free to use, modify and distribute it, provided that derivative works are released under the same license."
+    },
+    {
+      "name": "third_party_libs",
+      "value": "Third-party Libraries"
+    },
+    {
+      "name": "third_party_libs_footer",
+      "value": "Thanks to these open-source projects for their contributions to the HarmonyOS ecosystem"
+    },
+    {
+      "name": "view_repo",
+      "value": "View Repository"
+    },
+    {
       "name": "remove",
       "value": "Remove"
     },
@@ -442,6 +498,10 @@
     },
     {
       "name": "settings_extension",
+      "value": "Extensions"
+    },
+    {
+      "name": "settings_extension_entry",
       "value": "Extensions"
     },
     {
@@ -1941,6 +2001,10 @@
       "value": "No QR code found"
     },
     {
+      "name": "qinghong_deep_link_unknown",
+      "value": "Page not found"
+    },
+    {
       "name": "text_menu_copy",
       "value": "Copy"
     },
@@ -2527,6 +2591,10 @@
     {
       "name": "restore_always",
       "value": "Always"
+    },
+    {
+      "name": "restore_keep",
+      "value": "Keep in background"
     },
     {
       "name": "restore_ask",
@@ -3337,6 +3405,58 @@
       "value": "This clears all tracking statistics. Ad blocking is not affected."
     },
     {
+      "name": "privacy_report_summary_itp_hits",
+      "value": "Blocked %s cross-site tracking attempts"
+    },
+    {
+      "name": "privacy_report_section_ads",
+      "value": "Ad Blocking"
+    },
+    {
+      "name": "privacy_report_section_itp",
+      "value": "Intelligent Tracking Prevention"
+    },
+    {
+      "name": "privacy_report_bypass",
+      "value": "Bypass this domain"
+    },
+    {
+      "name": "privacy_report_bypass_done",
+      "value": "Added to bypass list"
+    },
+    {
+      "name": "privacy_report_bypass_exists",
+      "value": "This domain is already in the bypass list"
+    },
+    {
+      "name": "itp_bypass_title",
+      "value": "Tracking Prevention Bypass List"
+    },
+    {
+      "name": "itp_bypass_desc",
+      "value": "Manage domains exempt from intelligent tracking prevention"
+    },
+    {
+      "name": "itp_bypass_add",
+      "value": "Add domain"
+    },
+    {
+      "name": "itp_bypass_add_hint",
+      "value": "Enter a domain, e.g. example.com"
+    },
+    {
+      "name": "itp_bypass_empty",
+      "value": "No bypassed domains. Add one from tracking details in the privacy report."
+    },
+    {
+      "name": "itp_bypass_invalid",
+      "value": "Invalid or existing domain"
+    },
+    {
+      "name": "itp_bypass_remove_confirm",
+      "value": "Remove %s from the tracking prevention bypass list?"
+    },
+    {
       "name": "tracker_cat_ads",
       "value": "Advertising"
     },
@@ -3627,7 +3747,7 @@
     { "name": "back_to_top", "value": "Tap Status Bar to Scroll to Top" },
     { "name": "back_to_top_desc", "value": "Tapping the status bar scrolls the page back to the top" },
     { "name": "blank_screen_retry", "value": "Auto-retry on Blank Screen" },
-    { "name": "blank_screen_retry_desc", "value": "Automatically refresh once when a page still renders blank after loading" },
+    { "name": "blank_screen_retry_desc", "value": "Automatically refresh once when a page still renders blank after loading; stuck-load diagnosis is always on" },
     { "name": "blank_screen_retrying", "value": "Rendering issue detected, retrying" },
     { "name": "blank_screen_manual", "value": "The page may not have loaded correctly. Pull down to refresh" },
     { "name": "error_page_title", "value": "Can't open this page" },
@@ -3662,6 +3782,23 @@
     { "name": "kb_switch_tab_last", "value": "Switch to the last tab" },
     { "name": "kb_esc_close", "value": "Close find bar and menu" },
     { "name": "web_overscroll_bounce", "value": "Edge bounce" },
-    { "name": "web_overscroll_bounce_desc", "value": "Bounce effect when a page scrolls to its edge; changes take effect on newly opened tabs" }
+    { "name": "web_overscroll_bounce_desc", "value": "Bounce effect when a page scrolls to its edge; changes take effect on newly opened tabs" },
+    { "name": "web_min_font_size", "value": "Minimum font size" },
+    { "name": "web_min_font_size_desc", "value": "Web text smaller than this size is enlarged for readability; changes take effect on newly opened tabs" },
+    { "name": "web_text_autosizing", "value": "Text autosizing" },
+    { "name": "web_text_autosizing_desc", "value": "Automatically enlarges dense small text on narrow screens; turn off if layouts break. Changes take effect on newly opened tabs" },
+    { "name": "diag_title", "value": "Page can't be loaded right now" },
+    { "name": "diag_seg_device", "value": "Browser" },
+    { "name": "diag_seg_network", "value": "Network" },
+    { "name": "diag_seg_site", "value": "Website" },
+    { "name": "diag_checking", "value": "Checking connection..." },
+    { "name": "diag_device_fail", "value": "Device is offline. Check Wi-Fi or mobile data" },
+    { "name": "diag_net_fail", "value": "Connected but no internet access. Check your network or try later" },
+    { "name": "diag_site_fail", "value": "Can't reach this site. It may be down or blocked" },
+    { "name": "diag_slow", "value": "Connection is fine but the site is slow. Wait or retry" },
+    { "name": "diag_btn_settings", "value": "Network settings" },
+    { "name": "diag_btn_wait", "value": "Keep waiting" },
+    { "name": "diag_btn_retry", "value": "Retry" },
+    { "name": "diag_settings_fail", "value": "Can't open system settings" }
   ]
 }

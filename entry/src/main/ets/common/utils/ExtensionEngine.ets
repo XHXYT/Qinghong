@@ -118,8 +118,13 @@ export class CrxTarget {
  */
 export class ExtensionEngine {
 
-  /** Chrome Web Store 更新端点内核版本号（与 ArkWeb M114 对齐） */
-  static readonly PROD_VERSION: string = '114.0.5735.196'
+  /**
+   * Chrome Web Store 更新端点声称的内核版本号：
+   * clients2 按 prodversion 与扩展 minimum_chrome_version 比对决定是否下发 CRX，
+   * 声称过老（如 ArkWeb M114 对齐的 114）时新 MV3 扩展会得到 204 空响应——
+   * 声称较新稳定版仅扩大可选范围（更新检查下限），不影响实际加载兼容性
+   */
+  static readonly PROD_VERSION: string = '138.0.7204.49'
 
   /** Chrome Web Store 首页 */
   static readonly CWS_HOME: string = 'https://chromewebstore.google.com/'

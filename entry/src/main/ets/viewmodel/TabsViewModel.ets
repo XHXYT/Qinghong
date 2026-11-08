@@ -1,7 +1,8 @@
 import { webview } from '@kit.ArkWeb';
 import { image } from '@kit.ImageKit';
+import { fileIo } from '@kit.CoreFileKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { QhState } from '../entryability/AppState';
+import { QhState, _QhState } from '../entryability/AppState';
 import { AppConstants } from '../common/constants/AppConstants';
 import { kvDbUtil } from '../common/utils/KVdbUtil';
 import { appSettings } from '../common/entity/SettingsModel';
@@ -14,6 +15,9 @@ import { VideoFullScreen } from '../common/utils/VideoFullScreen';
 import { WebHostedPlayerSession } from '../components/browser/WebHostedPlayer';
 
 const logger = createLogger('TabsViewModel')
+
+/** restoreWebState 数据上限（官方建议超 512KB 不恢复） */
+const MAX_WEB_STATE_BYTES = 512 * 1024
 
 /**
  * 会话序列化结构
@@ -89,6 +93,10 @@ export class TabInfo {
   nativeParam: string = ''
   /** 窗口内容快照（标签管理卡片缩略图；无痕标签恒为 null） */
   @Trace snapshot: image.PixelMap | null = null
+  /** 会话恢复的快照占位显示中（磁盘旧快照顶替加载中网页，onPageEnd/进度 100 撤下） */
+  @Trace showSnapshotPlaceholder: boolean = false
+  /** 快照待落盘（新截图后置脏，saveSession 时编码 PNG 写盘；非 UI 状态） */
+  snapshotDirty: boolean = false
   /** 打开本标签的标签 id（-1=无；返回键标签栈回退用，不持久化） */
   openerTabId: number = -1
   /** Web 控制器（非 UI 状态，不参与观察） */
@@ -117,6 +125,8 @@ export class TabsViewModel {
 
   private nextId: number = 1
   private saveTimer: number = -1
+  /** 待恢复的标签浏览历史栈（会话恢复时从磁盘读入，Web attach 时一次性消费） */
+  private pendingWebStates: Map<number, Uint8Array> = new Map()
   /** 标签管理覆盖层展示中（暂停主页整窗截图，避免把覆盖层截进快照） */
   homeSnapshotPaused: boolean = false
 
@@ -142,6 +152,7 @@ export class TabsViewModel {
    * 恢复上次会话（KV）：
    * - never：不恢复
    * - always：直接恢复
+   * - keep：上次标签留后台，启动新主页标签并激活
    * - ask：有网页态标签时弹窗询问
    * 失败或无会话则新建单标签主页
    */
@@ -210,13 +221,26 @@ export class TabsViewModel {
         }
       }
     }
+    // 回填磁盘快照：标签管理卡片预览 + 网页态标签加载完成前的占位显示
+    this.loadRestoredSnapshots(restored)
+    // 回填持久化浏览历史栈：Web 挂载时 restoreWebState 恢复前进/后退
+    this.loadPendingWebStates(restored)
+    // keep 模式：上次标签留后台，启动新主页标签并激活
+    if (appSettings.restore_mode === 'keep') {
+      const homeTab = this.newTab('', null, false)
+      if (homeTab) {
+        homeTab.openerTabId = -1
+      }
+    }
     logger.info('restoreSession', `恢复会话成功，标签数: ${restored.length}`)
   }
 
   /**
-   * 全新启动：单标签主页
+   * 全新启动：单标签主页（会话丢弃，磁盘快照一并清空）
    */
   private freshStart(): void {
+    this.clearSnapshotFiles()
+    this.clearWebStateFiles()
     this.tabs = []
     this.nextId = 1
     this.newTab('', null, false)
@@ -524,7 +548,18 @@ export class TabsViewModel {
    */
   captureActiveSnapshot(): void {
     const tab = this.activeTab
-    if (tab === null || tab.isIncognito) {
+    if (tab === null) {
+      return
+    }
+    this.captureTabSnapshot(tab)
+  }
+
+  /**
+   * 截取指定标签的窗口内容快照（仅活动标签：后台标签隐藏态截图为空）：
+   * 页面加载完成时由 TabWeb 调用，保证停留中的标签也有最新快照可落盘
+   */
+  captureTabSnapshot(tab: TabInfo): void {
+    if (tab.id !== this.activeTabId || tab.isIncognito) {
       return
     }
     if (tab.isHome && this.homeSnapshotPaused) {
@@ -540,7 +575,7 @@ export class TabsViewModel {
         this.shrinkSnapshot(tab, pm)
       })
       .catch((e: BusinessError) => {
-        logger.error('captureActiveSnapshot', `标签 ${tab.id} 截图失败: ${e.code} ${e.message}`)
+        logger.error('captureTabSnapshot', `标签 ${tab.id} 截图失败: ${e.code} ${e.message}`)
       })
   }
 
@@ -570,7 +605,8 @@ export class TabsViewModel {
   }
 
   /**
-   * 快照入库：替换旧快照并释放其原生内存；标签已关闭或已转无痕则直接释放
+   * 快照入库：替换旧快照并释放其原生内存；标签已关闭或已转无痕则直接释放；
+   * 新快照置脏并调度会话保存（停留中的标签不切走也要把最新快照落盘）
    */
   private storeSnapshot(tab: TabInfo, pm: image.PixelMap): void {
     if (!this.hasTab(tab.id) || tab.isIncognito) {
@@ -579,19 +615,38 @@ export class TabsViewModel {
     }
     const old = tab.snapshot
     tab.snapshot = pm
+    tab.snapshotDirty = true
     if (old !== null) {
       old.release()
     }
+    this.saveSessionDebounced()
   }
 
   /**
-   * 清理标签快照（回到主页/切换无痕等态变更时释放原生内存并回退卡片图标/URL 样式）
+   * 清理标签快照（回到主页/主页转网页/切换无痕等态变更时释放原生内存、删除磁盘快照并回退卡片图标/URL 样式）
    */
   private clearSnapshot(tab: TabInfo): void {
     const old = tab.snapshot
     tab.snapshot = null
+    tab.snapshotDirty = false
     if (old !== null) {
       old.release()
+    }
+    // 态已变更，磁盘上的旧快照一并删除（否则重启恢复会拿过期快照当占位）
+    this.deleteSnapshotFile(tab.id)
+  }
+
+  /**
+   * 删除标签磁盘快照文件（不存在时静默）
+   */
+  private deleteSnapshotFile(id: number): void {
+    try {
+      const path: string = `${_QhState.Context.cacheDir}/tab_snapshots/snap_${id}.png`
+      if (fileIo.accessSync(path)) {
+        fileIo.unlinkSync(path)
+      }
+    } catch (e) {
+      // 快照目录未就绪等场景：无需删除
     }
   }
 
@@ -609,7 +664,12 @@ export class TabsViewModel {
   /** 派发标签生命周期事件到扩展兼容层（chrome.tabs.onCreated/onUpdated/onActivated/onRemoved） */
   private emitTabEvent(event: string, tab: TabInfo | null): void {
     if (this.tabEventSink !== null && tab !== null) {
-      this.tabEventSink(event, tab)
+      // 纵深防御：sink 消费方任何异常都不得炸断 newTab/closeTab 等标签核心流程
+      try {
+        this.tabEventSink(event, tab)
+      } catch (e) {
+        logger.error('emitTabEvent', `标签事件派发失败(${event}): ${e}`)
+      }
     }
   }
 
@@ -704,6 +764,8 @@ export class TabsViewModel {
       toastUtil.showToast({ message: $r('app.string.tab_limit_reached') })
       return
     }
+    // 快照文件可能已被上次会话保存清理，重新置脏落盘
+    tab.snapshotDirty = true
     this.tabs.push(tab)
     this.activeTabId = tab.id
     this.emitTabEvent('created', tab)
@@ -782,8 +844,333 @@ export class TabsViewModel {
       kvDbUtil.putData(AppConstants.KV_KEY_SESSION, JSON.stringify(session)).catch((e: Object) => {
         logger.error('saveSession', `会话保存失败: ${e}`)
       })
+      // 快照落盘：脏快照写 PNG + 清理已关闭标签的快照文件
+      this.persistSnapshots()
+      // 历史栈落盘：serializeWebState → state_<id>.bin + 清理已关闭标签的状态文件
+      this.persistWebStates()
     } catch (e) {
       logger.error('saveSession', `会话序列化失败: ${e}`)
+    }
+  }
+
+  /**
+   * 立即冲刷会话（取消挂起的防抖直接落盘；onBackground 时调用保崩溃恢复新鲜度）
+   */
+  flushSession(): void {
+    if (this.saveTimer >= 0) {
+      clearTimeout(this.saveTimer)
+      this.saveTimer = -1
+    }
+    this.saveSession()
+  }
+
+  /**
+   * 会话恢复后 Web attach 时一次性消费该标签的持久化历史栈
+   * （恢复后重挂载/普通运行期重挂载均无缓冲，不会重复恢复旧历史）
+   */
+  consumePendingWebState(tabId: number): Uint8Array | null {
+    const st: Uint8Array | undefined = this.pendingWebStates.get(tabId)
+    if (st === undefined) {
+      return null
+    }
+    this.pendingWebStates.delete(tabId)
+    return st
+  }
+
+  /**
+   * 快照缓存目录（cacheDir/tab_snapshots，不存在则创建；失败返回 ''）
+   */
+  private ensureSnapshotDir(): string {
+    try {
+      const dir: string = `${_QhState.Context.cacheDir}/tab_snapshots`
+      if (!fileIo.accessSync(dir)) {
+        fileIo.mkdirSync(dir)
+      }
+      return dir
+    } catch (e) {
+      logger.error('ensureSnapshotDir', `快照目录创建失败: ${e}`)
+      return ''
+    }
+  }
+
+  /**
+   * 快照落盘：脏快照编码 PNG 写入缓存目录；
+   * 同时删除已不在会话中的标签快照文件（关闭标签后回收）
+   */
+  private persistSnapshots(): void {
+    const dir: string = this.ensureSnapshotDir()
+    if (dir === '') {
+      return
+    }
+    const validIds: Set<number> = new Set<number>()
+    for (const t of this.tabs) {
+      if (t.isIncognito || t.viewSourceHtml !== '' || t.nativeView !== '') {
+        continue
+      }
+      validIds.add(t.id)
+      if (t.snapshot !== null && t.snapshotDirty) {
+        t.snapshotDirty = false
+        this.writeSnapshotFile(dir, t)
+      }
+    }
+    try {
+      const names: string[] = fileIo.listFileSync(dir)
+      for (const name of names) {
+        if (!name.startsWith('snap_') || !name.endsWith('.png')) {
+          continue
+        }
+        const id: number = Number(name.substring(5, name.length - 4))
+        if (!validIds.has(id)) {
+          fileIo.unlinkSync(`${dir}/${name}`)
+        }
+      }
+    } catch (e) {
+      logger.error('persistSnapshots', `快照文件清理失败: ${e}`)
+    }
+  }
+
+  /**
+   * 单标签快照编码 PNG 落盘（异步；期间标签已关闭/转无痕则放弃写入）
+   */
+  private writeSnapshotFile(dir: string, tab: TabInfo): void {
+    const pm: image.PixelMap | null = tab.snapshot
+    if (pm === null) {
+      return
+    }
+    let packer: image.ImagePacker | null = null
+    try {
+      packer = image.createImagePacker()
+      packer.packToData(pm, { format: 'image/png', quality: 80 })
+        .then((buf: ArrayBuffer): void => {
+          if (packer !== null) {
+            packer.release()
+          }
+          if (!this.hasTab(tab.id) || tab.isIncognito) {
+            return
+          }
+          const bytes: Uint8Array = new Uint8Array(buf)
+          const file: fileIo.File = fileIo.openSync(`${dir}/snap_${tab.id}.png`,
+            fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+          fileIo.writeSync(file.fd, bytes.buffer, { length: bytes.byteLength })
+          fileIo.closeSync(file)
+        })
+        .catch((e: BusinessError): void => {
+          if (packer !== null) {
+            packer.release()
+          }
+          logger.error('writeSnapshotFile', `标签 ${tab.id} 快照编码失败: ${e.code} ${e.message}`)
+        })
+    } catch (e) {
+      if (packer !== null) {
+        packer.release()
+      }
+      logger.error('writeSnapshotFile', `标签 ${tab.id} 快照落盘异常: ${e}`)
+    }
+  }
+
+  /**
+   * 回填恢复标签的磁盘快照（标签管理卡片预览）；
+   * 网页态标签置占位显示：加载完成前旧快照顶替白屏
+   */
+  private loadRestoredSnapshots(restored: TabInfo[]): void {
+    const dir: string = this.ensureSnapshotDir()
+    if (dir === '') {
+      return
+    }
+    for (const t of restored) {
+      const path: string = `${dir}/snap_${t.id}.png`
+      if (!fileIo.accessSync(path)) {
+        continue
+      }
+      try {
+        const source: image.ImageSource = image.createImageSource(path)
+        source.createPixelMap()
+          .then((pm: image.PixelMap): void => {
+            source.release()
+            if (!this.hasTab(t.id) || t.snapshot !== null) {
+              pm.release()
+              return
+            }
+            t.snapshot = pm
+            if (!t.isHome) {
+              t.showSnapshotPlaceholder = true
+            }
+          })
+          .catch((e: BusinessError): void => {
+            source.release()
+            logger.error('loadRestoredSnapshots', `标签 ${t.id} 快照读取失败: ${e.code} ${e.message}`)
+          })
+      } catch (e) {
+        logger.error('loadRestoredSnapshots', `标签 ${t.id} 快照源创建失败: ${e}`)
+      }
+    }
+  }
+
+  /**
+   * 清空磁盘快照文件（会话丢弃：never/ask 拒绝/无会话时调用）
+   */
+  private clearSnapshotFiles(): void {
+    try {
+      const dir: string = `${_QhState.Context.cacheDir}/tab_snapshots`
+      if (!fileIo.accessSync(dir)) {
+        return
+      }
+      const names: string[] = fileIo.listFileSync(dir)
+      for (const name of names) {
+        fileIo.unlinkSync(`${dir}/${name}`)
+      }
+    } catch (e) {
+      logger.error('clearSnapshotFiles', `快照清理失败: ${e}`)
+    }
+  }
+
+  /**
+   * 历史栈缓存目录（cacheDir/web_states，不存在则创建；失败返回 ''）
+   */
+  private ensureWebStateDir(): string {
+    try {
+      const dir: string = `${_QhState.Context.cacheDir}/web_states`
+      if (!fileIo.accessSync(dir)) {
+        fileIo.mkdirSync(dir)
+      }
+      return dir
+    } catch (e) {
+      logger.error('ensureWebStateDir', `历史栈目录创建失败: ${e}`)
+      return ''
+    }
+  }
+
+  /**
+   * 浏览历史栈落盘（saveSession 时随会话一起持久化）：
+   * - 网页态且控制器可序列化 → serializeWebState 写 state_<id>.bin（超 512KB 丢弃）
+   * - 主页态/序列化失败 → 清残留文件，防旧历史与当前会话地址错配；
+   *   会话恢复后尚未挂载的标签例外：回写待恢复缓冲，保持与会话 URL 配对
+   * - 同时清理已不在会话中的标签状态文件（关闭标签后回收）
+   */
+  private persistWebStates(): void {
+    const dir: string = this.ensureWebStateDir()
+    if (dir === '') {
+      return
+    }
+    const validIds: Set<number> = new Set<number>()
+    for (const t of this.tabs) {
+      if (t.isIncognito || t.viewSourceHtml !== '' || t.nativeView !== '') {
+        continue
+      }
+      validIds.add(t.id)
+      const path: string = `${dir}/state_${t.id}.bin`
+      if (t.isHome) {
+        this.deleteWebStateFile(path)
+        continue
+      }
+      if (t.controller !== null) {
+        try {
+          const st: Uint8Array = (t.controller as webview.WebviewController).serializeWebState()
+          if (st.byteLength > 0 && st.byteLength <= MAX_WEB_STATE_BYTES) {
+            this.writeWebStateFile(path, st)
+          } else {
+            this.deleteWebStateFile(path)
+          }
+          continue
+        } catch (e) {
+          // 17100001 controller 未关联 Web 组件：按未挂载处理
+        }
+      }
+      // 未挂载 / 序列化失败：有缓冲回写缓冲，否则清残留
+      const pending: Uint8Array | undefined = this.pendingWebStates.get(t.id)
+      if (pending !== undefined) {
+        this.writeWebStateFile(path, pending)
+      } else {
+        this.deleteWebStateFile(path)
+      }
+    }
+    try {
+      const names: string[] = fileIo.listFileSync(dir)
+      for (const name of names) {
+        if (!name.startsWith('state_') || !name.endsWith('.bin')) {
+          continue
+        }
+        const id: number = Number(name.substring(6, name.length - 4))
+        if (!validIds.has(id)) {
+          fileIo.unlinkSync(`${dir}/${name}`)
+        }
+      }
+    } catch (e) {
+      logger.error('persistWebStates', `历史栈文件清理失败: ${e}`)
+    }
+  }
+
+  /** 单个历史栈文件落盘（整字节覆盖写） */
+  private writeWebStateFile(path: string, bytes: Uint8Array): void {
+    try {
+      const file: fileIo.File = fileIo.openSync(path,
+        fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+      fileIo.writeSync(file.fd, bytes.buffer, { length: bytes.byteLength })
+      fileIo.closeSync(file)
+    } catch (e) {
+      logger.error('writeWebStateFile', `历史栈落盘失败: ${e}`)
+    }
+  }
+
+  /** 删除单个历史栈文件（不存在静默） */
+  private deleteWebStateFile(path: string): void {
+    try {
+      if (fileIo.accessSync(path)) {
+        fileIo.unlinkSync(path)
+      }
+    } catch (e) {
+      logger.error('deleteWebStateFile', `历史栈文件删除失败: ${e}`)
+    }
+  }
+
+  /**
+   * 恢复标签的持久化历史栈读入待消费缓冲（restoreSession 时调用；
+   * Web attach 时 consumePendingWebState 消费，restoreWebState 恢复前进/后退）
+   */
+  private loadPendingWebStates(restored: TabInfo[]): void {
+    const dir: string = this.ensureWebStateDir()
+    if (dir === '') {
+      return
+    }
+    for (const t of restored) {
+      if (t.isHome) {
+        continue
+      }
+      const path: string = `${dir}/state_${t.id}.bin`
+      try {
+        if (!fileIo.accessSync(path)) {
+          continue
+        }
+        const stat: fileIo.Stat = fileIo.statSync(path)
+        if (stat.size <= 0 || stat.size > MAX_WEB_STATE_BYTES) {
+          continue
+        }
+        const file: fileIo.File = fileIo.openSync(path, fileIo.OpenMode.READ_ONLY)
+        const buf: ArrayBuffer = new ArrayBuffer(stat.size)
+        fileIo.readSync(file.fd, buf)
+        fileIo.closeSync(file)
+        this.pendingWebStates.set(t.id, new Uint8Array(buf))
+      } catch (e) {
+        logger.error('loadPendingWebStates', `标签 ${t.id} 历史栈读取失败: ${e}`)
+      }
+    }
+  }
+
+  /**
+   * 清空磁盘历史栈文件（会话丢弃：never/ask 拒绝/无会话时与快照一并清理）
+   */
+  private clearWebStateFiles(): void {
+    try {
+      const dir: string = `${_QhState.Context.cacheDir}/web_states`
+      if (!fileIo.accessSync(dir)) {
+        return
+      }
+      const names: string[] = fileIo.listFileSync(dir)
+      for (const name of names) {
+        fileIo.unlinkSync(`${dir}/${name}`)
+      }
+    } catch (e) {
+      logger.error('clearWebStateFiles', `历史栈清理失败: ${e}`)
     }
   }
 }

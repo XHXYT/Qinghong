@@ -1577,6 +1577,100 @@ document.addEventListener('click', onCapture, true);
   }
 
   /**
+   * Chrome Web Store「添加至Chrome」按钮原位接管（替代右下角浮层）：
+   * 新版 CWS（chromewebstore.google.com，WizJS SPA）详情页原生安装按钮在非 Chrome 浏览器
+   * 点击无响应——捕获阶段拦截 + 文案改写为「安装」，转原生直装（extStoreInstall →
+   * installFromUrl，官方 clients2.google.com CRX 链路）。关键点：
+   * - 文案匹配（去空白小写、长度 ≤40 前缀匹配）：添加至Chrome/添加到Chrome/Add to Chrome；
+   * - 扫描命中后改写最深层匹配文本（descendant 优先、容器兜底）为安装文案，
+   *   记 __qhCwsBtn 引用并置 __qhCwsOk=true 收起右下角浮层（buildStoreInstallJs 显隐条件）；
+   *   800ms 轮询重应用（WizJS 重渲染还原文案后重写；SPA 换页节点失联后重新扫描）；
+   * - 点击拦截：命中改写节点（引用等价或包含关系）或原文案匹配（未改写兜底）时
+   *   preventDefault + stopPropagation（先于 WizJS 根节点合成事件派发），4 秒 busy 防重复；
+   * - 双重守卫：hostname（chromewebstore.google.com / chrome.google.com 旧域）+ 详情页路由 /detail/；
+   * - 安装 URL 用 location.href（含 32 位扩展 ID）；未扫到按钮时浮层兜底，点击拦截仍生效；
+   * - document 捕获监听常驻，SPA 路由切换无需重挂
+   * @param label 按钮改写文案（安装）
+   */
+  static buildCwsInstallJs(label: string): string {
+    return `(function(){
+if (window.__qhCwsHook) { return; }
+window.__qhCwsHook = true;
+var LABEL = ${JSON.stringify(label)};
+function supported() {
+  if (!/(^|\\.)chromewebstore\\.google\\.com$/i.test(location.hostname)
+    && !/(^|\\.)chrome\\.google\\.com$/i.test(location.hostname)) { return false; }
+  return /\\/detail\\//.test(location.pathname);
+}
+function norm(s) {
+  s = s || '';
+  if (s.length > 40) { return ''; }
+  return s.replace(/\\s+/g, '').toLowerCase();
+}
+function matchLabel(n) {
+  return n !== '' && (n.indexOf('添加至chrome') === 0
+    || n.indexOf('添加到chrome') === 0
+    || n.indexOf('addtochrome') === 0);
+}
+function matchEl(el) {
+  return matchLabel(norm(el.getAttribute('aria-label'))) || matchLabel(norm(el.textContent));
+}
+function deepestMatch(el) {
+  var kids = el.querySelectorAll('*');
+  for (var i = 0; i < kids.length; i++) {
+    var t = kids[i].textContent || '';
+    if (t.length <= 40 && matchLabel(norm(t))) { return kids[i]; }
+  }
+  var tt = el.textContent || '';
+  return (tt.length <= 40 && matchLabel(norm(tt))) ? el : null;
+}
+function applyBtn(el) {
+  var t = deepestMatch(el);
+  if (t === null) { return; }
+  if (t.textContent !== LABEL) { t.textContent = LABEL; }
+  window.__qhCwsBtn = t;
+  window.__qhCwsOk = true;
+}
+function onCapture(ev) {
+  if (!supported()) { return; }
+  var t = ev.target;
+  var el = (t && t.closest) ? t.closest('button,[role="button"]') : null;
+  if (el === null) { return; }
+  var ref = window.__qhCwsBtn;
+  var hit = matchEl(el) || (ref !== undefined && ref !== null
+    && (ref === el || ref.contains(el) || el.contains(ref)));
+  if (!hit) { return; }
+  ev.preventDefault();
+  ev.stopPropagation();
+  if (el.__qhBusy) { return; }
+  el.__qhBusy = true;
+  setTimeout(function() { el.__qhBusy = false; }, 4000);
+  try {
+    var n = window.__qhNative;
+    if (n && n.gmRequest) {
+      n.gmRequest('extStoreInstall', JSON.stringify({ url: location.href }));
+    }
+  } catch (e) { console.warn('[qh cws] install', e); }
+}
+var timer = setInterval(function() {
+  if (!supported()) { return; }
+  var ref = window.__qhCwsBtn;
+  if (ref !== undefined && ref !== null && ref.isConnected) {
+    if (ref.textContent !== LABEL) { ref.textContent = LABEL; }
+    window.__qhCwsOk = true;
+    return;
+  }
+  var els = document.querySelectorAll('button,[role="button"]');
+  for (var i = 0; i < els.length; i++) {
+    if (matchEl(els[i])) { applyBtn(els[i]); return; }
+  }
+}, 800);
+document.addEventListener('click', onCapture, true);
+})();
+`;
+  }
+
+  /**
    * Edge Add-ons"获取"按钮原位替换：
    * 页面原生灰色"获取/Get"按钮（非 Edge 浏览器下 disabled/pointer-events:none 不可点）
    * 改写为安装按钮——样式对齐商店直装浮层、点击经 extStoreInstall 走原生安装。关键点：

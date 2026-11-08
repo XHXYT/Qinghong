@@ -1,4 +1,4 @@
-import { AbilityConstant, common, Configuration, UIAbility, Want } from '@kit.AbilityKit';
+import { AbilityConstant, common, Configuration, EnvironmentCallback, UIAbility, Want } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { AvoidanceManager, SmartAvoidance } from '../common/utils/AvoidManager';
@@ -21,6 +21,7 @@ import { createLogger } from '../common/utils/Logger';
 import { siteSettingsVM } from '../viewmodel/SiteSettingsViewModel';
 import { hostsVM } from '../viewmodel/HostsViewModel';
 import { DnsUtils } from '../common/utils/DnsUtils';
+import { tabsVM } from '../viewmodel/TabsViewModel';
 import { scriptVM } from '../viewmodel/ScriptViewModel';
 import { extensionVM } from '../viewmodel/ExtensionViewModel';
 import { ShortcutViewModel } from '../viewmodel/ShortcutViewModel';
@@ -35,6 +36,15 @@ export default class EntryAbility extends UIAbility {
   private avoidManager: AvoidanceManager | undefined = undefined;
   /** 后台已暂停网页定时器标记（仅恢复本应用主动暂停的状态） */
   private webTimersPaused: boolean = false;
+  /** 系统环境（内存压力）监听 ID，onDestroy 注销用 */
+  private envCallbackId: number = -1;
+  private envCallback: EnvironmentCallback = {
+    onConfigurationUpdated: (_config: Configuration): void => {
+    },
+    onMemoryLevel: (level: AbilityConstant.MemoryLevel): void => {
+      this.trimWebMemory(level)
+    }
+  }
   private avoidListener: (avoidance: SmartAvoidance) => void = (newAvoidance) => {
     QhState.bottomRectHeight = newAvoidance.bottom
     QhState.topRectHeight = newAvoidance.top
@@ -43,6 +53,12 @@ export default class EntryAbility extends UIAbility {
   }
 
   async onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): Promise<void> {
+    // 冷启动：记录外部拉起的链接，Index 恢复会话后消费。
+    // 必须在首个 await 之前执行：onCreate 为 async 且生命周期不等待其完成，
+    // await 期间 onWindowStageCreate/loadContent 会先行触发 Index 注册处理器并
+    // 进入 restoreSession；届时再捕获会把 URL 交给处理器在恢复中途建标签，
+    // 随后 restoreSession 的 this.tabs = restored 会把该标签整体抹掉（外链丢失）
+    this.captureExternalUrl(want)
     // 扩展自定义协议注册：必须在 Web 引擎初始化前（首个 Web 组件创建前）执行
     try {
       webview.WebviewController.customizeSchemes([{
@@ -66,8 +82,12 @@ export default class EntryAbility extends UIAbility {
     // 旧版散放在 files 根目录的快捷方式图标迁入专门文件夹
     ShortcutViewModel.migrateLegacyIcons();
     ShortcutViewModel.cleanOrphanIcons();
-    // 冷启动：记录外部拉起的链接，Index 恢复会话后消费
-    this.captureExternalUrl(want)
+    // 订阅系统内存压力（联动 ArkWeb trimMemory 按压释放缓存）
+    try {
+      this.envCallbackId = this.context.getApplicationContext().on('environment', this.envCallback)
+    } catch (error) {
+      logger.error('Init', `register environment callback failed: ${error}`)
+    }
   }
 
   onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
@@ -99,6 +119,9 @@ export default class EntryAbility extends UIAbility {
   }
 
   onDestroy(): void {
+    if (this.envCallbackId !== -1) {
+      this.context.getApplicationContext().off('environment', this.envCallbackId)
+    }
     syncVM.destroy()
     // 退出时清除数据（按「退出时清除数据」设置项执行）
     try {
@@ -198,14 +221,34 @@ export default class EntryAbility extends UIAbility {
 
   onBackground(): void {
     logger.info('Lifecycle', 'EntryAbility onBackground');
+    // 退后台立即冲刷会话（含浏览历史栈）：进程被杀/崩溃后恢复最新状态
+    tabsVM.flushSession();
     // 后台暂停全部网页 JS 定时器（省电，回前台恢复）
     if (appSettings.pause_web_timers && !this.webTimersPaused) {
       this.webTimersPaused = true
       try {
         webview.WebviewController.pauseAllTimers()
       } catch (error) {
-        logger.error('Lifecycle', `pauseAllTimers failed: ${error}`)
+        logger.error('Lifecycle', `pauseAllTimers failed, ${error}`)
       }
+    }
+  }
+
+  /**
+   * 系统内存压力联动：按压力等级让 ArkWeb 内核释放缓存（static，作用于全部 Web 实例）
+   * LOW → MODERATE 裁剪（释放低代价缓存）；CRITICAL → CRITICAL 裁剪（释放全部可释放内存）
+   */
+  private trimWebMemory(level: AbilityConstant.MemoryLevel): void {
+    try {
+      if (level === AbilityConstant.MemoryLevel.MEMORY_LEVEL_LOW) {
+        webview.WebviewController.trimMemoryByPressureLevel(webview.PressureLevel.MEMORY_PRESSURE_LEVEL_MODERATE)
+        logger.info('Memory', '系统内存 LOW，ArkWeb 执行 MODERATE 裁剪')
+      } else if (level === AbilityConstant.MemoryLevel.MEMORY_LEVEL_CRITICAL) {
+        webview.WebviewController.trimMemoryByPressureLevel(webview.PressureLevel.MEMORY_PRESSURE_LEVEL_CRITICAL)
+        logger.info('Memory', '系统内存 CRITICAL，ArkWeb 执行 CRITICAL 裁剪')
+      }
+    } catch (error) {
+      logger.error('Memory', `trimMemoryByPressureLevel failed, ${error}`)
     }
   }
 

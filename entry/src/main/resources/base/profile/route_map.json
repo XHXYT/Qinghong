@@ -56,6 +56,11 @@
       "buildFunction": "PrivacyReportBuilder"
     },
     {
+      "name": "settings_itp_bypass",
+      "pageSourceFile": "src/main/ets/view/settings/general/ItpBypassPage.ets",
+      "buildFunction": "ItpBypassBuilder"
+    },
+    {
       "name": "settings_website_data",
       "pageSourceFile": "src/main/ets/view/settings/general/WebsiteDataPage.ets",
       "buildFunction": "WebsiteDataBuilder"

@@ -246,17 +246,38 @@ struct ExtensionPage {
         ForEach(extensionVM.extensions, (e: ExtensionInfo, index: number) => {
           ListItem() {
             Column() {
-              Text(e.name)
-                .fontSize(15)
-                .fontWeight(FontWeight.Medium)
-              if (e.description !== '') {
-                Text(e.description)
-                  .fontSize(12)
-                  .fontColor($r('sys.color.font_secondary'))
-                  .maxLines(2)
-                  .textOverflow({ overflow: TextOverflow.Ellipsis })
-                  .margin({ top: 2 })
+              Row({ space: 12 }) {
+                if (extensionVM.iconPathOf(e) !== '') {
+                  Image(`file://${extensionVM.iconPathOf(e)}`)
+                    .width(40)
+                    .height(40)
+                    .borderRadius(10)
+                    .objectFit(ImageFit.Contain)
+                } else {
+                  SymbolGlyph($r('sys.symbol.puzzle'))
+                    .fontSize(34)
+                    .fontColor([$r('sys.color.font_secondary')])
+                    .width(40)
+                    .height(40)
+                }
+                Column() {
+                  Text(e.name)
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Medium)
+                  if (e.description !== '') {
+                    Text(e.description)
+                      .fontSize(12)
+                      .fontColor($r('sys.color.font_secondary'))
+                      .maxLines(2)
+                      .textOverflow({ overflow: TextOverflow.Ellipsis })
+                      .margin({ top: 2 })
+                  }
+                }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
               }
+              .width('100%')
+              .alignItems(VerticalAlign.Top)
               Row() {
                 Text(`v${e.version} · MV${e.manifestVersion}`)
                   .fontSize(12)

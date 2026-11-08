@@ -126,6 +126,9 @@ export class ExtensionViewModel {
   /** 进行中的安装任务（防并发重入） */
   private installing: boolean = false
 
+  /** 商店直装全流程进行中（含下载阶段；防连点并发互相顶掉） */
+  private storeInstalling: boolean = false
+
   constructor() {
     // 标签生命周期事件源挂钩：TabsViewModel → chrome.tabs.onCreated/onUpdated/onActivated/onRemoved
     tabsVM.tabEventSink = (event: string, tab: TabInfo): void => {
@@ -166,6 +169,7 @@ export class ExtensionViewModel {
   async installFromUrl(url: string, extIdHint: string = ''): Promise<boolean> {
     const target: CrxTarget = ExtensionEngine.resolveCrxUrl(url)
     if (target.crxUrl === '') {
+      logger.warn(`installFromUrl: 无法解析 CRX 下载链接: ${url}`)
       return false
     }
     const bytes: Uint8Array | null = await this.downloadBytes(target.crxUrl)
@@ -366,7 +370,12 @@ export class ExtensionViewModel {
         try {
           await HttpDownloader.downloadToFile(url, tmpPath, opts)
           const size: number = fileIo.statSync(tmpPath).size
-          if (size <= 0 || size > 50 * 1024 * 1024) {
+          if (size <= 0) {
+            // clients2 在扩展不可用或 prodversion 低于扩展要求时回 204 空响应
+            logger.warn(`downloadBytes 空响应: ${url}`)
+            return null
+          }
+          if (size > 50 * 1024 * 1024) {
             logger.warn(`downloadBytes 超限: ${url}`)
             return null
           }
@@ -1389,8 +1398,14 @@ export class ExtensionViewModel {
     const js: string = `window.__qhFireTabEvent && window.__qhFireTabEvent(${JSON.stringify(name)}, `
       + `${JSON.stringify(argsJson)});`
     this.bgHosts.forEach((c: webview.WebviewController): void => {
-      c.runJavaScript(js).catch((): void => {
-      })
+      // 宿主 aboutToAppear 注册早于 Web 组件绑定，未绑定 controller 的 runJavaScript 会同步抛
+      // 17100001（.catch 只能接异步拒绝），必须 try/catch 防止炸断标签创建/关闭等核心流程
+      try {
+        c.runJavaScript(js).catch((): void => {
+        })
+      } catch (e) {
+        logger.warn(`fireTabEvent runJavaScript 失败(${name}): ${e}`)
+      }
     })
   }
 
@@ -1434,8 +1449,11 @@ export class ExtensionViewModel {
       return this.crxsosoCodeCache
     }
     if (this.storeCodeCache === '') {
-      this.storeCodeCache = ChromeShim.buildStoreInstallJs(
-        ResourceUtils.getString($r('app.string.ext_store_install')))
+      // CWS：原位改写「添加至Chrome」为「安装」并拦截点击，未扫到页面按钮时浮层兜底
+      this.storeCodeCache = ChromeShim.buildCwsInstallJs(
+        ResourceUtils.getString($r('app.string.ext_store_install_short')))
+        + ChromeShim.buildStoreInstallJs(
+          ResourceUtils.getString($r('app.string.ext_store_install')), '!window.__qhCwsOk')
     }
     return this.storeCodeCache
   }
@@ -1451,18 +1469,32 @@ export class ExtensionViewModel {
     return JSON.stringify(ids)
   }
 
-  /** 商店页直装（浮层按钮 → extStoreInstall）：Toast 进度反馈，CRX 下载安装复用 installFromUrl */
+  /** 商店页直装（商店按钮 → extStoreInstall）：Toast 进度反馈，CRX 下载安装复用 installFromUrl */
   extStoreInstall(json: string): void {
     try {
       const raw: ExtStoreInstallRaw = JSON.parse(json) as ExtStoreInstallRaw
       if (raw.url === '') {
         return
       }
+      // 全流程串行（含下载阶段）：进行中提示等待而非报失败，防连点并发互相顶掉
+      if (this.storeInstalling) {
+        toastUtil.showToast({ message: ResourceUtils.getString($r('app.string.ext_installing')) })
+        return
+      }
+      this.storeInstalling = true
       toastUtil.showToast({ message: ResourceUtils.getString($r('app.string.ext_installing')) })
       const hint: string = typeof raw.extId === 'string' ? raw.extId : ''
       this.installFromUrl(raw.url, hint).then((ok: boolean): void => {
+        if (!ok) {
+          logger.warn(`extStoreInstall 失败: url=${raw.url}`)
+        }
         const res: Resource = ok ? $r('app.string.ext_install_success') : $r('app.string.ext_install_fail')
         toastUtil.showToast({ message: ResourceUtils.getString(res) })
+      }).catch((e: BusinessError): void => {
+        logger.warn(`extStoreInstall 异常: ${e.message}`)
+        toastUtil.showToast({ message: ResourceUtils.getString($r('app.string.ext_install_fail')) })
+      }).finally((): void => {
+        this.storeInstalling = false
       })
     } catch (e) {
       logger.warn(`extStoreInstall: ${e}`)

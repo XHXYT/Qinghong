@@ -107,6 +107,8 @@ export class WebScripts {
   /**
    * 操作栏自动隐藏脚本（文档加载前注入，常驻）：
    * 1. 滑动模式：页面上滑（内容下滚）上报隐藏、下滑上报显示（capture 捕获内部滚动容器）；
+   *    每次显隐切换后 400ms 静默窗（覆盖 250ms 动画）：吸收高度变化引发的滚动锚定反向调整，
+   *    防止合成滚动事件形成显隐振荡（sticky 头部重页面滚动回弹的根因）；
    * 2. 点击模式：点击非交互元素（非链接/按钮/输入等）上报切换；
    * 模式是否生效由原生侧 __qhNative 回调按设置判定
    */
@@ -115,10 +117,12 @@ export class WebScripts {
       script: "try{(function(){" +
         "if(window.__qhActionBarBound){return}window.__qhActionBarBound=true;" +
         "var lastY=window.scrollY||0;" +
+        "var muteUntil=0;" +
         "window.addEventListener('scroll',function(ev){" +
         "var y=window.scrollY||document.documentElement.scrollTop||0;" +
-        "if(y>lastY+4&&y>10){__qhNative.actionBarScroll(true)}" +
-        "else if(y<lastY-4){__qhNative.actionBarScroll(false)}" +
+        "if(Date.now()<muteUntil){lastY=y;return}" +
+        "if(y>lastY+4&&y>10){__qhNative.actionBarScroll(true);muteUntil=Date.now()+400}" +
+        "else if(y<lastY-4){__qhNative.actionBarScroll(false);muteUntil=Date.now()+400}" +
         "lastY=y;},true);" +
         "document.addEventListener('click',function(ev){" +
         "var t=ev.target;" +

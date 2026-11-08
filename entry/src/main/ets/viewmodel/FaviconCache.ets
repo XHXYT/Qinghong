@@ -139,6 +139,25 @@ async function downloadIcon(url: string, savePath: string): Promise<boolean> {
   }
 }
 
+/** 读 PNG IHDR 最长边（非 PNG/读失败返回 -1） */
+function pngSizeOf(path: string): number {
+  try {
+    const file: fileIo.File = fileIo.openSync(path, fileIo.OpenMode.READ_ONLY)
+    const buf: ArrayBuffer = new ArrayBuffer(24)
+    fileIo.readSync(file.fd, buf)
+    fileIo.closeSync(file)
+    const b: Uint8Array = new Uint8Array(buf)
+    if (b[0] !== 0x89 || b[1] !== 0x50) {
+      return -1
+    }
+    const w: number = b[16] * 16777216 + b[17] * 65536 + b[18] * 256 + b[19]
+    const h: number = b[20] * 16777216 + b[21] * 65536 + b[22] * 256 + b[23]
+    return Math.max(w, h)
+  } catch (e) {
+    return -1
+  }
+}
+
 /**
  * 尝试抓取网站自身图标：
  * 站点 HTML link 解析（apple-touch-icon 优先）+ /favicon.ico 兜底；
@@ -224,6 +243,10 @@ export class FaviconCache {
   private cached: Set<string> = new Set<string>()
   /** 抓取中的 host，防重复请求 */
   private pending: Set<string> = new Set<string>()
+  /** 本次会话已缓存高清图标（apple-touch-icon）的 host，防重复下载 */
+  private touchHosts: Set<string> = new Set<string>()
+  /** touch icon 候选队列（host → URL 集合）：站点常按 60/76/120/152 多尺寸声明，内核逐个上报 */
+  private touchQueue: Map<string, Set<string>> = new Map<string, Set<string>>()
   /** 缓存写入计数：读取方（build 内 has()）依赖此属性，自增后触发刷新 */
   @Trace version: number = 0
 
@@ -279,6 +302,10 @@ export class FaviconCache {
           if (packer !== null) {
             packer.release()
           }
+          // 编码期间其他来源（touch icon/懒加载）已写入缓存时不让低清 favicon 回写覆盖
+          if (this.cached.has(host)) {
+            return
+          }
           const bytes: Uint8Array = new Uint8Array(buf)
           const file: fileIo.File = fileIo.openSync(savePath,
             fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
@@ -325,6 +352,91 @@ export class FaviconCache {
     }
   }
 
+  /**
+   * 页面加载回调报出的 apple-touch-icon URL：收集同 host 全部候选后逐个下载，
+   * 保留最大者入缓存（替代低清 favicon，书签/桌面快捷方式展示更清晰）；
+   * 会话内同 host 只跑一轮，迟到候选下次回调时补跑
+   */
+  saveTouchIconUrl(host: string, iconUrl: string): void {
+    if (host === '') {
+      return
+    }
+    if (!iconUrl.startsWith('http://') && !iconUrl.startsWith('https://')) {
+      return
+    }
+    const existing: Set<string> | undefined = this.touchQueue.get(host)
+    let queue: Set<string>
+    if (existing === undefined) {
+      queue = new Set<string>()
+      this.touchQueue.set(host, queue)
+    } else {
+      queue = existing
+    }
+    if (queue.size < 6) {
+      queue.add(iconUrl)
+    }
+    if (this.touchHosts.has(host)) {
+      // 本会话已跑过：处理中静默入队即可，已结束则补跑迟到候选
+      if (!this.pending.has(host)) {
+        this.processTouchQueue(host)
+      }
+      return
+    }
+    if (this.pending.has(host)) {
+      // 懒加载抓取进行中，本轮让位（下页加载自然接管）
+      return
+    }
+    this.touchHosts.add(host)
+    this.processTouchQueue(host)
+  }
+
+  /** 顺序下载候选队列，取最长边最大者入缓存；期间新到的候选下一轮循环继续处理 */
+  private async processTouchQueue(host: string): Promise<void> {
+    this.pending.add(host)
+    try {
+      let guard: number = 0
+      while (guard < 12) {
+        guard++
+        const queue: Set<string> | undefined = this.touchQueue.get(host)
+        if (queue === undefined || queue.size === 0) {
+          break
+        }
+        const urls: string[] = []
+        queue.forEach((u: string): void => {
+          urls.push(u)
+        })
+        queue.clear()
+        const cachePath: string = this.pathOf(host)
+        for (const url of urls) {
+          const tmpPath: string = `${cachePath}.tmp`
+          try {
+            if (await downloadIcon(url, tmpPath)) {
+              const newSize: number = pngSizeOf(tmpPath)
+              if (newSize > pngSizeOf(cachePath)) {
+                fileIo.copyFileSync(tmpPath, cachePath)
+                this.cached.add(host)
+                this.version++
+                console.info(`[FaviconCache] 已缓存 touch icon host=${host} ${newSize}px`)
+              }
+            }
+          } catch (e) {
+            console.error(`[FaviconCache] touch icon 候选处理失败 host=${host}: ${e}`)
+          } finally {
+            try {
+              if (fileIo.accessSync(tmpPath)) {
+                fileIo.unlinkSync(tmpPath)
+              }
+            } catch (e) {
+              // 临时文件清理失败可忽略
+            }
+          }
+        }
+      }
+    } finally {
+      this.pending.delete(host)
+    }
+  }
+
   /** 清空全部 favicon 缓存（主页定制「清除图标」；书签页图标会按需重新抓取） */
   clearAll(): void {
     this.ensureDir()
@@ -335,6 +447,8 @@ export class FaviconCache {
       }
       this.cached.clear()
       this.pending.clear()
+      this.touchHosts.clear()
+      this.touchQueue.clear()
       this.version++
     } catch (e) {
       console.error(`[FaviconCache] 清空缓存失败: ${e}`)

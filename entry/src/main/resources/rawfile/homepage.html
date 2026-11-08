@@ -215,24 +215,39 @@
     }
   }
 
-  /* 执行 Logo HTML 中的脚本（innerHTML 注入的 <script> 不会执行，需手动重建） */
+  /* 执行 Logo HTML 中的脚本（innerHTML 注入的 <script> 不会执行，需手动重建）；
+     按文档顺序串行执行：外部脚本等待加载完成（或失败）后再执行下一个——
+     与浏览器原生解析语义一致，兼容外部脚本未加载完、
+     内联调用先执行导致的 TypeError */
   function execScripts(root) {
     ensureLocalStorage();
     var list = root.querySelectorAll('script');
-    for (var i = 0; i < list.length; i++) {
-      var old = list[i];
-      try {
+    var i = 0;
+    function runNext() {
+      while (i < list.length) {
+        var old = list[i];
+        i++;
         var s = document.createElement('script');
-        if (old.src) { s.src = old.src; }
-        else { s.text = old.textContent; }
-        document.body.appendChild(s);
-      } catch (e) { }
+        if (old.src) {
+          /* 加载成功或失败都继续后续脚本（失败不阻断链） */
+          s.onload = runNext;
+          s.onerror = runNext;
+          s.src = old.src;
+          document.body.appendChild(s);
+          return;
+        }
+        try {
+          s.text = old.textContent;
+          document.body.appendChild(s);
+        } catch (e) { }
+      }
+      /* 全部脚本执行完毕：注入发生在页面加载后，等待 DOMContentLoaded 的脚本已错过事件，补发一次（仅一次，避免重复注册） */
+      if (!domReadyDispatched) {
+        domReadyDispatched = true;
+        try { document.dispatchEvent(new Event('DOMContentLoaded')); } catch (e) { }
+      }
     }
-    /* 注入发生在页面加载后，等待 DOMContentLoaded 的脚本已错过事件，补发一次（仅一次，避免重复注册） */
-    if (!domReadyDispatched) {
-      domReadyDispatched = true;
-      try { document.dispatchEvent(new Event('DOMContentLoaded')); } catch (e) { }
-    }
+    runNext();
   }
 
   /* 全局搜索（Via 主页协议：读取 #search_input 的值并打开；可被注入脚本包装实现多引擎） */

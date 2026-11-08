@@ -181,6 +181,9 @@ struct ExtensionDetailPage {
         .fontColor($r('sys.color.font_tertiary'))
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
+        // URL 等无空格长串默认按单词断行会整体挪到下一行（首行只剩 https:// 后留白），
+        // 按字母截断才能填满行宽再省略
+        .wordBreak(WordBreak.BREAK_ALL)
         .constraintSize({ maxWidth: '58%' })
     }
     .width('100%')

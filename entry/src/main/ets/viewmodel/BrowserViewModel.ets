@@ -9,7 +9,7 @@ import { ReaderScripts } from '../common/utils/ReaderScripts';
 import { appSettings } from '../common/entity/SettingsModel';
 import { toastUtil } from '../common/utils/ToastUtils';
 import { ResourceUtils } from '../common/utils/ResourceUtil';
-import { _QhState } from '../entryability/AppState';
+import { _QhState, QhState } from '../entryability/AppState';
 
 const logger = createLogger('BrowserViewModel')
 
@@ -277,6 +277,16 @@ export class BrowserViewModel {
     const tab = tabsVM.activeTab
     if (!tab) return
     this.closeReader()
+    if (UrlUtils.isQinghongDeepLink(text)) {
+      this.isEditingAddress = false
+      const deepRoute: string = UrlUtils.qinghongRouteOf(text)
+      if (deepRoute === '') {
+        toastUtil.showToast({ message: $r('app.string.qinghong_deep_link_unknown') })
+        return
+      }
+      QhState.pushPage(deepRoute, null)
+      return
+    }
     let target: string
     if (UrlUtils.isLikelyUrl(text)) {
       target = UrlUtils.normalizeUrl(text)
@@ -297,6 +307,16 @@ export class BrowserViewModel {
     const tab = tabsVM.activeTab
     if (!tab) return
     this.closeReader()
+    if (UrlUtils.isQinghongDeepLink(text)) {
+      this.isEditingAddress = false
+      const deepRoute: string = UrlUtils.qinghongRouteOf(text)
+      if (deepRoute === '') {
+        toastUtil.showToast({ message: $r('app.string.qinghong_deep_link_unknown') })
+        return
+      }
+      QhState.pushPage(deepRoute, null)
+      return
+    }
     let target: string
     if (UrlUtils.isLikelyUrl(text)) {
       target = UrlUtils.normalizeUrl(text)

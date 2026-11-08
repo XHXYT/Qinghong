@@ -66,6 +66,15 @@ struct PrivacySettingsPage {
       }
     }))
     items.push(new CustomItemInfo({
+      id: 'itp_bypass',
+      title: $r('app.string.itp_bypass_title'),
+      subtitle: $r('app.string.itp_bypass_desc'),
+      type: ItemActionType.ROUTER,
+      onChange: (v: string | boolean | number): void => {
+        QhState.pushPage('settings_itp_bypass', null)
+      }
+    }))
+    items.push(new CustomItemInfo({
       id: 'third_party_cookie',
       title: $r('app.string.third_party_cookie'),
       subtitle: $r('app.string.third_party_cookie_desc'),

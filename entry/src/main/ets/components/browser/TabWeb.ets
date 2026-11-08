@@ -1,6 +1,6 @@
 import { connection } from '@kit.NetworkKit';
 import { webview } from '@kit.ArkWeb';
-import { abilityAccessCtrl, Permissions, PermissionRequestResult } from '@kit.AbilityKit';
+import { abilityAccessCtrl, Permissions, PermissionRequestResult, Want } from '@kit.AbilityKit';
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { CustomContentDialog, display } from '@kit.ArkUI';
 import { tabsVM, TabInfo } from '../../viewmodel/TabsViewModel';
@@ -13,6 +13,7 @@ import { UaUtils } from '../../common/utils/UaUtils';
 import { DnsUtils } from '../../common/utils/DnsUtils';
 import { ProxyUtils } from '../../common/utils/ProxyUtils';
 import { AdvancedSecurityUtils } from '../../common/utils/AdvancedSecurityUtils';
+import { ItpBypassUtils } from '../../common/utils/ItpBypassUtils';
 import { AdBlockEngine } from '../../common/utils/AdBlockEngine';
 import { adBlockStore } from '../../common/utils/AdBlockStore';
 import { WebScripts } from '../../common/utils/WebScripts';
@@ -40,6 +41,7 @@ import { translateVM } from '../../viewmodel/TranslateViewModel';
 import { GmValueRaw, GmDeleteValueRaw, GmOpenTabRaw, GmClipboardRaw, GmNotifyRaw, GmDownloadRaw, GmMenuRaw, GmMenuIdRaw } from '../../common/utils/GmRuntime';
 import { ExtNotifyRaw } from '../../common/utils/ChromeShim';
 import { kbShortcutDispatch } from '../../common/utils/KbShortcutDispatch';
+import { NetDiagnose, DiagnoseResult, SegmentState } from '../../common/utils/NetDiagnose';
 
 /** 网页选区矩形（CSS px，相对视口；由注入脚本返回的 JSON 解析而来） */
 interface SelectionRect {
@@ -149,6 +151,16 @@ export struct TabWeb {
   @Local policy: SitePolicy = new SitePolicy()
   /** 当前是否处于 WIFI 网络（仅WIFI有图模式用） */
   @Local wifiConnected: boolean = false
+  /** 加载卡住分段诊断覆盖层可见性 */
+  @Local diagVisible: boolean = false
+  /** 诊断三段状态（浏览器/网络/网站） */
+  @Local diagDevice: SegmentState = SegmentState.CHECKING
+  @Local diagNetwork: SegmentState = SegmentState.CHECKING
+  @Local diagSite: SegmentState = SegmentState.CHECKING
+  /** 诊断完成（三段出结果或短路，控制文案与按钮） */
+  @Local diagDone: boolean = false
+  /** 诊断目标 host（覆盖层文案展示） */
+  @Local diagHost: string = ''
   /** 已应用的 UA 覆盖（'' = 跟随应用） */
   private appliedUa: string | null = null
 
@@ -281,6 +293,7 @@ export struct TabWeb {
   }
 
   aboutToDisappear(): void {
+    this.cancelLoadStallWatchdog()
     this.netConn?.unregister(() => {
     })
     inspectorVM.removeLogs(this.tab.id)
@@ -1888,6 +1901,21 @@ export struct TabWeb {
   /** 白屏检测：已自动重试过的 URL（同 URL 仅重试一次防慢页面循环刷新；离开该 URL 后重置） */
   private blankRetryUrl: string = ''
 
+  /** 加载停滞看门狗定时器句柄（onLoadIntercept 放行主框架导航时武装，仅守「响应未到达」阶段；onPageBegin 响应到达/页面绘制出内容/用户点继续等待/onPageEnd/错误页/销毁取消；-1 = 未启动） */
+  private loadStallTimer: number = -1
+
+  /** 诊断覆盖层已针对的 URL（同 URL 去重，防看门狗与白屏检测重复弹诊断） */
+  private diagUrl: string = ''
+
+  /** 当前主框架为已接管的应用错误页（onOverrideErrorPage 已返回）：白屏检测跳过——错误页大留白设计易被采样误判白屏，且自带重试入口无需刷新/诊断；新导航发起（onLoadIntercept 放行主框架）或 onPageBegin 到不同 URL 时复位 */
+  private errorPageShown: boolean = false
+
+  /** 已接管错误页对应的原始 URL：错误页自身的 onPageBegin/onPageEnd 报原始 URL（非 arkweb-error://），用它区分错误页内部回调与真实新导航 */
+  private errorPageShownUrl: string = ''
+
+  /** 本导航周期内页面已有绘制证据（首屏/主要内容/最大内容绘制任一触发）：白屏检测结果不信任直接跳过——内核检测器在大留白浅色页面误报（真机实测 hap.atomgit.com 已 OnPageEnd 仍报 contentful_point_count=0）；新导航发起/提交时复位 */
+  private paintedSinceNav: boolean = false
+
   /**
    * 构建应用风格错误页 HTML（onOverrideErrorPage 返回值，主框架加载失败时替代内核默认错误页）：
    * 深浅色自适应 + 常见错误码文案映射 + 重试链接（点击重载原 URL）
@@ -1934,13 +1962,21 @@ export struct TabWeb {
       `</div></body></html>`
   }
 
-  /** 白屏检测回调：同 URL 仅自动重试一次，重试后仍白屏提示手动刷新 */
+  /** 白屏检测回调：重试开关只控制自动刷新；诊断覆盖层独立于开关；已接管错误页跳过（防误判+无需诊断） */
   private handleDetectedBlankScreen(event: BlankScreenDetectionEventInfo): void {
-    if (!appSettings.blank_screen_retry) {
+    console.info(`[TabWeb] 白屏检测触发: url=${event.url} blankRetryUrl=${this.blankRetryUrl} ` +
+      `开关=${appSettings.blank_screen_retry}`)
+    if (this.errorPageShown) {
+      console.info('[TabWeb] 白屏检测忽略: 当前为已接管错误页（自带重试入口）')
       return
     }
-    if (event.url !== this.blankRetryUrl) {
+    if (this.paintedSinceNav) {
+      console.info('[TabWeb] 白屏检测忽略: 页面已有绘制内容（检测器误报）')
+      return
+    }
+    if (appSettings.blank_screen_retry && event.url !== this.blankRetryUrl) {
       this.blankRetryUrl = event.url
+      console.info('[TabWeb] 白屏首次检测: 自动刷新重试')
       toastUtil.showToast({ message: $r('app.string.blank_screen_retrying'), duration: 2000 })
       try {
         tabsVM.ensureController(this.tab).refresh()
@@ -1949,7 +1985,123 @@ export struct TabWeb {
       }
       return
     }
-    toastUtil.showToast({ message: $r('app.string.blank_screen_manual'), duration: 2500 })
+    // 重试后仍白屏（或已关闭自动重试）：弹分段连通性诊断覆盖层（浏览器→网络→网站）
+    console.info('[TabWeb] 白屏重试仍无效或重试已关闭: 启动分段连通性诊断')
+    this.startLoadDiagnosis()
+  }
+
+  /** 启动加载停滞看门狗：导航请求发起（onLoadIntercept 放行主框架）时武装，10s 内响应未到达（onPageBegin 未触发）判定导航悬挂，弹诊断覆盖层；响应到达（onPageBegin）、页面绘制出内容（首屏/主要内容/最大内容绘制）、用户点继续等待时取消——慢但在出内容的页面不弹诊断（已提交页面的白屏由内置白屏检测判定） */
+  private startLoadStallWatchdog(): void {
+    this.cancelLoadStallWatchdog()
+    this.loadStallTimer = setTimeout((): void => {
+      this.loadStallTimer = -1
+      console.info(`[TabWeb] 加载停滞看门狗触发: url=${this.tab.url}`)
+      this.startLoadDiagnosis()
+    }, 10000)
+  }
+
+  private cancelLoadStallWatchdog(): void {
+    if (this.loadStallTimer !== -1) {
+      clearTimeout(this.loadStallTimer)
+      this.loadStallTimer = -1
+    }
+  }
+
+  /** 启动加载卡住分段诊断：弹覆盖层，段结果经回调渐进填充 */
+  private startLoadDiagnosis(): void {
+    if (this.diagVisible && this.diagUrl === this.tab.url) {
+      return
+    }
+    this.diagUrl = this.tab.url
+    console.info(`[TabWeb] 诊断覆盖层启动: url=${this.tab.url}`)
+    this.diagHost = SiteSettingsViewModel.hostOf(this.tab.url)
+    if (this.diagHost === '') {
+      this.diagHost = this.tab.url
+    }
+    this.diagDevice = SegmentState.CHECKING
+    this.diagNetwork = SegmentState.CHECKING
+    this.diagSite = SegmentState.CHECKING
+    this.diagDone = false
+    this.diagVisible = true
+    NetDiagnose.run(this.tab.url, (r: DiagnoseResult): void => {
+      this.diagDevice = r.device
+      this.diagNetwork = r.network
+      this.diagSite = r.site
+      this.diagDone = r.done
+    }).catch((): void => {
+      // 诊断异常兜底：标记完成，仅保留刷新入口
+      this.diagDone = true
+    })
+  }
+
+  /** 诊断覆盖层-刷新重试：关闭覆盖层并重载当前页 */
+  private diagRetry(): void {
+    this.diagVisible = false
+    try {
+      tabsVM.ensureController(this.tab).refresh()
+    } catch (e) {
+      console.error(`[TabWeb] 诊断覆盖层刷新失败: ${e}`)
+    }
+  }
+
+  /** 诊断覆盖层-继续等待：仅关闭覆盖层回到页面（可能在慢加载），取消看门狗防覆盖层循环弹出 */
+  private diagWait(): void {
+    console.info(`[TabWeb] 诊断覆盖层继续等待: url=${this.tab.url}`)
+    this.diagVisible = false
+    this.cancelLoadStallWatchdog()
+  }
+
+  /** 页面绘制出内容（首屏/主要内容/最大内容绘制任一度量回调）：记录绘制证据（白屏检测结果此后不信任）；覆盖层展示中立即退场不再遮挡 */
+  private handlePagePaint(metric: string): void {
+    this.paintedSinceNav = true
+    if (this.diagVisible) {
+      console.info(`[TabWeb] 页面已绘制内容(${metric}): 诊断覆盖层退场 url=${this.tab.url}`)
+      this.diagVisible = false
+      this.cancelLoadStallWatchdog()
+    }
+  }
+
+  /** 诊断覆盖层-设置网络：跳系统设置，失败 toast 兜底 */
+  private diagOpenSettings(): void {
+    const want: Want = {
+      bundleName: 'com.huawei.hmos.settings',
+      abilityName: 'com.huawei.hmos.settings.MainAbility'
+    }
+    try {
+      _QhState.Context.startAbility(want).catch((): void => {
+        toastUtil.showToast({ message: $r('app.string.diag_settings_fail') })
+      })
+    } catch (e) {
+      toastUtil.showToast({ message: $r('app.string.diag_settings_fail') })
+    }
+  }
+
+  /** 诊断段/连线颜色：正常绿、失败红、检测中灰 */
+  private diagStateColor(state: SegmentState): ResourceColor {
+    if (state === SegmentState.OK) {
+      return '#34C759'
+    }
+    if (state === SegmentState.FAIL) {
+      return '#E84026'
+    }
+    return $r('sys.color.comp_background_tertiary')
+  }
+
+  /** 诊断结果文案：按断点/未完成分流 */
+  private diagTip(): Resource {
+    if (!this.diagDone) {
+      return $r('app.string.diag_checking')
+    }
+    if (this.diagDevice === SegmentState.FAIL) {
+      return $r('app.string.diag_device_fail')
+    }
+    if (this.diagNetwork === SegmentState.FAIL) {
+      return $r('app.string.diag_net_fail')
+    }
+    if (this.diagSite === SegmentState.FAIL) {
+      return $r('app.string.diag_site_fail')
+    }
+    return $r('app.string.diag_slow')
   }
 
   /** 取网页当前选中文本：优先内核缓存（跨帧准确、零往返），空则兜底 runJavaScript 读主帧+输入框选区 */
@@ -2160,7 +2312,19 @@ export struct TabWeb {
           DnsUtils.onWebAttach()
           ProxyUtils.onWebAttach()
           AdvancedSecurityUtils.onWebAttach()
+          ItpBypassUtils.onWebAttach()
           hostsVM.onWebAttach()
+          // 会话崩溃恢复：一次性消费持久化历史栈（恢复前进/后退；普通重挂载无缓冲不干扰现历史）
+          const savedState: Uint8Array | null = tabsVM.consumePendingWebState(this.tab.id)
+          if (savedState !== null) {
+            try {
+              tabsVM.ensureController(this.tab).restoreWebState(savedState)
+            } catch (e) {
+              console.error(`[TabWeb] restoreWebState 失败: ${e}`)
+            }
+          }
+          // 自定义错误页：先启用默认错误页功能，主框架加载失败才会触发 onOverrideErrorPage（API 20+，不启用回调不生效）
+          tabsVM.ensureController(this.tab).setErrorPageEnabled(true)
           // 音频静音：Web 重挂时恢复该标签静音态（后台销毁重建后 setAudioMuted 状态丢失）
           if (this.tab.audioMuted) {
             try {
@@ -2207,6 +2371,10 @@ export struct TabWeb {
         .pinchSmooth(true)
         // B6：边缘回弹（默认关=内核 NEVER；开=ALWAYS 橡皮筋回弹，新开标签生效）
         .overScrollMode(appSettings.web_overscroll_bounce ? OverScrollMode.ALWAYS : OverScrollMode.NEVER)
+        // A3 无障碍：最小字号（网页 CSS 小字强制提升到该下限渲染，内核默认 8）
+        .minFontSize(appSettings.web_min_font_size)
+        // A3 无障碍：文本自动适配（窄屏密集小字自动放大 16-32px，内核默认开；关闭可修复被撑乱的排版）
+        .textAutosizing(appSettings.web_text_autosizing)
         // 视频托管：内核级接管网页媒体（官方 enableNativeMediaPlayer 机制，全屏托管播放器播放）；
         // 待触发标志或已有托管会话时开启，其余时间交给内核自播
         .enableNativeMediaPlayer({
@@ -2274,7 +2442,24 @@ export struct TabWeb {
           if (p !== null) {
             this.applyPolicy(p)
           }
-          return this.interceptRedirect(event)
+          const blocked: boolean = this.interceptRedirect(event)
+          // 加载停滞看门狗武装点：onPageBegin 对失败/悬挂导航不触发（ArkWeb 生命周期），
+          // 改在导航请求发起点武装；仅主框架且放行的导航武装（被拦截的导航不会产生
+          // onPageEnd，武装会误报；iframe 导航无独立 onPageBegin/End 同理不武装）
+          if (!blocked) {
+            try {
+              if (event.data.isMainFrame()) {
+                // 新主框架导航发起：复位已接管错误页标记与绘制证据（错误页内部 commit 不走本回调）
+                this.errorPageShown = false
+                this.errorPageShownUrl = ''
+                this.paintedSinceNav = false
+                this.startLoadStallWatchdog()
+              }
+            } catch (e) {
+              // 主框架判定异常时跳过武装（内置白屏检测仍兜底）
+            }
+          }
+          return blocked
         })
         // 网络日志数据源：轻量记录每个请求（仅字符串处理，无痕标签不记录），
         // 返回 null 按原方式加载（真机已验证该用法无副作用）；
@@ -2310,23 +2495,55 @@ export struct TabWeb {
           }
           console.info(`[TabWeb] 广告拦截命中 ${urls.length} 条: ${urls[0]}`)
         })
+        // 智能防跟踪拦截上报（仅 ITP 开启时触发）：隐私报告 ITP 段数据源，
+        // 无痕不记录（网站列表会暴露浏览历史）；缓冲防抖落库，回调保持轻量
+        .onIntelligentTrackingPreventionResult((details: IntelligentTrackingPreventionDetails) => {
+          if (this.tab.isIncognito) {
+            return
+          }
+          trackerVM.recordItpBlocked(details.host, details.trackerHost)
+        })
         .onErrorReceive((event: OnErrorReceiveEvent) => {
           // 资源加载失败诊断日志（主框架/子资源均会回调）
           netLogVM.markError(this.tab.id, event.request.getRequestUrl())
           console.error(`[TabWeb] 资源加载失败 ${event.error.getErrorCode()}: ` +
             `${event.request.getRequestUrl()} ${event.error.getErrorInfo()}`)
         })
-        // 主框架加载失败：返回应用风格错误页替代内核默认页（深浅色自适应 + 错误码文案 + 重试链接）
+        // 主框架加载失败：返回应用风格错误页替代内核默认页（深浅色自适应 + 错误码文案 + 重试链接）；
+        // 前提：onControllerAttached 已调 setErrorPageEnabled(true) 启用错误页功能，否则本回调不触发；
+        // 返回值按官方示例传裸 HTML 字符串
         .onOverrideErrorPage((event: OnErrorReceiveEvent): string => {
-          return this.buildErrorPageHtml(event)
+          // 内核错误页接管，诊断覆盖层退场，取消加载停滞看门狗；
+          // 标记已接管错误页：白屏检测跳过（错误页大留白易被采样误判）
+          this.diagVisible = false
+          this.cancelLoadStallWatchdog()
+          this.errorPageShown = true
+          this.errorPageShownUrl = event.request.getRequestUrl()
+          const html: string = this.buildErrorPageHtml(event)
+          console.info(`[TabWeb] onOverrideErrorPage 回调执行: code=${event.error.getErrorCode()} ` +
+            `rawHtmlLen=${html.length}`)
+          return html
         })
-        // 白屏检测：导航后 5s 一次 17 点采样（用户交互后不检测，无误报路径）
+        // 白屏检测：导航后 5s 一次 17 点采样（用户交互后不检测，无误报路径）；
+        // 检测常开：重试开关只控制自动刷新，诊断覆盖层独立
         .blankScreenDetectionConfig({
-          enable: appSettings.blank_screen_retry,
+          enable: true,
           detectionTiming: [5]
         } as BlankScreenDetectionConfig)
         .onDetectedBlankScreen((event: BlankScreenDetectionEventInfo) => {
           this.handleDetectedBlankScreen(event)
+        })
+        // 页面绘制内容度量（首屏渲染完成 API23+ / 主要内容绘制 API12+ / 最大内容绘制 API12+）：
+        // 内容画出来后诊断覆盖层立即退场不再遮挡——「内容出来了就别挡着」，
+        // 修复慢加载页面元素已可见仍被诊断覆盖（本末倒置）
+        .onFirstScreenPaint(() => {
+          this.handlePagePaint('FirstScreenPaint')
+        })
+        .onFirstMeaningfulPaint(() => {
+          this.handlePagePaint('FirstMeaningfulPaint')
+        })
+        .onLargestContentfulPaint(() => {
+          this.handlePagePaint('LargestContentfulPaint')
         })
         .onHttpErrorReceive((event: OnHttpErrorReceiveEvent) => {
           // HTTP 层错误诊断日志（4xx/5xx 不触发 onErrorReceive）
@@ -2404,6 +2621,17 @@ export struct TabWeb {
           // 色彩模式：新页面 theme-color 重新提取
           this.tab.themeColor = ''
           this.tab.themeColor2 = ''
+          // 新导航开始，诊断覆盖层退场；响应已到达（onPageBegin 触发）取消看门狗——
+          // 看门狗只守「响应未到达」的真悬挂，慢但在出内容的页面不再被 10s 误盖
+          // （真机实测 hap.atomgit.com 慢加载误报）；已提交页面的白屏由内置白屏检测判定；
+          // 已接管错误页自身的 onPageBegin 报原 URL，跳过复位（否则 +5s 白屏检测又盖错误页）
+          this.diagVisible = false
+          this.cancelLoadStallWatchdog()
+          if (event.url !== this.errorPageShownUrl) {
+            this.errorPageShown = false
+          }
+          // 新文档提交：绘制证据复位（本页绘制事件随后重新记录）
+          this.paintedSinceNav = false
           browserVM.updateNavState(this.tab)
         })
         .onPageEnd((event: OnPageEndEvent) => {
@@ -2412,8 +2640,15 @@ export struct TabWeb {
             this.verifyViewSourceLoaded()
             return
           }
+          // 会话恢复占位退场：真实页面已可见，撤下旧快照
+          this.tab.showSnapshotPlaceholder = false
+          // 页面加载完成，诊断覆盖层退场（覆盖慢页最终加载成功场景）；取消加载停滞看门狗
+          this.diagVisible = false
+          this.cancelLoadStallWatchdog()
           this.tab.url = event.url
           tabsVM.notifyTabInfoChanged(this.tab)
+          // 页内导航 URL 已变：会话补保存（崩溃/重启恢复落在当前页而非旧地址）
+          tabsVM.saveSessionDebounced()
           this.tab.progress = 100
           this.applyBackForwardCache()
           this.autofillPassword()
@@ -2424,14 +2659,36 @@ export struct TabWeb {
           translateVM.autoTranslate(this.tab)
           browserVM.onPageEnded(this.tab, event.url)
           browserVM.updateNavState(this.tab)
+          // 页面加载完成即补截快照：停留中的标签不切走也有最新快照可落盘（仅活动标签生效）
+          tabsVM.captureTabSnapshot(this.tab)
+        })
+        // 导航提交精确事件（API 11）：同文档导航（hash 变化/pushState/replaceState/同页历史跳转）
+        // 不触发 onPageBegin/End，此处同步 tab.url + 补会话保存——SPA 站点地址栏停留旧地址的修复
+        .onNavigationEntryCommitted((event: LoadCommittedDetails) => {
+          if (this.tab.viewSourceHtml !== '' || !event.isMainFrame) {
+            return
+          }
+          if (event.isSameDocument && event.url !== '' && event.url !== this.tab.url) {
+            this.tab.url = event.url
+            tabsVM.notifyTabInfoChanged(this.tab)
+            tabsVM.saveSessionDebounced()
+            browserVM.updateNavState(this.tab)
+          }
         })
         // 页面 favicon 回调：按 host 缓存（书签列表/桌面快捷方式展示用）
         .onFaviconReceived((event: OnFaviconReceivedEvent) => {
           console.info(`[TabWeb] onFaviconReceived url=${this.tab.url}`)
           faviconCache.saveFromPixelMap(FaviconCache.hostOf(this.tab.url), event.favicon)
         })
+        // 页面 apple-touch-icon：内核直接报出高清图标 URL，下载入缓存（低清 favicon 被取代）
+        .onTouchIconUrlReceived((event: OnTouchIconUrlReceivedEvent) => {
+          faviconCache.saveTouchIconUrl(FaviconCache.hostOf(this.tab.url), event.url)
+        })
         .onProgressChange((event: OnProgressChangeEvent) => {
           this.tab.progress = event.newProgress
+          if (event.newProgress >= 100) {
+            this.tab.showSnapshotPlaceholder = false
+          }
         })
         .onTitleReceive((event: OnTitleReceiveEvent) => {
           // 源码文档无 <title>，保持标签标题"源码"不被空标题覆盖
@@ -2449,6 +2706,15 @@ export struct TabWeb {
         .onScaleChange((event: OnScaleChangeEvent) => {
           console.info(`[TabWeb] onScaleChange old=${event.oldScale} new=${event.newScale}`)
           this.handleScaleChange(event.newScale)
+        })
+        // 文档切换（旧文档不再显示、新文档即将显示）：复位页面级浮层（查找栏收起清高亮、缩放浮层隐藏）
+        .onPageVisible((event: OnPageVisibleEvent) => {
+          if (browserVM.showFindBar) {
+            browserVM.closeFind()
+          }
+          if (browserVM.zoomPercent !== -1) {
+            browserVM.hideZoomOverlay()
+          }
         })
         // 键盘快捷键：Web 聚焦时先于内核拦截（命中组合返回 true 消费，其余透传网页）
         .onInterceptKeyEvent((e: KeyEvent): boolean => {
@@ -2499,6 +2765,16 @@ export struct TabWeb {
           downloadVM.download(event.url, this.tab.url)
         })
 
+      // 会话恢复占位：磁盘旧快照顶替加载中的网页（onPageEnd/进度 100 撤下；夜间蒙版等叠其上）
+      if (this.tab.showSnapshotPlaceholder && this.tab.snapshot !== null) {
+        Image(this.tab.snapshot)
+          .width('100%')
+          .height('100%')
+          .objectFit(ImageFit.Cover)
+          .interpolation(ImageInterpolation.High)
+          .draggable(false)
+      }
+
       // 夜间模式：网页蒙版滤镜
       if (appSettings.night_mask_enabled) {
         Column()
@@ -2522,6 +2798,11 @@ export struct TabWeb {
       // 看图模式：图片全屏查看
       if (this.imageViewerUrl !== '') {
         this.imageViewerOverlay()
+      }
+
+      // 加载卡住：分段连通性诊断覆盖层（浏览器→网络→网站）
+      if (this.diagVisible) {
+        this.diagOverlay()
       }
     }
     .width('100%')
@@ -2677,6 +2958,122 @@ export struct TabWeb {
     .alignItems(HorizontalAlign.Center)
     .hitTestBehavior(browserVM.zoomManual ? HitTestMode.Transparent : HitTestMode.None)
     .padding({ top: 36 })
+  }
+
+  /**
+   * 加载卡住分段诊断覆盖层：浏览器→网络→网站三段链路（断点红/正常绿/检测中灰），
+   * 结果文案 + 按钮（按断点显示 设置网络；继续等待 仅关覆盖层；刷新重试 关覆盖层并重载）
+   */
+  @Builder
+  diagOverlay() {
+    Column() {
+      Row() {
+        this.diagNode($r('sys.symbol.phone'), $r('app.string.diag_seg_device'), this.diagDevice)
+        this.diagLink(this.diagDevice)
+        this.diagNode($r('sys.symbol.wifi'), $r('app.string.diag_seg_network'), this.diagNetwork)
+        this.diagLink(this.diagNetwork)
+        this.diagNode($r('sys.symbol.website'), $r('app.string.diag_seg_site'), this.diagSite)
+      }
+      .alignItems(VerticalAlign.Bottom)
+
+      Text($r('app.string.diag_title'))
+        .fontSize(18)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('sys.color.font_primary'))
+        .margin({ top: 26 })
+
+      Text(this.diagHost)
+        .fontSize(13)
+        .fontColor($r('sys.color.font_tertiary'))
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .constraintSize({ maxWidth: '80%' })
+        .margin({ top: 6 })
+
+      Text(this.diagTip())
+        .fontSize(14)
+        .fontColor($r('sys.color.font_secondary'))
+        .textAlign(TextAlign.Center)
+        .lineHeight(21)
+        .padding({ left: 32, right: 32 })
+        .margin({ top: 14 })
+
+      Row({ space: 12 }) {
+        if (this.diagDone && (this.diagDevice === SegmentState.FAIL || this.diagNetwork === SegmentState.FAIL)) {
+          Button($r('app.string.diag_btn_settings'))
+            .fontSize(15)
+            .fontColor($r('sys.color.font_primary'))
+            .backgroundColor($r('sys.color.comp_background_tertiary'))
+            .borderRadius(22)
+            .height(44)
+            .padding({ left: 24, right: 24 })
+            .onClick(() => {
+              this.diagOpenSettings()
+            })
+        }
+        Button($r('app.string.diag_btn_wait'))
+          .fontSize(15)
+          .fontColor($r('sys.color.font_primary'))
+          .backgroundColor($r('sys.color.comp_background_tertiary'))
+          .borderRadius(22)
+          .height(44)
+          .padding({ left: 24, right: 24 })
+          .onClick(() => {
+            this.diagWait()
+          })
+        Button($r('app.string.diag_btn_retry'))
+          .fontSize(15)
+          .fontColor(Color.White)
+          .backgroundColor('#0A59F7')
+          .borderRadius(22)
+          .height(44)
+          .padding({ left: 24, right: 24 })
+          .onClick(() => {
+            this.diagRetry()
+          })
+      }
+      .margin({ top: 30 })
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+  }
+
+  /** 诊断链路节点：状态色圆底 + 图标（检测中转圈）+ 标签 */
+  @Builder
+  diagNode(icon: Resource, label: Resource, state: SegmentState) {
+    Column({ space: 6 }) {
+      Stack() {
+        Circle({ width: 52, height: 52 })
+          .fill(this.diagStateColor(state))
+        if (state === SegmentState.CHECKING) {
+          LoadingProgress()
+            .width(22)
+            .height(22)
+            .color($r('sys.color.font_secondary'))
+        } else {
+          SymbolGlyph(icon)
+            .fontSize(26)
+            .fontColor([Color.White])
+        }
+      }
+      Text(label)
+        .fontSize(13)
+        .fontColor($r('sys.color.font_secondary'))
+    }
+  }
+
+  /** 诊断链路连线：颜色跟随上游段状态，底边距对齐节点圆心 */
+  @Builder
+  diagLink(state: SegmentState) {
+    Row()
+      .width(30)
+      .height(3)
+      .borderRadius(1.5)
+      .backgroundColor(this.diagStateColor(state))
+      .margin({ left: 6, right: 6, bottom: 48 })
   }
 
   /** 长按/右键自定义菜单覆盖层：透明捕获层 + 浮动文字面板 */

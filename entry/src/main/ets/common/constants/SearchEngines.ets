@@ -239,6 +239,52 @@ export class UrlUtils {
   }
 
   /**
+   * qinghong:// 内页深链别名 → 路由名（地址栏直达原生页，仿 chrome://）
+   */
+  private static readonly DEEP_LINK_ROUTES: Record<string, string> = {
+    'settings': 'settings',
+    'bookmarks': 'bookmarks',
+    'history': 'history',
+    'downloads': 'downloads',
+    'about': 'about',
+    'adblock': 'settings_adblock',
+    'privacy': 'settings_privacy',
+    'extensions': 'settings_extension',
+    'scripts': 'settings_script',
+    'passwords': 'settings_password',
+    'translate': 'settings_translate',
+    'customize': 'settings_custom',
+    'search': 'search_settings',
+    'sync': 'settings_sync',
+    'dns': 'settings_dns',
+    'proxy': 'settings_proxy',
+    'hosts': 'settings_hosts',
+    'ua': 'settings_ua',
+    'font': 'settings_font',
+    'keyboard': 'settings_keyboard',
+    'night': 'settings_night_mode',
+    'ai': 'settings_ai'
+  }
+
+  /**
+   * 是否 qinghong:// 内页深链格式
+   */
+  static isQinghongDeepLink(input: string): boolean {
+    return /^qinghong:\/\//i.test(input.trim())
+  }
+
+  /**
+   * qinghong:// 内页深链 → 路由名；未知页面返回 ''
+   */
+  static qinghongRouteOf(input: string): string {
+    const m: RegExpMatchArray | null = input.trim().toLowerCase().match(/^qinghong:\/\/([a-z_]+)\/?$/)
+    if (m === null || m.length < 2) {
+      return ''
+    }
+    return UrlUtils.DEEP_LINK_ROUTES[m[1]] ?? ''
+  }
+
+  /**
    * 补全协议头
    */
   static normalizeUrl(input: string): string {

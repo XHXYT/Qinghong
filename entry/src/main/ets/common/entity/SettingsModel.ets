@@ -163,8 +163,8 @@ export class AppSettings {
   @Trace custom_engines: CustomSearchEngine[] = []
   /** 主页是否显示 Logo */
   @Trace show_homepage_logo: boolean = true
-  /** 启动恢复模式 'never' | 'always' | 'ask' */
-  @Trace restore_mode: string = 'always'
+  /** 启动恢复模式 'never' | 'always' | 'keep' | 'ask'（keep：新主页启动，上次标签留后台） */
+  @Trace restore_mode: string = 'keep'
   /** 默认无痕模式 */
   @Trace default_incognito: boolean = false
   /** 隐私：不跟踪 */
@@ -213,6 +213,8 @@ export class AppSettings {
   @Trace ua_simplify: boolean = false
   /** 自定义浏览器标识列表 */
   @Trace custom_uas: CustomUa[] = []
+  /** 智能防跟踪（ITP）豁免域名列表（应用级，内核不持久化，启动时重设） */
+  @Trace itp_bypass_hosts: string[] = []
   /** 外置视频播放器 'system' | 'none' */
   @Trace video_player: string = 'system'
   /** 视频控制：启用视频手势（网页视频触屏手势总开关） */
@@ -257,6 +259,10 @@ export class AppSettings {
    @Trace blank_screen_retry: boolean = true
    /** 高级：网页滚动到边缘时回弹（ArkWeb overScrollMode ALWAYS；更改后新开标签生效） */
    @Trace web_overscroll_bounce: boolean = false
+   /** 高级：最小字号（px，网页 CSS 小字强制提升到该下限；内核默认 8） */
+   @Trace web_min_font_size: number = 8
+   /** 高级：文本自动适配（窄屏密集小字自动放大；内核默认开） */
+   @Trace web_text_autosizing: boolean = true
   /** 高级：关闭标签后立即释放网页内核资源（FAST_MODE；关闭则系统延迟释放 NORMAL_MODE，默认更流畅） */
    @Trace web_fast_destroy: boolean = false
    /** 禁止网页访问局域网（开=子资源局域网请求需 CORS 预检授权，未授权即拦截；内核默认开） */
@@ -533,6 +539,7 @@ export class AppSettings {
       "desktop_mode": this.desktop_mode,
       "ua_simplify": this.ua_simplify,
       "custom_uas": this.custom_uas,
+      "itp_bypass_hosts": this.itp_bypass_hosts,
       "video_player": this.video_player,
       "video_gesture_enabled": this.video_gesture_enabled,
       "video_gesture_double_tap": this.video_gesture_double_tap,
@@ -555,6 +562,8 @@ export class AppSettings {
       "back_to_top": this.back_to_top,
        "blank_screen_retry": this.blank_screen_retry,
       "web_overscroll_bounce": this.web_overscroll_bounce,
+      "web_min_font_size": this.web_min_font_size,
+      "web_text_autosizing": this.web_text_autosizing,
       "web_fast_destroy": this.web_fast_destroy,
       "web_block_private_network": this.web_block_private_network,
       "dns_preconnect_enabled": this.dns_preconnect_enabled,
@@ -696,6 +705,8 @@ export class AppSettings {
     this.back_to_top = (json["back_to_top"] as boolean) ?? this.back_to_top;
      this.blank_screen_retry = (json["blank_screen_retry"] as boolean) ?? this.blank_screen_retry;
     this.web_overscroll_bounce = (json["web_overscroll_bounce"] as boolean) ?? this.web_overscroll_bounce;
+    this.web_min_font_size = (json["web_min_font_size"] as number) ?? this.web_min_font_size;
+    this.web_text_autosizing = (json["web_text_autosizing"] as boolean) ?? this.web_text_autosizing;
     this.web_fast_destroy = (json["web_fast_destroy"] as boolean) ?? this.web_fast_destroy;
     this.web_block_private_network = (json["web_block_private_network"] as boolean) ?? this.web_block_private_network;
     this.dns_preconnect_enabled = (json["dns_preconnect_enabled"] as boolean) ?? this.dns_preconnect_enabled;
@@ -798,6 +809,18 @@ export class AppSettings {
       this.custom_uas = uas;
     }
 
+    const rawBypassHosts = json["itp_bypass_hosts"] as Object[];
+    if (rawBypassHosts) {
+      const hosts: string[] = [];
+      for (const raw of rawBypassHosts) {
+        const h = raw as string;
+        if (typeof h === 'string' && h !== '') {
+          hosts.push(h);
+        }
+      }
+      this.itp_bypass_hosts = hosts;
+    }
+
     const rawEngines = json["custom_engines"] as Object[];
     if (rawEngines) {
       const engines: CustomSearchEngine[] = [];
@@ -817,7 +840,7 @@ export class AppSettings {
     'do_not_track', 'disable_webrtc', 'disable_webrtc_udp', 'do_not_sell', 'intelligent_tracking_prevention', 'third_party_cookie', 'geolocation_access', 'language', 'screen_orientation', 'ua_mode', 'ua_desktop', 'desktop_mode', 'ua_simplify', 'custom_uas',     'video_player', 'video_gesture_enabled', 'video_gesture_double_tap', 'video_gesture_swipe_seek',
     'video_gesture_side_slide', 'video_gesture_tap_toggle', 'video_gesture_long_press', 'video_keyboard_shortcuts', 'video_kb_keys',
     'exit_clear_data', 'no_image_mode', 'pause_web_timers', 'web_assistant', 'resource_sniff', 'allow_debug_web', 'disable_safe_browsing',
-    'ignore_ssl_warning', 'web_vibration_enabled', 'web_haptic_enabled', 'back_to_top', 'blank_screen_retry', 'web_overscroll_bounce', 'web_fast_destroy', 'web_block_private_network', 'dns_preconnect_enabled', 'web_prefetch',
+    'ignore_ssl_warning', 'web_vibration_enabled', 'web_haptic_enabled', 'back_to_top', 'blank_screen_retry', 'web_overscroll_bounce', 'web_min_font_size', 'web_text_autosizing', 'web_fast_destroy', 'web_block_private_network', 'dns_preconnect_enabled', 'web_prefetch',
     'dns_doh_enabled', 'dns_doh_provider', 'dns_doh_custom',
     'proxy_enabled', 'proxy_type', 'proxy_host', 'proxy_port',
     'show_undo_close_tip', 'auto_expand_web', 'force_enable_zoom', 'cookies_enabled', 'cookies_block_third_party', 'popup_allowed', 'popup_allow_same_host', 'site_defaults', 'ad_block_enabled', 'ad_block_builtin', 'night_mask_enabled', 'night_mask_opacity', 'night_mask_color', 'force_dark_web',
@@ -850,7 +873,7 @@ export class AppSettings {
     this.search_engine_id = AppConstants.DEFAULT_ENGINE_ID;
     this.custom_engines = [];
     this.show_homepage_logo = true;
-    this.restore_mode = 'always';
+    this.restore_mode = 'keep';
     this.default_incognito = false;
     this.do_not_track = true;
     this.disable_webrtc = false;
@@ -868,6 +891,7 @@ export class AppSettings {
     this.desktop_mode = false;
     this.ua_simplify = false;
     this.custom_uas = [];
+    this.itp_bypass_hosts = [];
     this.video_player = 'system';
     this.video_gesture_enabled = false;
     this.video_gesture_double_tap = true;
@@ -890,6 +914,8 @@ export class AppSettings {
     this.back_to_top = true;
     this.blank_screen_retry = true;
     this.web_overscroll_bounce = false;
+    this.web_min_font_size = 8;
+    this.web_text_autosizing = true;
     this.web_fast_destroy = false;
     this.web_block_private_network = true;
     this.dns_preconnect_enabled = true;

@@ -3,7 +3,7 @@ import { CustomContentDialog } from '@kit.ArkUI';
 import { SettingsScaffold, SettingsSection } from '../../components/SettingsScaffold';
 import { appSettings } from '../../common/entity/SettingsModel';
 import { DnsUtils } from '../../common/utils/DnsUtils';
-import { CustomItemInfo, ItemActionType } from '../../common/entity/CusItemInfo';
+import { CustomItemInfo, ItemActionType, MenuOption } from '../../common/entity/CusItemInfo';
 import { buildDialogButtons } from '../../components/dialog/AppContentDialog';
 import { toastUtil } from '../../common/utils/ToastUtils';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
@@ -98,6 +98,36 @@ struct AdvancedSettingsPage {
       value: appSettings.web_overscroll_bounce,
       onChange: (v: string | boolean | number): void => {
         appSettings.web_overscroll_bounce = v as boolean
+      }
+    }))
+    gBrowsing.items.push(new CustomItemInfo({
+      id: 'web_min_font_size',
+      title: $r('app.string.web_min_font_size'),
+      subtitle: $r('app.string.web_min_font_size_desc'),
+      type: ItemActionType.MENU,
+      value: String(appSettings.web_min_font_size),
+      menuOptions: [
+        new MenuOption('8', '8'),
+        new MenuOption('10', '10'),
+        new MenuOption('12', '12'),
+        new MenuOption('14', '14'),
+        new MenuOption('16', '16')
+      ],
+      onChange: (v: string | boolean | number): void => {
+        const n: number = Number(v)
+        if (!Number.isNaN(n)) {
+          appSettings.web_min_font_size = n
+        }
+      }
+    }))
+    gBrowsing.items.push(new CustomItemInfo({
+      id: 'web_text_autosizing',
+      title: $r('app.string.web_text_autosizing'),
+      subtitle: $r('app.string.web_text_autosizing_desc'),
+      type: ItemActionType.TOGGLE,
+      value: appSettings.web_text_autosizing,
+      onChange: (v: string | boolean | number): void => {
+        appSettings.web_text_autosizing = v as boolean
       }
     }))
     // 加载与性能

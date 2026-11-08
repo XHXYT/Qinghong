@@ -50,7 +50,8 @@ export function HistoryBuilder() {
 @ComponentV2
 struct HistoryPage {
   private pageStack: NavPathStack = new NavPathStack()
-  private scroller: Scroller = new Scroller()
+  // ListScroller（Scroller 子类）：额外提供 closeAllSwipeActions（进编辑态收起左滑滑块）
+  private scroller: ListScroller = new ListScroller()
   /** 首可见分组索引（onScrollIndex 维护） */
   @Local firstVisibleIndex: number = 0
   /** 吸顶分组索引（-1 = 无吸顶；组头标题滚出视口时浮出胶囊） */
@@ -73,10 +74,14 @@ struct HistoryPage {
     return null
   }
 
-  /** 按访问日分组（histories 已按访问时间倒序，同日记录归入同组） */
+  /** 行模型复用缓存（key → 行实例）：groups 重算时复用同一行对象；否则每次重算 new 新实例，而 ForEach 按 key 复用旧 UI 子树仍渲染旧行，setRows 改不到界面持有的对象，编辑态失联 */
+  private rowCache: Map<string, HistoryRowModel> = new Map()
+
+  /** 按访问日分组（histories 已按访问时间倒序，同日记录归入同组；行实例跨重算复用） */
   @Computed
   get groups(): HistoryGroup[] {
     const result: HistoryGroup[] = []
+    const nextCache: Map<string, HistoryRowModel> = new Map()
     let lastKey: string = ''
     for (const h of historyVM.histories) {
       const key: string = this.dayKey(h.visitTime)
@@ -84,9 +89,17 @@ struct HistoryPage {
         result.push(new HistoryGroup(key, this.groupTitle(h.visitTime), []))
         lastKey = key
       }
-      result[result.length - 1].items.push(
-        new HistoryRowModel(h.id !== null ? `i${h.id}` : `u${h.url}`, h))
+      const rowKey: string = h.id !== null ? `i${h.id}` : `u${h.url}`
+      let row: HistoryRowModel | undefined = this.rowCache.get(rowKey)
+      if (row === undefined) {
+        row = new HistoryRowModel(rowKey, h)
+      } else {
+        row.info = h
+      }
+      nextCache.set(rowKey, row)
+      result[result.length - 1].items.push(row)
     }
+    this.rowCache = nextCache
     return result
   }
 
@@ -156,9 +169,21 @@ struct HistoryPage {
   }
 
   private enterEdit(): void {
+    this.scroller.closeAllSwipeActions()
     this.editMode = true
     this.selectedIds = []
     this.setRows(true, true)
+  }
+
+  /** 左滑删除按钮：直接删除并提示 */
+  private async deleteSwiped(r: HistoryRowModel): Promise<void> {
+    const id: number | null = r.info.id
+    if (id === null) {
+      return
+    }
+    await historyVM.deleteById(id)
+    this.updateStuckGroup()
+    toastUtil.showToast({ message: $r('app.string.bookmark_deleted') })
   }
 
   private exitEdit(): void {
@@ -359,6 +384,33 @@ struct HistoryPage {
     .alignContent(Alignment.Center)
   }
 
+  /** 左滑划出的删除按钮：圆形图标按钮（同标题栏返回键样式，comp_background_tertiary 底）+ 红色垃圾桶图标；编辑态渲染零尺寸占位禁用左滑 */
+  @Builder
+  swipeDeleteButton(r: HistoryRowModel) {
+    if (r.edit) {
+      Row().width(0).height(0)
+    } else {
+      Stack() {
+        Row() {
+          SymbolGlyph($r('sys.symbol.trash'))
+            .fontSize(20)
+            .fontColor([Color.Red])
+        }
+        .width(40)
+        .height(40)
+        .borderRadius(20)
+        .justifyContent(FlexAlign.Center)
+        .backgroundColor($r('sys.color.comp_background_tertiary'))
+        .onClick(() => {
+          this.deleteSwiped(r)
+        })
+      }
+      .width(64)
+      .height('100%')
+      .alignContent(Alignment.Center)
+    }
+  }
+
   @Builder
   historyRow(r: HistoryRowModel) {
     Row({ space: 12 }) {
@@ -388,6 +440,8 @@ struct HistoryPage {
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 10, bottom: 10 })
+    // 不透明底：遮住左滑划出区域，与组卡片同色不露破绽
+    .backgroundColor($r('app.color.background_color'))
     .alignItems(VerticalAlign.Center)
     .onClick(() => {
       if (r.edit) {
@@ -557,26 +611,30 @@ struct HistoryPage {
         Stack({ alignContent: Alignment.TopStart }) {
           List({ scroller: this.scroller }) {
             ForEach(this.groups, (g: HistoryGroup, groupIndex: number) => {
+              // 分组卡片：组容器承载圆角卡片与行间分隔线；每个记录行为独立 ListItem（原生左滑删除）
               ListItemGroup({ header: this.groupHeader(g, groupIndex) }) {
-                ListItem() {
-                  // 分组卡片：组内记录行 + 行间分隔线
-                  Column() {
-                    ForEach(g.items, (r: HistoryRowModel, idx: number) => {
-                      this.historyRow(r)
-                      if (idx < g.items.length - 1) {
-                        Divider()
-                          .strokeWidth(0.5)
-                          .color($r('sys.color.comp_divider'))
-                          .margin({ left: 64, right: 16 })
-                      }
-                    }, (r: HistoryRowModel) => r.key)
+                ForEach(g.items, (r: HistoryRowModel) => {
+                  ListItem() {
+                    this.historyRow(r)
                   }
-                  .width('100%')
-                  .borderRadius(16)
-                  .backgroundColor($r('app.color.background_color'))
-                  .clip(true)
-                }
+                  .swipeAction({
+                    end: (): void => {
+                      this.swipeDeleteButton(r)
+                    },
+                    edgeEffect: SwipeEdgeEffect.Spring
+                  })
+                }, (r: HistoryRowModel) => r.key)
               }
+              .width('100%')
+              .borderRadius(16)
+              .backgroundColor($r('app.color.background_color'))
+              .clip(true)
+              .divider({
+                strokeWidth: 0.5,
+                color: $r('sys.color.comp_divider'),
+                startMargin: 64,
+                endMargin: 16
+              })
             }, (g: HistoryGroup) => `${g.key}#${g.items.length}#${g.items.length > 0 ? g.items[0].key : ''}`)
           }
           .onScrollIndex((first: number, last: number) => {

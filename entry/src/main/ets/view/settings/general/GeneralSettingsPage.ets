@@ -58,6 +58,9 @@ function restoreLabel(v: string): ResourceStr {
   if (v === 'never') {
     return $r('app.string.restore_never');
   }
+  if (v === 'keep') {
+    return $r('app.string.restore_keep');
+  }
   if (v === 'ask') {
     return $r('app.string.restore_ask');
   }
@@ -428,6 +431,7 @@ struct GeneralSettingsPage {
   private openRestorePicker(): void {
     this.openPicker($r('app.string.restore_tabs'), [
       new PickerOption('never', $r('app.string.restore_never')),
+      new PickerOption('keep', $r('app.string.restore_keep')),
       new PickerOption('always', $r('app.string.restore_always')),
       new PickerOption('ask', $r('app.string.restore_ask'))
     ], appSettings.restore_mode, (v: string): void => {
