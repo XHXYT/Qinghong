@@ -4,7 +4,7 @@ import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemIn
 import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../../../components/SheetPicker';
 import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
 import { appSettings } from '../../../common/entity/SettingsModel';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
 import { TranslateLang } from '../../../viewmodel/TranslateViewModel';
 
 /** 可自动翻译的源语言（不含目标语言常选的 zh-CN） */

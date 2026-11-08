@@ -4,7 +4,7 @@ import { browserVM } from '../viewmodel/BrowserViewModel';
 import { historyVM } from '../viewmodel/HistoryViewModel';
 import { tabsVM } from '../viewmodel/TabsViewModel';
 import HistoryInfo from '../common/entity/HistoryInfo';
-import { toastUtil } from '../common/utils/ToastUtils';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
 import { faviconCache, FaviconCache } from '../viewmodel/FaviconCache';
 import { fileUri } from '@kit.CoreFileKit';
 

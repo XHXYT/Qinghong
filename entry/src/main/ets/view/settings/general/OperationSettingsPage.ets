@@ -4,9 +4,9 @@ import { appSettings } from '../../../common/entity/SettingsModel';
 import { tabsVM } from '../../../viewmodel/TabsViewModel';
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
 import { ToolbarAction, findToolbarAction, getToolbarEventAction } from '../../../common/entity/ToolbarEvent';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
-import { toastUtil } from '../../../common/utils/ToastUtils';
-import { volumeKeyPaging } from '../../../common/utils/VolumeKeyPaging';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
+import { volumeKeyPaging } from '../../../common/utils/ui/VolumeKeyPaging';
 
 
 @Builder

@@ -11,12 +11,12 @@ import { BookmarkEditor } from './BookmarkEditor';
 import { addressDisplayText, AddressEntryIcon } from './AddressBar';
 import { searchVM } from '../../viewmodel/SearchViewModel';
 import { SearchSuggestPanel } from './SearchSuggestPanel';
-import { ActionBarColor } from '../../common/utils/ActionBarColor';
-import { HomeImmersive } from '../../common/utils/HomeImmersive';
-import { homeBg } from '../../common/utils/HomeBg';
-import { toolbarEventRunner } from '../../common/utils/ToolbarEventRunner';
+import { ActionBarColor } from '../../common/utils/ui/ActionBarColor';
+import { HomeImmersive } from '../../common/utils/home/HomeImmersive';
+import { homeBg } from '../../common/utils/home/HomeBg';
+import { toolbarEventRunner } from '../../common/utils/ui/ToolbarEventRunner';
 import { scriptVM } from '../../viewmodel/ScriptViewModel';
-import { GmMenuCommand } from '../../common/utils/GmRuntime';
+import { GmMenuCommand } from '../../common/utils/userscript/GmRuntime';
 import { ExtToolbarButton } from '../extension/ExtToolbarButton';
 
 /**

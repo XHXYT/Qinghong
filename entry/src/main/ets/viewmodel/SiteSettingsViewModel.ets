@@ -1,10 +1,10 @@
 import { SiteSettingDao } from '../common/utils/database/impl/SiteSettingDao';
 import SiteSettingInfo from '../common/entity/SiteSettingInfo';
 import { appSettings } from '../common/entity/SettingsModel';
-import { ResourceUtils } from '../common/utils/ResourceUtil';
+import { ResourceUtils } from '../common/utils/app/ResourceUtil';
 import { _QhState } from '../entryability/AppState';
-import { UaUtils } from '../common/utils/UaUtils';
-import { ProxyUtils, SITE_PROXY_KEY } from '../common/utils/ProxyUtils';
+import { UaUtils } from '../common/utils/web/UaUtils';
+import { ProxyUtils, SITE_PROXY_KEY } from '../common/utils/network/ProxyUtils';
 
 /** 站点设置档位 */
 export class SiteOpt {

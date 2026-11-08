@@ -2,10 +2,10 @@ import { webview } from '@kit.ArkWeb';
 import { CustomContentDialog } from '@kit.ArkUI';
 import { SettingsScaffold, SettingsSection } from '../../components/SettingsScaffold';
 import { appSettings } from '../../common/entity/SettingsModel';
-import { DnsUtils } from '../../common/utils/DnsUtils';
+import { DnsUtils } from '../../common/utils/network/DnsUtils';
 import { CustomItemInfo, ItemActionType, MenuOption } from '../../common/entity/CusItemInfo';
 import { buildDialogButtons } from '../../components/dialog/AppContentDialog';
-import { toastUtil } from '../../common/utils/ToastUtils';
+import { toastUtil } from '../../common/utils/ui/ToastUtils';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
 
 @Builder

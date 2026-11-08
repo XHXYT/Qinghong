@@ -5,11 +5,11 @@ import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemIn
 import { QhState } from '../../../entryability/AppState';
 import { extensionVM } from '../../../viewmodel/ExtensionViewModel';
 import ExtensionInfo from '../../../common/entity/ExtensionInfo';
-import { ExtManifestRaw } from '../../../common/utils/ExtensionEngine';
-import { ExtensionResources } from '../../../common/utils/ExtensionResources';
+import { ExtManifestRaw } from '../../../common/utils/extension/ExtensionEngine';
+import { ExtensionResources } from '../../../common/utils/extension/ExtensionResources';
 import { ScriptViewModel } from '../../../viewmodel/ScriptViewModel';
-import { toastUtil } from '../../../common/utils/ToastUtils';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
 import { tabsVM } from '../../../viewmodel/TabsViewModel';
 
 @Builder
@@ -119,7 +119,7 @@ struct ExtensionDetailPage {
   private confirmRemove(): void {
     const e: ExtensionInfo | null = this.live()
     if (e === null) {
-      QhState.pageStack.pop()
+      QhState.popPage(true)
       return
     }
     toastUtil.showAlertDialog({
@@ -134,7 +134,7 @@ struct ExtensionDetailPage {
           action: (): void => {
             extensionVM.deleteExt(e).then((): void => {
               toastUtil.showToast({ message: $r('app.string.ext_removed') })
-              QhState.pageStack.pop()
+              QhState.popPage(true)
             })
           }
         },
@@ -356,7 +356,7 @@ struct ExtensionDetailPage {
               type: ItemActionType.ROUTER,
               value: '',
               onChange: (v: string | boolean | number): void => {
-                QhState.pageStack.clear()
+                QhState.clearAllPages()
                 tabsVM.newTab(ExtensionResources.extUrl(this.extId, this.optionsPath()), false)
               }
             }),

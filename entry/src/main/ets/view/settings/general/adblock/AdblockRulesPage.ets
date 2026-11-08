@@ -1,7 +1,7 @@
 import { NaviContainer, NaviBarButton } from '../../../../components/NaviContainer';
 import { QhState } from '../../../../entryability/AppState';
-import { adBlockEngine } from '../../../../common/utils/AdBlockEngine';
-import { toastUtil } from '../../../../common/utils/ToastUtils';
+import { adBlockEngine } from '../../../../common/utils/adblock/AdBlockEngine';
+import { toastUtil } from '../../../../common/utils/ui/ToastUtils';
 import { tabsVM } from '../../../../viewmodel/TabsViewModel';
 
 @Builder
@@ -34,7 +34,7 @@ struct AdblockRulesPage {
         {
           value: $r('app.string.ad_block_rules_help_view'),
           action: (): void => {
-            QhState.pageStack.clear()
+            QhState.clearAllPages()
             tabsVM.newTab('https://adblockplus.org/filters')
           }
         },

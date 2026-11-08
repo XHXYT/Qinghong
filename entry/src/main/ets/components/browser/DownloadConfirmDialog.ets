@@ -1,10 +1,10 @@
 import { CustomContentDialog } from '@kit.ArkUI';
 import { downloadVM } from '../../viewmodel/DownloadViewModel';
 import { buildDialogButtons } from '../dialog/AppContentDialog';
-import { PublicDownloadDir } from '../../common/utils/PublicDownloadDir';
+import { PublicDownloadDir } from '../../common/utils/download/PublicDownloadDir';
 import { extensionVM } from '../../viewmodel/ExtensionViewModel';
-import { toastUtil } from '../../common/utils/ToastUtils';
-import { ResourceUtils } from '../../common/utils/ResourceUtil';
+import { toastUtil } from '../../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../../common/utils/app/ResourceUtil';
 import { appSettings } from '../../common/entity/SettingsModel';
 
 /**

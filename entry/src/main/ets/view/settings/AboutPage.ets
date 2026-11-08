@@ -4,8 +4,8 @@ import { CustomItemInfo, ItemActionType, ThirdPartyLibInfo } from '../../common/
 import { SettingsScaffold, SettingsSection } from '../../components/SettingsScaffold';
 import { QhState, _QhState } from '../../entryability/AppState';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
-import { toastUtil } from '../../common/utils/ToastUtils';
-import { ResourceUtils } from '../../common/utils/ResourceUtil';
+import { toastUtil } from '../../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../../common/utils/app/ResourceUtil';
 
 /** 作者主页 */
 const GITHUB_OWNER_URL = 'https://github.com/XHXYT';

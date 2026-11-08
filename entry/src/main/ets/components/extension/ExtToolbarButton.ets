@@ -2,11 +2,11 @@ import { SymbolGlyphModifier } from '@kit.ArkUI';
 import { QhState } from '../../entryability/AppState';
 import { extensionVM } from '../../viewmodel/ExtensionViewModel';
 import ExtensionInfo from '../../common/entity/ExtensionInfo';
-import { ExtensionEngine } from '../../common/utils/ExtensionEngine';
+import { ExtensionEngine } from '../../common/utils/extension/ExtensionEngine';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
-import { ActionBarColor } from '../../common/utils/ActionBarColor';
-import { ResourceUtils } from '../../common/utils/ResourceUtil';
-import { toastUtil } from '../../common/utils/ToastUtils';
+import { ActionBarColor } from '../../common/utils/ui/ActionBarColor';
+import { ResourceUtils } from '../../common/utils/app/ResourceUtil';
+import { toastUtil } from '../../common/utils/ui/ToastUtils';
 
 /**
  * 工具栏扩展按钮（PC 浏览器拼图样式）：

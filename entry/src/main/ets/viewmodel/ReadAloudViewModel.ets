@@ -2,11 +2,11 @@ import { TextReader } from '@kit.SpeechKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { TabInfo, tabsVM } from './TabsViewModel';
 import { browserVM } from './BrowserViewModel';
-import { ReaderScripts } from '../common/utils/ReaderScripts';
-import { toastUtil } from '../common/utils/ToastUtils';
-import { ResourceUtils } from '../common/utils/ResourceUtil';
+import { ReaderScripts } from '../common/utils/scripts/ReaderScripts';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../common/utils/app/ResourceUtil';
 import { _QhState } from '../entryability/AppState';
-import { createLogger } from '../common/utils/Logger';
+import { createLogger } from '../common/utils/app/Logger';
 
 const logger = createLogger('ReadAloudViewModel')
 

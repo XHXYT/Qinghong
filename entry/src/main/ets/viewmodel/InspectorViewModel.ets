@@ -1,9 +1,9 @@
 import { tabsVM, TabInfo } from './TabsViewModel';
-import { toastUtil } from '../common/utils/ToastUtils';
-import { adBlockEngine } from '../common/utils/AdBlockEngine';
-import { InspectScripts } from '../common/utils/InspectScripts';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
+import { adBlockEngine } from '../common/utils/adblock/AdBlockEngine';
+import { InspectScripts } from '../common/utils/scripts/InspectScripts';
 import { SiteSettingsViewModel } from './SiteSettingsViewModel';
-import { createLogger } from '../common/utils/Logger';
+import { createLogger } from '../common/utils/app/Logger';
 import { webview } from '@kit.ArkWeb';
 
 const logger = createLogger('InspectorVM')

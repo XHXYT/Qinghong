@@ -4,7 +4,7 @@ import { ItpStatDao } from '../common/utils/database/impl/ItpStatDao';
 import TrackerStatInfo from '../common/entity/TrackerStatInfo';
 import ItpStatInfo from '../common/entity/ItpStatInfo';
 import { _QhState } from '../entryability/AppState';
-import { createLogger } from '../common/utils/Logger';
+import { createLogger } from '../common/utils/app/Logger';
 
 const logger = createLogger('TrackerViewModel');
 

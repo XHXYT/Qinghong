@@ -1,10 +1,10 @@
 import { webview } from '@kit.ArkWeb';
 import { KeyboardAvoidMode } from '@kit.ArkUI';
 import { inspectorVM, InspectLog } from '../../viewmodel/InspectorViewModel';
-import { ViewSourceScripts } from '../../common/utils/ViewSourceScripts';
+import { ViewSourceScripts } from '../../common/utils/scripts/ViewSourceScripts';
 import { QhState } from '../../entryability/AppState';
-import { createLogger } from '../../common/utils/Logger';
-import { ResourceUtils } from '../../common/utils/ResourceUtil';
+import { createLogger } from '../../common/utils/app/Logger';
+import { ResourceUtils } from '../../common/utils/app/ResourceUtil';
 
 const logger = createLogger('InspPanel')
 

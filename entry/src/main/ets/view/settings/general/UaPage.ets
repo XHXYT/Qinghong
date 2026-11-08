@@ -1,13 +1,13 @@
 import { CustomContentDialog } from '@kit.ArkUI';
 import { NaviContainer, NaviBarButton } from '../../../components/NaviContainer';
 import { appSettings, CustomUa } from '../../../common/entity/SettingsModel';
-import { UaUtils, UserAgentPreset } from '../../../common/utils/UaUtils';
+import { UaUtils, UserAgentPreset } from '../../../common/utils/web/UaUtils';
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
 import { CustomListItem } from '../../../components/CusItemBuilder';
 import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../../../components/SheetPicker';
 import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
-import { toastUtil } from '../../../common/utils/ToastUtils';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
 import { QhState } from '../../../entryability/AppState';
 
 @Builder

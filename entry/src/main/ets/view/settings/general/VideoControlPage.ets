@@ -3,7 +3,7 @@ import { appSettings } from '../../../common/entity/SettingsModel';
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
 import { VIDEO_KB_SHORTCUTS, kbKeyNameOf, kbIsModifierCode, parseVideoKbOverrides } from '../../../common/constants/KbShortcuts';
 import { QhState } from '../../../entryability/AppState';
-import { toastUtil } from '../../../common/utils/ToastUtils';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
 
 @Builder
 export function VideoControlBuilder() {

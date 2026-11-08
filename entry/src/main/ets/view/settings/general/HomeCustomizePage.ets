@@ -4,12 +4,12 @@ import { appSettings, UISettings } from '../../../common/entity/SettingsModel';
 import { TabInfo } from '../../../viewmodel/TabsViewModel';
 import { HomepageView, HomeBgLayer } from '../../../components/browser/HomepageView';
 import { HomeHtmlView } from '../../../components/browser/HomeHtmlView';
-import { HomeImmersive } from '../../../common/utils/HomeImmersive';
-import { homeBg } from '../../../common/utils/HomeBg';
-import { homeHtmlRefresh } from '../../../common/utils/HomeHtmlRefresh';
-import { HomeImageUtil } from '../../../common/utils/HomeImageUtil';
-import { toastUtil } from '../../../common/utils/ToastUtils';
-import { createLogger } from '../../../common/utils/Logger';
+import { HomeImmersive } from '../../../common/utils/home/HomeImmersive';
+import { homeBg } from '../../../common/utils/home/HomeBg';
+import { homeHtmlRefresh } from '../../../common/utils/home/HomeHtmlRefresh';
+import { HomeImageUtil } from '../../../common/utils/home/HomeImageUtil';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
+import { createLogger } from '../../../common/utils/app/Logger';
 import { picker, fileIo } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
 
@@ -54,6 +54,8 @@ struct HomeCustomizePage {
   @Local panelOpen: boolean = true
   @Local panelExpanded: boolean = false
   @Local previewFullscreen: boolean = false
+  /** 根栈全屏预览实例（分栏下点全屏按钮推入根栈，进入即全屏、退出即 pop） */
+  @Local fullPreviewInstance: boolean = false
   @Local logoText: string = appSettings.home_logo_text
   @Local logoHtml: string = appSettings.home_logo_html
   @Local customCss: string = appSettings.home_custom_css
@@ -661,11 +663,20 @@ struct HomeCustomizePage {
         this.pageContent()
       },
       onReady: (ctx: NavDestinationContext): void => {
+        // 根栈全屏预览实例：路由参数 'full' 标记，进入即全屏
+        if (ctx.pathInfo.param === 'full') {
+          this.fullPreviewInstance = true
+          this.previewFullscreen = true
+        }
       },
       onBackPressed: (): boolean => {
         // 全屏预览时返回先退出全屏
         if (this.previewFullscreen) {
-          this.previewFullscreen = false
+          if (this.fullPreviewInstance) {
+            QhState.pageStack.pop(true)
+          } else {
+            this.previewFullscreen = false
+          }
           return true
         }
         // 面板展开时返回先收起面板，预览最大化
@@ -771,6 +782,17 @@ struct HomeCustomizePage {
           .backgroundColor(this.previewFullscreen ? QhState.currentThemeColor : 'rgba(0,0,0,0.45)')
           .shadow({ radius: 6, color: 'rgba(0,0,0,0.25)' })
           .onClick(() => {
+            // 根栈全屏预览实例：按钮即退出（pop 根栈回编辑现场）
+            if (this.fullPreviewInstance) {
+              QhState.pageStack.pop(true)
+              return
+            }
+            // 分栏（设置页在子栈）：推全屏预览实例到根栈，覆盖整个窗口（含设置页标题栏）
+            if (QhState.widthBp > 1) {
+              QhState.pageStack.pushPathByName('settings_custom', 'full', true)
+              return
+            }
+            // 单栏：本地切换全屏预览
             this.getUIContext().animateTo({ duration: 200, curve: Curve.EaseOut }, (): void => {
               this.previewFullscreen = !this.previewFullscreen
             })

@@ -1,7 +1,7 @@
 import { _QhState } from '../entryability/AppState';
 import HistoryInfo from '../common/entity/HistoryInfo';
 import { HistoryDao } from '../common/utils/database/impl/HistoryDao';
-import { createLogger } from '../common/utils/Logger';
+import { createLogger } from '../common/utils/app/Logger';
 
 const logger = createLogger('HistoryViewModel')
 

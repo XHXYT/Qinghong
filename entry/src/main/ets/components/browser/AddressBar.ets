@@ -3,15 +3,15 @@ import { tabsVM } from '../../viewmodel/TabsViewModel';
 import { browserVM } from '../../viewmodel/BrowserViewModel';
 import { appSettings, UISettings } from '../../common/entity/SettingsModel';
 import { UrlUtils, SearchToolbarEngines, ToolbarEngineEntry } from '../../common/constants/SearchEngines';
-import { ActionBarColor } from '../../common/utils/ActionBarColor';
-import { HomeImmersive } from '../../common/utils/HomeImmersive';
-import { homeHtmlRefresh } from '../../common/utils/HomeHtmlRefresh';
-import { hitokoto } from '../../common/utils/Hitokoto';
+import { ActionBarColor } from '../../common/utils/ui/ActionBarColor';
+import { HomeImmersive } from '../../common/utils/home/HomeImmersive';
+import { homeHtmlRefresh } from '../../common/utils/home/HomeHtmlRefresh';
+import { hitokoto } from '../../common/utils/home/Hitokoto';
 import { menuVM } from '../../viewmodel/MenuViewModel';
 import { searchVM } from '../../viewmodel/SearchViewModel';
 import { SearchSuggestPanel } from './SearchSuggestPanel';
 import { ExtToolbarButton } from '../extension/ExtToolbarButton';
-import { EXT_SCHEME_PREFIX } from '../../common/utils/ExtensionResources';
+import { EXT_SCHEME_PREFIX } from '../../common/utils/extension/ExtensionResources';
 
 /**
  * 地址栏显示文本（按地址栏内容设置：标题/地址/域名，标题为空回退域名）

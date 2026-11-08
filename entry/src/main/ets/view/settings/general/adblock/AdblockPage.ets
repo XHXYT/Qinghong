@@ -1,7 +1,7 @@
 import { SettingsScaffold, SettingsSection } from '../../../../components/SettingsScaffold';
 import { appSettings } from '../../../../common/entity/SettingsModel';
-import { AdBlockStore, adBlockStore } from '../../../../common/utils/AdBlockStore';
-import { AdBlockEngine, adBlockEngine } from '../../../../common/utils/AdBlockEngine';
+import { AdBlockStore, adBlockStore } from '../../../../common/utils/adblock/AdBlockStore';
+import { AdBlockEngine, adBlockEngine } from '../../../../common/utils/adblock/AdBlockEngine';
 import { CustomItemInfo, ItemActionType } from '../../../../common/entity/CusItemInfo';
 import { QhState } from '../../../../entryability/AppState';
 

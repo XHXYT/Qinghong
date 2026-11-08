@@ -1,4 +1,4 @@
-import { adBlockEngine } from '../common/utils/AdBlockEngine';
+import { adBlockEngine } from '../common/utils/adblock/AdBlockEngine';
 
 /**
  * 网络日志单条请求记录

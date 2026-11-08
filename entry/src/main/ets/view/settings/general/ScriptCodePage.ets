@@ -1,10 +1,10 @@
 import { NaviContainer, NaviBarButton } from '../../../components/NaviContainer';
 import { QhState } from '../../../entryability/AppState';
-import { UserScriptEngine } from '../../../common/utils/UserScriptEngine';
+import { UserScriptEngine } from '../../../common/utils/userscript/UserScriptEngine';
 import { scriptVM } from '../../../viewmodel/ScriptViewModel';
 import { tabsVM } from '../../../viewmodel/TabsViewModel';
 import UserScriptInfo from '../../../common/entity/UserScriptInfo';
-import { toastUtil } from '../../../common/utils/ToastUtils';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
 
 /** 油猴官方脚本开发文档（帮助页「了解更多」跳转目标） */
 const TAMPERMONKEY_DOC_URL = 'https://www.tampermonkey.net/documentation.php';

@@ -3,9 +3,9 @@ import AutoTable from '../AutoTable';
 import { ValueType } from '../AbsTable';
 import { Table } from '../decorator/Decorators';
 import { Context } from '@kit.AbilityKit';
-import { createLogger } from '../../Logger';
+import { createLogger } from '../../app/Logger';
 import PasswordInfo from '../../../entity/PasswordInfo';
-import { PwdCrypto } from '../../PwdCrypto';
+import { PwdCrypto } from '../../security/PwdCrypto';
 import rdb from '@ohos.data.relationalStore';
 
 const logger = createLogger('PasswordDao');

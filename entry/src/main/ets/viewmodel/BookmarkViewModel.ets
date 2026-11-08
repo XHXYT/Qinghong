@@ -1,8 +1,8 @@
 import { _QhState } from '../entryability/AppState';
 import BookmarkInfo from '../common/entity/BookmarkInfo';
 import { BookmarkDao } from '../common/utils/database/impl/BookmarkDao';
-import { homeHtmlRefresh } from '../common/utils/HomeHtmlRefresh';
-import { createLogger } from '../common/utils/Logger';
+import { homeHtmlRefresh } from '../common/utils/home/HomeHtmlRefresh';
+import { createLogger } from '../common/utils/app/Logger';
 
 const logger = createLogger('BookmarkViewModel')
 

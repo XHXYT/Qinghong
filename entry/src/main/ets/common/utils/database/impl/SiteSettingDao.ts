@@ -2,7 +2,7 @@
 import AutoTable from '../AutoTable';
 import { Table } from '../decorator/Decorators';
 import { Context } from '@kit.AbilityKit';
-import { createLogger } from '../../Logger';
+import { createLogger } from '../../app/Logger';
 import SiteSettingInfo from '../../../entity/SiteSettingInfo';
 
 const logger = createLogger('SiteSettingDao');

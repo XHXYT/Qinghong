@@ -6,8 +6,8 @@ import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { tabsVM, TabInfo } from './TabsViewModel';
 import { downloadVM } from './DownloadViewModel';
 import { browserVM } from './BrowserViewModel';
-import { toastUtil } from '../common/utils/ToastUtils';
-import { adBlockEngine } from '../common/utils/AdBlockEngine';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
+import { adBlockEngine } from '../common/utils/adblock/AdBlockEngine';
 import { _QhState } from '../entryability/AppState';
 
 /**

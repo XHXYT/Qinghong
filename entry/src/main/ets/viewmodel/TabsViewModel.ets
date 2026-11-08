@@ -4,14 +4,14 @@ import { fileIo } from '@kit.CoreFileKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { QhState, _QhState } from '../entryability/AppState';
 import { AppConstants } from '../common/constants/AppConstants';
-import { kvDbUtil } from '../common/utils/KVdbUtil';
+import { kvDbUtil } from '../common/utils/storage/KVdbUtil';
 import { appSettings } from '../common/entity/SettingsModel';
-import { createLogger } from '../common/utils/Logger';
-import { toastUtil } from '../common/utils/ToastUtils';
-import { ResourceUtils } from '../common/utils/ResourceUtil';
+import { createLogger } from '../common/utils/app/Logger';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../common/utils/app/ResourceUtil';
 import { SiteSettingsViewModel, siteSettingsVM } from './SiteSettingsViewModel';
-import { ViewSourceScripts } from '../common/utils/ViewSourceScripts';
-import { VideoFullScreen } from '../common/utils/VideoFullScreen';
+import { ViewSourceScripts } from '../common/utils/scripts/ViewSourceScripts';
+import { VideoFullScreen } from '../common/utils/ui/VideoFullScreen';
 import { WebHostedPlayerSession } from '../components/browser/WebHostedPlayer';
 
 const logger = createLogger('TabsViewModel')

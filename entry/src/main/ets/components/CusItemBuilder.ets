@@ -1,10 +1,10 @@
 import { CustomContentDialog, LengthMetrics, SymbolGlyphModifier } from "@kit.ArkUI"
 import UIConstants from "../common/constants/UIConstants";
 import { CustomItemInfo, ItemActionType, MenuOption, ContextMenuItem } from "../common/entity/CusItemInfo";
-import { ColorUtils } from "../common/utils/ColorUtils";
+import { ColorUtils } from "../common/utils/ui/ColorUtils";
 import { ButtonOptions } from "@ohos.arkui.advanced.Dialog"
-import { toastUtil } from "../common/utils/ToastUtils";
-import { ResourceUtils } from "../common/utils/ResourceUtil";
+import { toastUtil } from "../common/utils/ui/ToastUtils";
+import { ResourceUtils } from "../common/utils/app/ResourceUtil";
 import { QhState } from "../entryability/AppState";
 import { appSettings, UISettings } from "../common/entity/SettingsModel";
 

@@ -2,12 +2,12 @@ import { CustomContentDialog } from '@kit.ArkUI';
 import { NaviContainer, NaviBarButton } from '../../../components/NaviContainer';
 import { QhState } from '../../../entryability/AppState';
 import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
-import { toastUtil } from '../../../common/utils/ToastUtils';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
 import { trackerVM } from '../../../viewmodel/TrackerViewModel';
 import TrackerStatInfo from '../../../common/entity/TrackerStatInfo';
 import ItpStatInfo from '../../../common/entity/ItpStatInfo';
-import { ItpBypassUtils } from '../../../common/utils/ItpBypassUtils';
+import { ItpBypassUtils } from '../../../common/utils/security/ItpBypassUtils';
 
 @Builder
 export function PrivacyReportBuilder() {

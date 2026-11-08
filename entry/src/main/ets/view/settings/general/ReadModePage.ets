@@ -5,9 +5,9 @@ import { QhState } from '../../../entryability/AppState';
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
 import { CustomListItem } from '../../../components/CusItemBuilder';
 import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
-import { toastUtil } from '../../../common/utils/ToastUtils';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
-import { ReadModeCssStore } from '../../../common/utils/ReadModeCssStore';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
+import { ReadModeCssStore } from '../../../common/utils/storage/ReadModeCssStore';
 
 /**
  * 阅读模式背景色预设

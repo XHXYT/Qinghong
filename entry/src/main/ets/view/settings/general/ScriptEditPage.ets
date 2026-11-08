@@ -1,11 +1,11 @@
 import { pasteboard } from '@kit.BasicServicesKit';
 import { NaviContainer } from '../../../components/NaviContainer';
 import { QhState } from '../../../entryability/AppState';
-import { UserScriptEngine } from '../../../common/utils/UserScriptEngine';
+import { UserScriptEngine } from '../../../common/utils/userscript/UserScriptEngine';
 import { scriptVM, ScriptViewModel } from '../../../viewmodel/ScriptViewModel';
 import UserScriptInfo from '../../../common/entity/UserScriptInfo';
-import { toastUtil } from '../../../common/utils/ToastUtils';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
 
 /** 运行时机选项 */
 const RUN_AT_OPTIONS: string[] = ['document-start', 'document-end', 'document-idle'];

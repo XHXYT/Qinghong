@@ -1,4 +1,4 @@
-import { toastUtil } from '../common/utils/ToastUtils';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { appSettings } from '../common/entity/SettingsModel';
 import { TabInfo } from './TabsViewModel';

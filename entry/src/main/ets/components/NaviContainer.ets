@@ -83,6 +83,12 @@ export struct NaviContainer {
 
   private pageStack: NavPathStack = new NavPathStack()
 
+  /** 嵌套在大屏设置分栏右侧子导航内（去掉外层已避让过的状态栏高度） */
+  @Local nestedInSplit: boolean = false
+
+  /** 分栏右侧栈底第一层：隐藏返回按钮，系统返回/ESC 不 pop（避免右侧空白页） */
+  @Local splitStackBottom: boolean = false
+
   /** 标题栏下拉菜单显隐与内容（由带 menuItems 的按钮驱动） */
   @Local btnMenuShow: boolean = false
   @Local btnMenuItems: ContextMenuItem[] = []
@@ -119,7 +125,7 @@ export struct NaviContainer {
       }
       .width('100%')
       .height('100%')
-      .padding({ top: this.shouldShowBar() ? (this.topPadding !== undefined ? this.topPadding : (QhState.topRectHeight || 12)) : 0 })
+      .padding({ top: this.shouldShowBar() ? (this.nestedInSplit ? 0 : (this.topPadding !== undefined ? this.topPadding : (QhState.topRectHeight || 12))) : 0 })
     }
     .height('100%')
     .backgroundColor($r('app.color.background_color_accent'))
@@ -127,19 +133,36 @@ export struct NaviContainer {
     .hideTitleBar(true)
     .transition(this.transitionEffect)
     .onBackPressed(() => {
-      return this.onBackPressed()
+      // 页面回调优先（退出全屏预览/收面板/确认弹窗等），true = 已处理不再 pop
+      if (this.onBackPressed()) {
+        return true
+      }
+      if (this.splitStackBottom) {
+        // 分栏右侧栈底：系统滑动返回关闭整个设置页（pop 根栈），
+        // 不能只消费掉（否则手势返回失效），也不能 pop 嵌套栈（右侧留空白）
+        QhState.pageStack.pop(true)
+        return true
+      }
+      return false
     })
     .onKeyEvent((event: KeyEvent) => {
       if (event.type === KeyType.Down) {
         if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
           if (!this.onBackPressed()) {
-            this.pageStack.pop()
+            if (this.splitStackBottom) {
+              QhState.pageStack.pop(true)
+            } else {
+              this.pageStack.pop()
+            }
           }
         }
       }
     })
     .onReady((ctx: NavDestinationContext) => {
       this.pageStack = ctx.pathStack
+      const split: NavPathStack | null = QhState.settingsSplitStack
+      this.nestedInSplit = split !== null && ctx.pathStack === split
+      this.splitStackBottom = this.nestedInSplit && split !== null && split.size() === 1
       this.onReady(ctx)
     })
     .onShown(() => {
@@ -151,22 +174,28 @@ export struct NaviContainer {
   @Builder
   titleBar() {
     Row() {
-      // 返回键（官方图标按钮样式）
-      Row() {
-        SymbolGlyph($r('sys.symbol.chevron_left'))
-          .fontSize(24)
-          .fontColor([$r('sys.color.font_primary')])
-      }
-      .width(40)
-      .height(40)
-      .borderRadius(20)
-      .justifyContent(FlexAlign.Center)
-      .backgroundColor($r('sys.color.comp_background_tertiary'))
-      .onClick(() => {
-        if (!this.onBackPressed()) {
-          this.pageStack.pop()
+      // 返回键（官方图标按钮样式；设置分栏右侧栈底第一层隐藏）
+      if (!this.splitStackBottom) {
+        Row() {
+          SymbolGlyph($r('sys.symbol.chevron_left'))
+            .fontSize(24)
+            .fontColor([$r('sys.color.font_primary')])
         }
-      })
+        .width(40)
+        .height(40)
+        .borderRadius(20)
+        .justifyContent(FlexAlign.Center)
+        .backgroundColor($r('sys.color.comp_background_tertiary'))
+        .onClick(() => {
+          if (!this.onBackPressed()) {
+            if (this.splitStackBottom) {
+              QhState.pageStack.pop(true)
+            } else {
+              this.pageStack.pop()
+            }
+          }
+        })
+      }
       // 标题/副标题
       Column() {
         Text(this.title)
@@ -188,7 +217,7 @@ export struct NaviContainer {
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
-      .margin({ left: 12 })
+      .margin({ left: this.splitStackBottom ? 0 : 12 })
 
       // 右侧按钮（最多 4 个）
       if (this.buttons.length > 0) {

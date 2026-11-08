@@ -4,11 +4,11 @@ import { TabInfo, tabsVM } from './TabsViewModel';
 import { historyVM } from './HistoryViewModel';
 import { searchVM } from './SearchViewModel';
 import { SearchEngines, UrlUtils } from '../common/constants/SearchEngines';
-import { createLogger } from '../common/utils/Logger';
-import { ReaderScripts } from '../common/utils/ReaderScripts';
+import { createLogger } from '../common/utils/app/Logger';
+import { ReaderScripts } from '../common/utils/scripts/ReaderScripts';
 import { appSettings } from '../common/entity/SettingsModel';
-import { toastUtil } from '../common/utils/ToastUtils';
-import { ResourceUtils } from '../common/utils/ResourceUtil';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../common/utils/app/ResourceUtil';
 import { _QhState, QhState } from '../entryability/AppState';
 
 const logger = createLogger('BrowserViewModel')

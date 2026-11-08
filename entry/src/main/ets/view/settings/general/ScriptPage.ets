@@ -9,8 +9,8 @@ import UserScriptInfo from '../../../common/entity/UserScriptInfo';
 import { CustomItemInfo, ItemActionType, ContextMenuItem } from '../../../common/entity/CusItemInfo';
 import { CustomListItem } from '../../../components/CusItemBuilder';
 import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
-import { toastUtil } from '../../../common/utils/ToastUtils';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
 
 @Builder
 export function ScriptPageBuilder() {

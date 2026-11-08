@@ -7,11 +7,11 @@ import { appSettings } from '../../common/entity/SettingsModel';
 import { faviconCache, FaviconCache } from '../../viewmodel/FaviconCache';
 import BookmarkInfo from '../../common/entity/BookmarkInfo';
 import { HomepageQuickColumns, gridColumnsTemplate } from '../../common/utils/breakpoint/BreakPoint';
-import { toastUtil } from '../../common/utils/ToastUtils';
-import { hitokoto } from '../../common/utils/Hitokoto';
+import { toastUtil } from '../../common/utils/ui/ToastUtils';
+import { hitokoto } from '../../common/utils/home/Hitokoto';
 import { searchVM } from '../../viewmodel/SearchViewModel';
 import { SearchSuggestPanel } from './SearchSuggestPanel';
-import { homeBg } from '../../common/utils/HomeBg';
+import { homeBg } from '../../common/utils/home/HomeBg';
 
 /** 联想面板可见高度上限（6 行 × 46 行高）：超出部分面板内滚动，不为长列表把搜索框顶飞 */
 const SUGGEST_CAP_HEIGHT = 276

@@ -3,7 +3,7 @@ import { offlinePageVM } from '../viewmodel/OfflinePageViewModel';
 import OfflinePageInfo from '../common/entity/OfflinePageInfo';
 import { browserVM } from '../viewmodel/BrowserViewModel';
 import { QhState } from '../entryability/AppState';
-import { toastUtil } from '../common/utils/ToastUtils';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
 
 @Builder
 export function OfflinePageBuilder() {

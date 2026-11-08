@@ -1,32 +1,32 @@
 import { AbilityConstant, common, Configuration, EnvironmentCallback, UIAbility, Want } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { AvoidanceManager, SmartAvoidance } from '../common/utils/AvoidManager';
+import { AvoidanceManager, SmartAvoidance } from '../common/utils/ui/AvoidManager';
 import { QhState, _QhState } from './AppState';
-import { toastUtil } from '../common/utils/ToastUtils';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
 import { preferenceUtil } from '../common/utils/persistence/PreferenceUtil';
-import { kvDbUtil } from '../common/utils/KVdbUtil';
+import { kvDbUtil } from '../common/utils/storage/KVdbUtil';
 import { appSettings, UISettings } from '../common/entity/SettingsModel';
 import { syncVM } from '../viewmodel/SyncViewModel';
-import { ColorUtils } from '../common/utils/ColorUtils';
-import { ResourceUtils } from '../common/utils/ResourceUtil';
-import { SettingsUtils } from '../common/utils/SettingsUtils';
-import { FontStore } from '../common/utils/FontStore';
-import { adBlockEngine } from '../common/utils/AdBlockEngine';
-import { adBlockStore } from '../common/utils/AdBlockStore';
-import { adBlockSubsStore } from '../common/utils/AdBlockSubs';
-import { animation } from '../common/utils/AnimationUtil';
+import { ColorUtils } from '../common/utils/ui/ColorUtils';
+import { ResourceUtils } from '../common/utils/app/ResourceUtil';
+import { SettingsUtils } from '../common/utils/app/SettingsUtils';
+import { FontStore } from '../common/utils/ui/FontStore';
+import { adBlockEngine } from '../common/utils/adblock/AdBlockEngine';
+import { adBlockStore } from '../common/utils/adblock/AdBlockStore';
+import { adBlockSubsStore } from '../common/utils/adblock/AdBlockSubs';
+import { animation } from '../common/utils/ui/AnimationUtil';
 import { AppConstants } from '../common/constants/AppConstants';
-import { createLogger } from '../common/utils/Logger';
+import { createLogger } from '../common/utils/app/Logger';
 import { siteSettingsVM } from '../viewmodel/SiteSettingsViewModel';
 import { hostsVM } from '../viewmodel/HostsViewModel';
-import { DnsUtils } from '../common/utils/DnsUtils';
+import { DnsUtils } from '../common/utils/network/DnsUtils';
 import { tabsVM } from '../viewmodel/TabsViewModel';
 import { scriptVM } from '../viewmodel/ScriptViewModel';
 import { extensionVM } from '../viewmodel/ExtensionViewModel';
 import { ShortcutViewModel } from '../viewmodel/ShortcutViewModel';
-import { DataClearer } from '../common/utils/DataClearer';
-import { EXT_SCHEME } from '../common/utils/ExtensionResources';
+import { DataClearer } from '../common/utils/app/DataClearer';
+import { EXT_SCHEME } from '../common/utils/extension/ExtensionResources';
 import { webview } from '@kit.ArkWeb';
 import { TextReader, WindowManager } from '@kit.SpeechKit';
 
@@ -73,8 +73,11 @@ export default class EntryAbility extends UIAbility {
     } catch (error) {
       logger.error('Init', `customizeSchemes failed: ${error}`);
     }
+    // 初始化与应用环境：暴露完成信号（Index 等待后再恢复会话，防安装后首启竞态）
+    const initTask: Promise<void> = this.initAppEnvironment();
+    QhState.appInitialized = initTask;
     try {
-      await this.initAppEnvironment();
+      await initTask;
       logger.info('Init', 'App environment initialized successfully.');
     } catch (error) {
       logger.error(`Init`, `Initialization failed, ${error}`);

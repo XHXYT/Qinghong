@@ -4,7 +4,7 @@ import rdb from '@ohos.data.relationalStore';
 import 'reflect-metadata';
 import ColumnInfo from './ColumnInfo';
 import { Context } from '@kit.AbilityKit';
-import { createLogger } from '../Logger';
+import { createLogger } from '../app/Logger';
 
 const logger = createLogger('AutoTable');
 

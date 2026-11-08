@@ -5,8 +5,8 @@ import { QhState } from '../../../entryability/AppState';
 import { appSettings } from '../../../common/entity/SettingsModel';
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
 import { CustomListItem } from '../../../components/CusItemBuilder';
-import { toastUtil } from '../../../common/utils/ToastUtils';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
 import { passwordVM } from '../../../viewmodel/PasswordViewModel';
 import { DataBackupViewModel } from '../../../viewmodel/DataBackupViewModel';
 

@@ -3,8 +3,8 @@ import { Want } from '@kit.AbilityKit';
 import { fileIo } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
 import { QhState, _QhState } from '../entryability/AppState';
-import { ColorUtils } from '../common/utils/ColorUtils';
-import { toastUtil } from '../common/utils/ToastUtils';
+import { ColorUtils } from '../common/utils/ui/ColorUtils';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
 import { faviconCache, FaviconCache } from './FaviconCache';
 
 /** 生成首字头像图标（主题色底 + 白色首字），兜底方案 */

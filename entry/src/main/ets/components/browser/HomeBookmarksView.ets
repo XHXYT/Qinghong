@@ -2,7 +2,7 @@ import { bookmarkVM } from '../../viewmodel/BookmarkViewModel';
 import { browserVM } from '../../viewmodel/BrowserViewModel';
 import BookmarkInfo from '../../common/entity/BookmarkInfo';
 import { QhState } from '../../entryability/AppState';
-import { toastUtil } from '../../common/utils/ToastUtils';
+import { toastUtil } from '../../common/utils/ui/ToastUtils';
 
 /**
  * 书签模式主页：主页态渲染书签列表

@@ -2,7 +2,7 @@ import { NaviContainer, NaviBarButton } from '../components/NaviContainer';
 import { ContextMenuItem } from '../common/entity/CusItemInfo';
 import { downloadVM, DownloadViewModel } from '../viewmodel/DownloadViewModel';
 import DownloadRecordInfo from '../common/entity/DownloadRecordInfo';
-import { toastUtil } from '../common/utils/ToastUtils';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
 import { QhState } from '../entryability/AppState';
 
 /** 文件类型扩展名表（按图标类别分组，小写比较） */

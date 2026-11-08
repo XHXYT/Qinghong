@@ -7,7 +7,7 @@ import { bookmarkVM } from './BookmarkViewModel';
 import BookmarkInfo from '../common/entity/BookmarkInfo';
 import { BookmarkDao } from '../common/utils/database/impl/BookmarkDao';
 import { _QhState } from '../entryability/AppState';
-import { createLogger } from '../common/utils/Logger';
+import { createLogger } from '../common/utils/app/Logger';
 
 const logger = createLogger('SyncViewModel')
 

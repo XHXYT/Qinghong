@@ -7,9 +7,9 @@ import { menuVM } from '../../viewmodel/MenuViewModel';
 import { sniffVM } from '../../viewmodel/SniffViewModel';
 import { ResourceSniffPanel } from './ResourceSniffPanel';
 import { BookmarkEditor } from './BookmarkEditor';
-import { ActionBarColor } from '../../common/utils/ActionBarColor';
-import { HomeImmersive } from '../../common/utils/HomeImmersive';
-import { toolbarEventRunner } from '../../common/utils/ToolbarEventRunner';
+import { ActionBarColor } from '../../common/utils/ui/ActionBarColor';
+import { HomeImmersive } from '../../common/utils/home/HomeImmersive';
+import { toolbarEventRunner } from '../../common/utils/ui/ToolbarEventRunner';
 import { appSettings } from '../../common/entity/SettingsModel';
 
 /**

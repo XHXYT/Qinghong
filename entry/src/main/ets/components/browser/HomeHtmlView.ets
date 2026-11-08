@@ -7,12 +7,12 @@ import { browserVM } from '../../viewmodel/BrowserViewModel';
 import { appSettings } from '../../common/entity/SettingsModel';
 import { faviconCache, FaviconCache } from '../../viewmodel/FaviconCache';
 import { SearchToolbarEngines } from '../../common/constants/SearchEngines';
-import { ResourceUtils } from '../../common/utils/ResourceUtil';
-import { homeHtmlRefresh } from '../../common/utils/HomeHtmlRefresh';
-import { homeBg } from '../../common/utils/HomeBg';
-import { toastUtil } from '../../common/utils/ToastUtils';
-import { createLogger } from '../../common/utils/Logger';
-import { hitokoto } from '../../common/utils/Hitokoto';
+import { ResourceUtils } from '../../common/utils/app/ResourceUtil';
+import { homeHtmlRefresh } from '../../common/utils/home/HomeHtmlRefresh';
+import { homeBg } from '../../common/utils/home/HomeBg';
+import { toastUtil } from '../../common/utils/ui/ToastUtils';
+import { createLogger } from '../../common/utils/app/Logger';
+import { hitokoto } from '../../common/utils/home/Hitokoto';
 import { searchVM, SuggestItem, SuggestType } from '../../viewmodel/SearchViewModel';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
 

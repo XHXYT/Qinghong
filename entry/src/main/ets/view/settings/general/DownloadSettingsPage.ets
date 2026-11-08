@@ -3,8 +3,8 @@ import { QhState } from '../../../entryability/AppState';
 import { appSettings } from '../../../common/entity/SettingsModel';
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
 import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../../../components/SheetPicker';
-import { toastUtil } from '../../../common/utils/ToastUtils';
-import { PublicDownloadDir } from '../../../common/utils/PublicDownloadDir';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
+import { PublicDownloadDir } from '../../../common/utils/download/PublicDownloadDir';
 
 /** 并发数选项（1-8） */
 function concurrencyOptions(): PickerOption[] {

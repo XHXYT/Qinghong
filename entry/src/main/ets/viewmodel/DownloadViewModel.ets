@@ -4,13 +4,13 @@ import { _QhState } from '../entryability/AppState';
 import DownloadRecordInfo from '../common/entity/DownloadRecordInfo';
 import { DownloadRecordDao } from '../common/utils/database/impl/DownloadRecordDao';
 import { UrlUtils } from '../common/constants/SearchEngines';
-import { createLogger } from '../common/utils/Logger';
-import { toastUtil } from '../common/utils/ToastUtils';
-import { PublicDownloadDir } from '../common/utils/PublicDownloadDir';
+import { createLogger } from '../common/utils/app/Logger';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
+import { PublicDownloadDir } from '../common/utils/download/PublicDownloadDir';
 import { DataBackupViewModel } from './DataBackupViewModel';
-import { HttpDownloader, StreamOptions, AbortFlag } from '../common/utils/HttpDownloader';
-import { HlsDownloader, HlsOptions } from '../common/utils/HlsDownloader';
-import { DownloadNotifier } from '../common/utils/DownloadNotifier';
+import { HttpDownloader, StreamOptions, AbortFlag } from '../common/utils/download/HttpDownloader';
+import { HlsDownloader, HlsOptions } from '../common/utils/download/HlsDownloader';
+import { DownloadNotifier } from '../common/utils/download/DownloadNotifier';
 import { appSettings } from '../common/entity/SettingsModel';
 
 const logger = createLogger('DownloadViewModel')

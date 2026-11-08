@@ -11,10 +11,10 @@ import { dataBackupVM, DataBackupViewModel } from '../../../viewmodel/DataBackup
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
 import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../../../components/SheetPicker';
 import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
-import { toastUtil } from '../../../common/utils/ToastUtils';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
-import { DataClearer } from '../../../common/utils/DataClearer';
-import { SettingsUtils } from '../../../common/utils/SettingsUtils';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
+import { DataClearer } from '../../../common/utils/app/DataClearer';
+import { SettingsUtils } from '../../../common/utils/app/SettingsUtils';
 import { AppConstants } from '../../../common/constants/AppConstants';
 
 const CLEAR_KEYS: string[] = DataClearer.KEYS;

@@ -1,7 +1,7 @@
 import ITable from './ITable';
 import rdb from '@ohos.data.relationalStore';
 import { Context } from '@ohos.arkui.UIContext';
-import { createLogger } from '../Logger';
+import { createLogger } from '../app/Logger';
 
 export type ValueType = number | string | boolean | Uint8Array;
 

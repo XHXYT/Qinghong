@@ -3,13 +3,13 @@ import { NaviContainer } from '../../../components/NaviContainer';
 import { appSettings } from '../../../common/entity/SettingsModel';
 import SiteSettingInfo from '../../../common/entity/SiteSettingInfo';
 import { SiteSettingsViewModel, siteSettingsVM } from '../../../viewmodel/SiteSettingsViewModel';
-import { ProxyUtils, SITE_PROXY_KEY } from '../../../common/utils/ProxyUtils';
+import { ProxyUtils, SITE_PROXY_KEY } from '../../../common/utils/network/ProxyUtils';
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
 import { CustomListItem } from '../../../components/CusItemBuilder';
 import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../../../components/SheetPicker';
 import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
-import { toastUtil } from '../../../common/utils/ToastUtils';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
 import { QhState } from '../../../entryability/AppState';
 
 @Builder

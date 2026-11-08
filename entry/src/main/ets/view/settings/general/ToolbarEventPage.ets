@@ -7,7 +7,7 @@ import {
   setToolbarEventAction
 } from '../../../common/entity/ToolbarEvent';
 import { CustomItemInfo, ItemActionType, RadioConfig } from '../../../common/entity/CusItemInfo';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
 
 
 @Builder
@@ -105,6 +105,6 @@ struct ToolbarEventPage {
       setToolbarEventAction(this.eventId, actionId)
       this.selected = actionId
     }
-    QhState.pageStack.pop()
+    QhState.popPage(true)
   }
 }

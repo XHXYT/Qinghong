@@ -1,14 +1,14 @@
 import { bookmarkVM } from '../../viewmodel/BookmarkViewModel';
 import BookmarkInfo from '../../common/entity/BookmarkInfo';
 import { browserVM } from '../../viewmodel/BrowserViewModel';
-import { HomeImmersive } from '../../common/utils/HomeImmersive';
-import { homeBg } from '../../common/utils/HomeBg';
-import { ActionBarColor } from '../../common/utils/ActionBarColor';
+import { HomeImmersive } from '../../common/utils/home/HomeImmersive';
+import { homeBg } from '../../common/utils/home/HomeBg';
+import { ActionBarColor } from '../../common/utils/ui/ActionBarColor';
 import { UISettings } from '../../common/entity/SettingsModel';
 import { faviconCache, FaviconCache } from '../../viewmodel/FaviconCache';
 import { menuVM } from '../../viewmodel/MenuViewModel';
 import { QhState } from '../../entryability/AppState';
-import { toastUtil } from '../../common/utils/ToastUtils';
+import { toastUtil } from '../../common/utils/ui/ToastUtils';
 import { fileIo, fileUri } from '@kit.CoreFileKit';
 
 /** 芯片窗口几何（拖拽命中判定用） */

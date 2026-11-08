@@ -1,8 +1,8 @@
 import { webview } from '@kit.ArkWeb';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { createLogger } from '../../common/utils/Logger';
+import { createLogger } from '../../common/utils/app/Logger';
 import { extensionVM } from '../../viewmodel/ExtensionViewModel';
-import { ExtensionResources } from '../../common/utils/ExtensionResources';
+import { ExtensionResources } from '../../common/utils/extension/ExtensionResources';
 import { _QhState } from '../../entryability/AppState';
 import ExtensionInfo from '../../common/entity/ExtensionInfo';
 

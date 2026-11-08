@@ -3,8 +3,8 @@ import { SettingsScaffold, SettingsSection } from '../../../components/SettingsS
 import { appSettings, UISettings } from '../../../common/entity/SettingsModel';
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
 import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../../../components/SheetPicker';
-import { SettingsUtils } from '../../../common/utils/SettingsUtils';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
+import { SettingsUtils } from '../../../common/utils/app/SettingsUtils';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
 
 function themeModeKey(mode: ConfigurationConstant.ColorMode): string {
   if (mode === ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT) {

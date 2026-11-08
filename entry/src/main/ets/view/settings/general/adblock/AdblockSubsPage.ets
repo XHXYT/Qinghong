@@ -2,14 +2,14 @@ import { CustomContentDialog } from '@kit.ArkUI';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { NaviContainer, NaviBarButton } from '../../../../components/NaviContainer';
 import { QhState } from '../../../../entryability/AppState';
-import { adBlockEngine } from '../../../../common/utils/AdBlockEngine';
-import { AdBlockSubscription, AdBlockSubsStore, adBlockSubsStore } from '../../../../common/utils/AdBlockSubs';
+import { adBlockEngine } from '../../../../common/utils/adblock/AdBlockEngine';
+import { AdBlockSubscription, AdBlockSubsStore, adBlockSubsStore } from '../../../../common/utils/adblock/AdBlockSubs';
 import { CustomItemInfo, ItemActionType, ContextMenuItem } from '../../../../common/entity/CusItemInfo';
 import { CustomListItem } from '../../../../components/CusItemBuilder';
 import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../../../../components/SheetPicker';
 import { buildDialogButtons } from '../../../../components/dialog/AppContentDialog';
-import { toastUtil } from '../../../../common/utils/ToastUtils';
-import { ResourceUtils } from '../../../../common/utils/ResourceUtil';
+import { toastUtil } from '../../../../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../../../../common/utils/app/ResourceUtil';
 
 @Builder
 export function SettingsAdblockSubsBuilder() {

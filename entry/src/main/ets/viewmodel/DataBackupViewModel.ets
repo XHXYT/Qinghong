@@ -6,8 +6,8 @@ import HistoryInfo from '../common/entity/HistoryInfo';
 import { BookmarkDao } from '../common/utils/database/impl/BookmarkDao';
 import { HistoryDao } from '../common/utils/database/impl/HistoryDao';
 import { appSettings } from '../common/entity/SettingsModel';
-import { createLogger } from '../common/utils/Logger';
-import { PublicDownloadDir } from '../common/utils/PublicDownloadDir';
+import { createLogger } from '../common/utils/app/Logger';
+import { PublicDownloadDir } from '../common/utils/download/PublicDownloadDir';
 
 const logger = createLogger('DataBackup')
 

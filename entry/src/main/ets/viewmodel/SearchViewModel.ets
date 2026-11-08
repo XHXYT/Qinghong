@@ -7,8 +7,8 @@ import { BookmarkDao } from '../common/utils/database/impl/BookmarkDao';
 import { HistoryDao } from '../common/utils/database/impl/HistoryDao';
 import { appSettings } from '../common/entity/SettingsModel';
 import { tabsVM } from './TabsViewModel';
-import { PrefetchUtils } from '../common/utils/PrefetchUtils';
-import { createLogger } from '../common/utils/Logger';
+import { PrefetchUtils } from '../common/utils/web/PrefetchUtils';
+import { createLogger } from '../common/utils/app/Logger';
 
 const logger = createLogger('SearchViewModel')
 

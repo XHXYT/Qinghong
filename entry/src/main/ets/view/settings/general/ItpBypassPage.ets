@@ -4,10 +4,10 @@ import { QhState } from '../../../entryability/AppState';
 import { CustomItemInfo, ItemActionType, ContextMenuItem } from '../../../common/entity/CusItemInfo';
 import { CustomListItem } from '../../../components/CusItemBuilder';
 import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
-import { toastUtil } from '../../../common/utils/ToastUtils';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
 import { appSettings } from '../../../common/entity/SettingsModel';
-import { ItpBypassUtils } from '../../../common/utils/ItpBypassUtils';
+import { ItpBypassUtils } from '../../../common/utils/security/ItpBypassUtils';
 
 @Builder
 export function ItpBypassBuilder() {

@@ -5,8 +5,8 @@ import { SearchEngines } from '../../../common/constants/SearchEngines';
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
 import { CustomListItem } from '../../../components/CusItemBuilder';
 import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
-import { toastUtil } from '../../../common/utils/ToastUtils';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
 import { QhState } from '../../../entryability/AppState';
 
 const SUGGEST_SOURCES: string[] = ['favorites', 'bookmarks', 'tabs', 'history', 'engine', 'search_history']

@@ -1,6 +1,6 @@
 import { NaviContainer } from '../../../../components/NaviContainer';
 import { QhState } from '../../../../entryability/AppState';
-import { AdBlockSubscription, adBlockSubsStore } from '../../../../common/utils/AdBlockSubs';
+import { AdBlockSubscription, adBlockSubsStore } from '../../../../common/utils/adblock/AdBlockSubs';
 
 /** 规则行懒加载数据源 */
 class RuleLinesSource implements IDataSource {

@@ -5,8 +5,8 @@ import { CustomListItem } from '../../../components/CusItemBuilder';
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
 import { appSettings } from '../../../common/entity/SettingsModel';
 import { QhState } from '../../../entryability/AppState';
-import { FontInfo, FontStore } from '../../../common/utils/FontStore';
-import { toastUtil } from '../../../common/utils/ToastUtils';
+import { FontInfo, FontStore } from '../../../common/utils/ui/FontStore';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
 
 @Builder
 export function SettingsFontBuilder() {

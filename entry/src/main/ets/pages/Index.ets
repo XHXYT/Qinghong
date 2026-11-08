@@ -7,8 +7,8 @@ import { sniffVM } from '../viewmodel/SniffViewModel';
 import { appSettings, UISettings } from '../common/entity/SettingsModel';
 import { webview } from '@kit.ArkWeb';
 import { HomepageView, HomeBgLayer } from '../components/browser/HomepageView';
-import { HomeImmersive } from '../common/utils/HomeImmersive';
-import { homeBg } from '../common/utils/HomeBg';
+import { HomeImmersive } from '../common/utils/home/HomeImmersive';
+import { homeBg } from '../common/utils/home/HomeBg';
 import { HomeHtmlView } from '../components/browser/HomeHtmlView';
 import { HomeBookmarksView } from '../components/browser/HomeBookmarksView';
 import { AddressBar } from '../components/browser/AddressBar';
@@ -17,9 +17,9 @@ import { MergedActionBar } from '../components/browser/MergedActionBar';
 import { TabBar } from '../components/browser/TabBar';
 import { BookmarkBar } from '../components/browser/BookmarkBar';
 import { BookmarkFolderMenu } from '../components/browser/BookmarkFolderMenu';
-import { ActionBarColor } from '../common/utils/ActionBarColor';
-import { volumeKeyPaging } from '../common/utils/VolumeKeyPaging';
-import { kbShortcutDispatch } from '../common/utils/KbShortcutDispatch';
+import { ActionBarColor } from '../common/utils/ui/ActionBarColor';
+import { volumeKeyPaging } from '../common/utils/ui/VolumeKeyPaging';
+import { kbShortcutDispatch } from '../common/utils/ui/KbShortcutDispatch';
 import { TabSwitcher } from '../components/browser/TabSwitcher';
 import { FindInPageBar } from '../components/browser/FindInPageBar';
 import { TabWeb } from '../components/browser/TabWeb';
@@ -28,9 +28,9 @@ import { ReaderView } from '../components/browser/ReaderView';
 import { ElementInspectorPanel } from '../components/browser/ElementInspectorPanel';
 import { TopMenuPanel } from '../components/browser/TopMenuPanel';
 import { inspectorVM } from '../viewmodel/InspectorViewModel';
-import { hitokoto } from '../common/utils/Hitokoto';
-import { toastUtil } from '../common/utils/ToastUtils';
-import { VideoFullScreen } from '../common/utils/VideoFullScreen';
+import { hitokoto } from '../common/utils/home/Hitokoto';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
+import { VideoFullScreen } from '../common/utils/ui/VideoFullScreen';
 import { downloadVM } from '../viewmodel/DownloadViewModel';
 import { DownloadConfirmDialog } from '../components/browser/DownloadConfirmDialog';
 import { assistantVM } from '../viewmodel/WebAssistantViewModel';
@@ -51,11 +51,24 @@ struct Index {
     extensionVM.onPopupVisibilityChanged = (open: boolean): void => {
       this.popupSheetVisible = open
     }
+    this.registerExternalUrlHandler()
+    this.setupKeyboardAvoid()
+    this.bootstrapAfterInit()
+  }
+
+  /** 等待应用基础环境（首选项/设置加载）完成后，再执行依赖配置的初始化。
+   *  onCreate 的 async 初始化与 loadContent 并行，安装后首启尤其慢，
+   *  若不等先用默认配置恢复会话/应用设置，会造成"配置丢失"假象
+   *  （UI 渲染读 @Trace 配置会随加载完成自动刷新，不受此影响） */
+  private async bootstrapAfterInit(): Promise<void> {
+    try {
+      await QhState.appInitialized
+    } catch (e) {
+      console.error(`[Index] 等待应用环境初始化失败: ${e}`)
+    }
     // 主页背景明暗重估：背景图采样/背景主题 → 操作栏与搜索框黑/白字依据
     homeBg.refresh()
     this.applyWebDebuggingAccess()
-    this.registerExternalUrlHandler()
-    this.setupKeyboardAvoid()
     this.initTabs()
     hitokoto.ensure()
     // 音量键翻页开关开启时订阅音量键优先消费

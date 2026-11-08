@@ -3,7 +3,7 @@ import { webview } from '@kit.ArkWeb';
 import { appSettings } from '../../common/entity/SettingsModel';
 import { CustomItemInfo, ItemActionType } from '../../common/entity/CusItemInfo';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
-import { AdvancedSecurityUtils } from '../../common/utils/AdvancedSecurityUtils';
+import { AdvancedSecurityUtils } from '../../common/utils/security/AdvancedSecurityUtils';
 import { SitePolicy, SiteSettingsViewModel, siteSettingsVM } from '../../viewmodel/SiteSettingsViewModel';
 import { QhState } from '../../entryability/AppState';
 

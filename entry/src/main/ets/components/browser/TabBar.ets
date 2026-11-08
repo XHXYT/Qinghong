@@ -1,11 +1,11 @@
 import { tabsVM, TabInfo } from '../../viewmodel/TabsViewModel';
-import { HomeImmersive } from '../../common/utils/HomeImmersive';
-import { homeBg } from '../../common/utils/HomeBg';
-import { ActionBarColor } from '../../common/utils/ActionBarColor';
+import { HomeImmersive } from '../../common/utils/home/HomeImmersive';
+import { homeBg } from '../../common/utils/home/HomeBg';
+import { ActionBarColor } from '../../common/utils/ui/ActionBarColor';
 import { UISettings } from '../../common/entity/SettingsModel';
 import { extensionVM } from '../../viewmodel/ExtensionViewModel';
 import { faviconCache, FaviconCache } from '../../viewmodel/FaviconCache';
-import { EXT_SCHEME_PREFIX } from '../../common/utils/ExtensionResources';
+import { EXT_SCHEME_PREFIX } from '../../common/utils/extension/ExtensionResources';
 
 /**
  * 标签栏：横向标签条（工具栏在上时紧随操作栏下一行，工具栏在下时置顶）

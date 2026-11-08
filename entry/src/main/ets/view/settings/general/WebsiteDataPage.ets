@@ -1,8 +1,8 @@
 import { webview } from '@kit.ArkWeb';
 import { NaviContainer, NaviBarButton } from '../../../components/NaviContainer';
 import { QhState } from '../../../entryability/AppState';
-import { toastUtil } from '../../../common/utils/ToastUtils';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
 
 @Builder
 export function WebsiteDataBuilder() {

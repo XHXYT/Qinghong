@@ -2,9 +2,9 @@ import { NaviContainer } from '../../../../components/NaviContainer';
 import { QhState } from '../../../../entryability/AppState';
 import { CustomItemInfo, ItemActionType } from '../../../../common/entity/CusItemInfo';
 import { CustomListItem } from '../../../../components/CusItemBuilder';
-import { ResourceUtils } from '../../../../common/utils/ResourceUtil';
+import { ResourceUtils } from '../../../../common/utils/app/ResourceUtil';
 import { appSettings } from '../../../../common/entity/SettingsModel';
-import { UaUtils } from '../../../../common/utils/UaUtils';
+import { UaUtils } from '../../../../common/utils/web/UaUtils';
 import { SiteItemConfig, SiteSettingsViewModel } from '../../../../viewmodel/SiteSettingsViewModel';
 
 /** 分组渲染包装 */

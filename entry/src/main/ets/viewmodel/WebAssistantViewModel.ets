@@ -1,9 +1,9 @@
 import { webview } from '@kit.ArkWeb';
 import { tabsVM, TabInfo } from './TabsViewModel';
 import { netLogVM } from './NetworkLogViewModel';
-import { WebScripts } from '../common/utils/WebScripts';
+import { WebScripts } from '../common/utils/scripts/WebScripts';
 import { WebHostedPlayerSession } from '../components/browser/WebHostedPlayer';
-import { toastUtil } from '../common/utils/ToastUtils';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
 
 /** 网页播放中视频的原始采集结果（JS JSON，字段经 typeof 校验后拷入模型） */
 interface PlayingVideoRaw {

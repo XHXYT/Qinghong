@@ -4,7 +4,7 @@ import { ReaderArticle } from '../../viewmodel/BrowserViewModel';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
 import { readAloudVM } from '../../viewmodel/ReadAloudViewModel';
 import { appSettings } from '../../common/entity/SettingsModel';
-import { ReaderScripts } from '../../common/utils/ReaderScripts';
+import { ReaderScripts } from '../../common/utils/scripts/ReaderScripts';
 import { QhState } from '../../entryability/AppState';
 import { CustomListItem } from '../CusItemBuilder';
 import { CustomItemInfo, ItemActionType } from '../../common/entity/CusItemInfo';

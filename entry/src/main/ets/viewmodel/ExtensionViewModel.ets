@@ -5,16 +5,16 @@ import { zlib } from '@kit.BasicServicesKit';
 import { util } from '@kit.ArkTS';
 import { webview } from '@kit.ArkWeb';
 import { _QhState } from '../entryability/AppState';
-import { createLogger } from '../common/utils/Logger';
-import { toastUtil } from '../common/utils/ToastUtils';
-import { ExtensionEngine, ExtManifestModel, ExtContentScript, CrxTarget, ExtLocaleMessage } from '../common/utils/ExtensionEngine';
-import { ExtensionResources, EXT_RES_HOST, EXT_SCHEME_PREFIX } from '../common/utils/ExtensionResources';
+import { createLogger } from '../common/utils/app/Logger';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
+import { ExtensionEngine, ExtManifestModel, ExtContentScript, CrxTarget, ExtLocaleMessage } from '../common/utils/extension/ExtensionEngine';
+import { ExtensionResources, EXT_RES_HOST, EXT_SCHEME_PREFIX } from '../common/utils/extension/ExtensionResources';
 import { ChromeShim, ExtStorageGetRaw, ExtStorageSetRaw, ExtStorageRemoveRaw, ExtStorageClearRaw,
   ExtSendMsgRaw, ExtRespondRaw, ExtSendMsgBgRaw, ExtTabQueryRaw, ExtTabSendMsgRaw, ExtTabCreateRaw,
   ExtTabUpdateRaw, ExtExecuteScriptRaw,
-  ExtNotifyRaw, ExtStoreInstallRaw, ExtPortConnectRaw, ExtPortMsgRaw, ExtPortDisconnectRaw } from '../common/utils/ChromeShim';
-import { ResourceUtils } from '../common/utils/ResourceUtil';
-import { HttpDownloader, StreamOptions } from '../common/utils/HttpDownloader';
+  ExtNotifyRaw, ExtStoreInstallRaw, ExtPortConnectRaw, ExtPortMsgRaw, ExtPortDisconnectRaw } from '../common/utils/extension/ChromeShim';
+import { ResourceUtils } from '../common/utils/app/ResourceUtil';
+import { HttpDownloader, StreamOptions } from '../common/utils/download/HttpDownloader';
 import { ExtensionDao } from '../common/utils/database/impl/ExtensionDao';
 import { ExtensionValueDao } from '../common/utils/database/impl/ExtensionValueDao';
 import ExtensionInfo from '../common/entity/ExtensionInfo';

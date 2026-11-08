@@ -5,13 +5,13 @@ import { CustomItemInfo, ItemActionType, ContextMenuItem } from '../../../../com
 import { CustomListItem } from '../../../../components/CusItemBuilder';
 import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../../../../components/SheetPicker';
 import { buildDialogButtons } from '../../../../components/dialog/AppContentDialog';
-import { toastUtil } from '../../../../common/utils/ToastUtils';
-import { ResourceUtils } from '../../../../common/utils/ResourceUtil';
-import { ColorUtils } from '../../../../common/utils/ColorUtils';
+import { toastUtil } from '../../../../common/utils/ui/ToastUtils';
+import { ResourceUtils } from '../../../../common/utils/app/ResourceUtil';
+import { ColorUtils } from '../../../../common/utils/ui/ColorUtils';
 import SiteSettingInfo from '../../../../common/entity/SiteSettingInfo';
 import { appSettings } from '../../../../common/entity/SettingsModel';
 import { tabsVM } from '../../../../viewmodel/TabsViewModel';
-import { UaUtils } from '../../../../common/utils/UaUtils';
+import { UaUtils } from '../../../../common/utils/web/UaUtils';
 import { SiteItemConfig, SiteOpt, SiteSettingsViewModel, siteSettingsVM } from '../../../../viewmodel/SiteSettingsViewModel';
 
 /** 字体大小项 key（专属布局：强制缩放 + 全局滑条 + 例外列表） */

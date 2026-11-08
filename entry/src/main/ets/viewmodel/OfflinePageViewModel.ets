@@ -2,8 +2,8 @@ import { fileIo } from '@kit.CoreFileKit';
 import { _QhState } from '../entryability/AppState';
 import OfflinePageInfo from '../common/entity/OfflinePageInfo';
 import { OfflinePageDao } from '../common/utils/database/impl/OfflinePageDao';
-import { createLogger } from '../common/utils/Logger';
-import { toastUtil } from '../common/utils/ToastUtils';
+import { createLogger } from '../common/utils/app/Logger';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
 
 const logger = createLogger('OfflinePageViewModel')
 

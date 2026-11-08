@@ -7,9 +7,9 @@ import ExtensionInfo from '../../../common/entity/ExtensionInfo';
 import { CustomItemInfo, ItemActionType, ContextMenuItem } from '../../../common/entity/CusItemInfo';
 import { CustomListItem } from '../../../components/CusItemBuilder';
 import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
-import { toastUtil } from '../../../common/utils/ToastUtils';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
 import { appSettings } from '../../../common/entity/SettingsModel';
-import { ExtensionEngine } from '../../../common/utils/ExtensionEngine';
+import { ExtensionEngine } from '../../../common/utils/extension/ExtensionEngine';
 import { tabsVM } from '../../../viewmodel/TabsViewModel';
 
 @Builder
@@ -142,7 +142,7 @@ struct ExtensionPage {
         subtitle: subtitle,
         type: ItemActionType.ROUTER,
         onChange: (v: string | boolean | number): void => {
-          QhState.pageStack.clear()
+          QhState.clearAllPages()
           tabsVM.newTab(url, false)
         }
       }),

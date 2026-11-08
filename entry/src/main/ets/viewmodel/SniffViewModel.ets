@@ -3,8 +3,8 @@ import { pasteboard } from '@kit.BasicServicesKit';
 import { tabsVM, TabInfo } from './TabsViewModel';
 import { netLogVM, NetLogEntry, NetworkLogViewModel } from './NetworkLogViewModel';
 import { downloadVM } from './DownloadViewModel';
-import { WebScripts } from '../common/utils/WebScripts';
-import { toastUtil } from '../common/utils/ToastUtils';
+import { WebScripts } from '../common/utils/scripts/WebScripts';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
 
 /** 嗅探到的媒体资源条目（kind: video | audio | image） */
 export class SniffResource {

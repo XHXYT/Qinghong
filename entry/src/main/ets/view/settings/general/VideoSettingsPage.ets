@@ -3,7 +3,7 @@ import { SettingsScaffold, SettingsSection } from '../../../components/SettingsS
 import { appSettings } from '../../../common/entity/SettingsModel';
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
 import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../../../components/SheetPicker';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
 
 function videoPlayerLabel(v: string): ResourceStr {
   if (v === 'none') {

@@ -2,8 +2,8 @@ import { pasteboard, BusinessError } from '@kit.BasicServicesKit';
 import { systemShare } from '@kit.ShareKit';
 import { QhState, _QhState } from '../entryability/AppState';
 import { netLogVM, NetLogEntry, NetworkLogViewModel } from '../viewmodel/NetworkLogViewModel';
-import { AdBlockEngine } from '../common/utils/AdBlockEngine';
-import { toastUtil } from '../common/utils/ToastUtils';
+import { AdBlockEngine } from '../common/utils/adblock/AdBlockEngine';
+import { toastUtil } from '../common/utils/ui/ToastUtils';
 import { tabsVM, TabInfo } from '../viewmodel/TabsViewModel';
 import { downloadVM } from '../viewmodel/DownloadViewModel';
 

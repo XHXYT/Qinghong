@@ -1,6 +1,6 @@
 import { common } from "@kit.AbilityKit"
 import { window } from "@kit.ArkUI"
-import { createLogger } from "../common/utils/Logger"
+import { createLogger } from "../common/utils/app/Logger"
 
 const logger = createLogger('QhState')
 
@@ -49,16 +49,48 @@ export class _QhState {
   /** 是否初始化中 */
   @Trace isInitializing: boolean = true
 
+  /** 应用基础环境（首选项/设置加载）初始化完成信号：Index 恢复会话前等待，
+   *  避免安装后首启 onCreate 的 async 初始化与 loadContent 竞态先用默认配置执行；
+   *  默认已完成的 Promise 兜底（EntryAbility 异常路径不让等待方永久挂起） */
+  public appInitialized: Promise<void> = Promise.resolve()
+
   // 全局路由
   @Trace pageStack: NavPathStack = new NavPathStack()
 
+  /** 大屏设置分栏激活时，右侧子导航栈；null 表示未激活（普通单栏路由） */
+  public settingsSplitStack: NavPathStack | null = null
+
   /** @description 当前主题色(Resource) */
   @Trace currentThemeColor: Resource = $r('sys.color.icon_emphasize')
+
+  /** 判断是否为设置相关路由（大屏分栏时推入右侧子栈） */
+  isSettingsRoute(name: string): boolean {
+    if (name.startsWith('settings_')) {
+      return true
+    }
+    return name === 'about' || name === 'search_engine' || name === 'search_settings'
+      || name === 'search_toolbar' || name === 'downloads'
+  }
+
+  /** 设置分栏是否生效：子栈已激活且设置页处于路由栈顶 */
+  isSplitActive(): boolean {
+    if (this.settingsSplitStack === null) {
+      return false
+    }
+    const names: string[] = this.pageStack.getAllPathName()
+    return names.length > 0 && names[names.length - 1] === 'settings'
+  }
 
   /**
    * 推送路由
    */
   pushPage(name: string, param: Object | null | undefined, animated: boolean = true): void {
+    const split: NavPathStack | null = this.settingsSplitStack
+    if (split !== null && this.isSplitActive() && this.isSettingsRoute(name)) {
+      split.pushPathByName(name, param ?? null, animated)
+      logger.debug('Router', `pushPage(split): ${name}, stack size: ${split.size()}`)
+      return
+    }
     this.pageStack.pushPathByName(name, param ?? null, animated)
     logger.debug('Router', `pushPage: ${name}, stack size: ${this.pageStack.size()}`)
   }
@@ -67,6 +99,11 @@ export class _QhState {
    * 弹出路由
    */
   popPage(animated: boolean = false): void {
+    const split: NavPathStack | null = this.settingsSplitStack
+    if (split !== null && this.isSplitActive() && split.size() > 0) {
+      split.pop(animated)
+      return
+    }
     this.pageStack.pop(animated)
   }
 
@@ -74,10 +111,25 @@ export class _QhState {
    * 返回路由根（浏览器主页）：逐层弹出全部路由
    */
   popToRoot(animated: boolean = false): void {
+    const split: NavPathStack | null = this.settingsSplitStack
+    if (split !== null) {
+      split.clear()
+    }
     while (this.pageStack.size() > 0) {
       this.pageStack.pop(animated)
     }
     logger.debug('Router', `popToRoot: stack size: ${this.pageStack.size()}`)
+  }
+
+  /**
+   * 清空全部路由（含大屏设置分栏子栈），回到浏览器主界面
+   */
+  clearAllPages(): void {
+    const split: NavPathStack | null = this.settingsSplitStack
+    if (split !== null) {
+      split.clear()
+    }
+    this.pageStack.clear()
   }
 
 }

@@ -2,8 +2,8 @@ import { SettingsScaffold, SettingsSection } from '../../../components/SettingsS
 import { UISettings, appSettings } from '../../../common/entity/SettingsModel';
 import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemInfo';
 import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../../../components/SheetPicker';
-import { ResourceUtils } from '../../../common/utils/ResourceUtil';
-import { toastUtil } from '../../../common/utils/ToastUtils';
+import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
 
 
 @Builder

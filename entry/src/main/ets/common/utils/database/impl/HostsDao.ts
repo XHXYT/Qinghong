@@ -2,7 +2,7 @@
 import AutoTable from '../AutoTable';
 import { Table } from '../decorator/Decorators';
 import { Context } from '@kit.AbilityKit';
-import { createLogger } from '../../Logger';
+import { createLogger } from '../../app/Logger';
 import HostsRuleInfo from '../../../entity/HostsRuleInfo';
 
 const logger = createLogger('HostsDao');

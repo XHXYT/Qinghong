@@ -4,7 +4,7 @@ import { SettingsScaffold, SettingsCard } from '../../../components/SettingsScaf
 import { QhState } from '../../../entryability/AppState';
 import { appSettings } from '../../../common/entity/SettingsModel';
 import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
-import { toastUtil } from '../../../common/utils/ToastUtils';
+import { toastUtil } from '../../../common/utils/ui/ToastUtils';
 import { KB_SHORTCUTS, kbKeyNameOf, kbIsModifierCode } from '../../../common/constants/KbShortcuts';
 
 

@@ -3,7 +3,7 @@ import { connection } from '@kit.NetworkKit';
 import { HostsDao } from '../common/utils/database/impl/HostsDao';
 import HostsRuleInfo from '../common/entity/HostsRuleInfo';
 import { _QhState } from '../entryability/AppState';
-import { createLogger } from '../common/utils/Logger';
+import { createLogger } from '../common/utils/app/Logger';
 
 const logger = createLogger('HostsViewModel');
 
