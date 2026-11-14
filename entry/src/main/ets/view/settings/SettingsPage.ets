@@ -93,6 +93,10 @@ struct SettingsPage {
   build() {
     NaviContainer({
       title: $r('app.string.settings'),
+      // 分栏：外层全宽标题栏隐藏（避免横贯两栏把右栏压低），"设置"标题移入左列顶部
+      hideTitleBar: this.isSplit,
+      // 外层标题栏隐藏后仍需状态栏避让（分栏左列内容从避让下方开始）
+      topPadding: QhState.topRectHeight,
       content: (): void => {
         this.pageContent()
       },
@@ -117,36 +121,65 @@ struct SettingsPage {
   @Builder
   splitContent() {
     Navigation(this.splitStack) {
-      List() {
-        Repeat<CustomItemInfo>(this.items)
-          .each((ri: RepeatItem<CustomItemInfo>) => {
-            ListItem() {
-              Text(ri.item.title)
-                .fontSize(16)
-                .fontFamily(appSettings.font_family)
-                .fontColor(this.selectedId === ri.item.id ? $r('sys.color.font_primary') : $r('sys.color.font_secondary'))
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-            }
-            .width('100%')
-            .height(48)
-            .padding({ left: 16, right: 12 })
-            .borderRadius(12)
-            .backgroundColor(this.selectedId === ri.item.id ? $r('sys.color.comp_background_tertiary') : Color.Transparent)
-            .margin({ top: 2, bottom: 2 })
-            .onClick(() => {
-              this.selectCategory(ri.item.id)
-            })
+      Column() {
+        // 左列顶部："设置"标题 + 返回按钮（分栏时外层全宽标题栏已隐藏）
+        Row({ space: 12 }) {
+          Row() {
+            SymbolGlyph($r('sys.symbol.chevron_left'))
+              .fontSize(24)
+              .fontColor([$r('sys.color.font_primary')])
+          }
+          .width(40)
+          .height(40)
+          .borderRadius(20)
+          .justifyContent(FlexAlign.Center)
+          .backgroundColor($r('sys.color.comp_background_tertiary'))
+          .onClick(() => {
+            QhState.pageStack.pop(true)
           })
-          .key((item: CustomItemInfo) => item.id)
+
+          Text($r('app.string.settings'))
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('sys.color.font_primary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .layoutWeight(1)
+        }
+        .width('100%')
+        .padding({ left: 4, right: 12, top: 6, bottom: 6 })
+
+        List() {
+          Repeat<CustomItemInfo>(this.items)
+            .each((ri: RepeatItem<CustomItemInfo>) => {
+              ListItem() {
+                Text(ri.item.title)
+                  .fontSize(16)
+                  .fontFamily(appSettings.font_family)
+                  .fontColor(this.selectedId === ri.item.id ? $r('sys.color.font_primary') : $r('sys.color.font_secondary'))
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+              }
+              .width('100%')
+              .height(48)
+              .padding({ left: 16, right: 12 })
+              .borderRadius(12)
+              .backgroundColor(this.selectedId === ri.item.id ? $r('sys.color.comp_background_tertiary') : Color.Transparent)
+              .margin({ top: 2, bottom: 2 })
+              .onClick(() => {
+                this.selectCategory(ri.item.id)
+              })
+            })
+            .key((item: CustomItemInfo) => item.id)
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring)
       }
       .width('100%')
-      .layoutWeight(1)
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
-      .padding({ left: 12, right: 12 })
-      .width('100%')
       .height('100%')
+      .padding({ left: 12, right: 12 })
     }
     .mode(NavigationMode.Split)
     .navBarWidth(240)

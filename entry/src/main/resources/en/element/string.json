@@ -414,7 +414,7 @@
     },
     {
       "name": "about_desc",
-      "value": "QingHong is a fast and lightweight HarmonyOS browser with multi-tab, incognito mode, bookmarks, history and download management."
+      "value": "QingHong is a fast and lightweight browser built for HarmonyOS.\n\nCore browsing: multi-tab, incognito mode, session restore, reader mode, page translation and read-aloud.\nPrivacy: ad-block subscriptions, Intelligent Tracking Prevention (ITP) and privacy report.\nEcosystem: Chrome extension and Tampermonkey-style user script support.\nData: bookmarks, history, downloads, password management and WebDAV cloud sync.\nAdvanced: DoH encrypted DNS, hosts, proxy, UA customization, per-site settings, standalone video/image playback, night mode, custom fonts and homepage."
     },
     {
       "name": "basic_info",
@@ -3799,6 +3799,11 @@
     { "name": "diag_btn_settings", "value": "Network settings" },
     { "name": "diag_btn_wait", "value": "Keep waiting" },
     { "name": "diag_btn_retry", "value": "Retry" },
-    { "name": "diag_settings_fail", "value": "Can't open system settings" }
+    { "name": "diag_settings_fail", "value": "Can't open system settings" },
+    { "name": "devtools", "value": "Developer tools" },
+    { "name": "devtools_no_page", "value": "Open a web page first" },
+    { "name": "devtools_preparing", "value": "Preparing DevTools..." },
+    { "name": "devtools_no_target", "value": "No debuggable page found, refresh and retry" },
+    { "name": "devtools_start_failed", "value": "Failed to start DevTools" }
   ]
 }

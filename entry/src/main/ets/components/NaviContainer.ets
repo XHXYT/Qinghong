@@ -125,7 +125,7 @@ export struct NaviContainer {
       }
       .width('100%')
       .height('100%')
-      .padding({ top: this.shouldShowBar() ? (this.nestedInSplit ? 0 : (this.topPadding !== undefined ? this.topPadding : (QhState.topRectHeight || 12))) : 0 })
+      .padding({ top: this.nestedInSplit ? 0 : (this.topPadding !== undefined ? this.topPadding : (this.shouldShowBar() ? (QhState.topRectHeight || 12) : 0)) })
     }
     .height('100%')
     .backgroundColor($r('app.color.background_color_accent'))

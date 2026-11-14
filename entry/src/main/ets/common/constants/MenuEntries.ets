@@ -59,7 +59,8 @@ export class MenuEntries {
     new MenuEntry('game_mode', $r('app.string.game_mode'), $r('sys.symbol.gamecontroller')),
     new MenuEntry('ai', $r('app.string.ai'), $r('sys.symbol.AI')),
     new MenuEntry('add_home_favorite', $r('app.string.add_home_favorite'), $r('sys.symbol.heart_badge_plus')),
-    new MenuEntry('report_site', $r('app.string.report_site'), $r('sys.symbol.flag'))
+    new MenuEntry('report_site', $r('app.string.report_site'), $r('sys.symbol.flag')),
+    new MenuEntry('devtools', $r('app.string.devtools'), $r('sys.symbol.wrench_and_screwdriver'))
   ]
 
   /** 默认菜单布局（从左到右、从上到下） */

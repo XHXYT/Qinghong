@@ -237,7 +237,7 @@ struct AboutPage {
     .height('100%')
     .bindSheet(this.showLibsSheet, this.LibSheet(), {
       preferType: SheetType.CENTER,
-      height: '60%',
+      height: '70%',
       dragBar: true,
       showClose: false,
       onDisappear: (): void => {

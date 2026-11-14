@@ -13,3 +13,6 @@
 /.cache
 
 /.deveco
+
+/tmp
+/.ui-shots

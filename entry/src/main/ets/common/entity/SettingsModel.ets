@@ -56,6 +56,8 @@ export class _UISettings {
   @Trace show_extension_button: boolean = false
   /** 地址栏内容 'title' | 'url' | 'domain' */
   @Trace address_bar_content: string = 'title'
+  /** 开发者工具停靠侧 ''(自动：宽屏靠右/窄屏靠下) | 'bottom' | 'right' */
+  @Trace devtools_layout: string = ''
   /** 操作栏色彩模式（浏览网页时操作栏自适应页面 theme-color） */
   @Trace action_bar_color_mode: boolean = false
 
@@ -89,6 +91,7 @@ export class _UISettings {
       "show_bookmark_bar": this.show_bookmark_bar,
       "show_extension_button": this.show_extension_button,
       "address_bar_content": this.address_bar_content,
+      "devtools_layout": this.devtools_layout,
       "action_bar_color_mode": this.action_bar_color_mode
     };
   }
@@ -120,12 +123,16 @@ export class _UISettings {
     if (content === 'title' || content === 'url' || content === 'domain') {
       this.address_bar_content = content;
     }
+    const devtoolsLayout = json["devtools_layout"] as string;
+    if (devtoolsLayout === '' || devtoolsLayout === 'bottom' || devtoolsLayout === 'right') {
+      this.devtools_layout = devtoolsLayout ?? '';
+    }
     this.action_bar_color_mode = (json["action_bar_color_mode"] as boolean) ?? this.action_bar_color_mode;
   }
 
   @Monitor('color_mode', 'app_layout', 'auto_hide_action_bar', 'show_tab_bar',
     'show_home_button', 'show_download_button', 'show_bookmark_bar',
-    'show_extension_button', 'address_bar_content', 'action_bar_color_mode')
+    'show_extension_button', 'address_bar_content', 'devtools_layout', 'action_bar_color_mode')
   public async save(): Promise<void> {
     try {
       const jsonStr: string = JSON.stringify(this.toSyncData());
@@ -145,6 +152,7 @@ export class _UISettings {
     this.show_bookmark_bar = false;
     this.show_extension_button = false;
     this.address_bar_content = 'title';
+    this.devtools_layout = '';
     this.action_bar_color_mode = false;
     this.save();
   }

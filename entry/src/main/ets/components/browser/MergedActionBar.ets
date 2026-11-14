@@ -3,7 +3,6 @@ import { tabsVM } from '../../viewmodel/TabsViewModel';
 import { browserVM } from '../../viewmodel/BrowserViewModel';
 import { UISettings, appSettings } from '../../common/entity/SettingsModel';
 import { MenuEntry } from '../../common/constants/MenuEntries';
-import { SheetPicker } from '../SheetPicker';
 import { menuVM } from '../../viewmodel/MenuViewModel';
 import { sniffVM } from '../../viewmodel/SniffViewModel';
 import { ResourceSniffPanel } from './ResourceSniffPanel';
@@ -41,109 +40,6 @@ export struct MergedActionBar {
     .width('100%')
     .height(46)
     .justifyContent(FlexAlign.Center)
-  }
-
-  /** 工具栏半模态内容：选择器、字号滑杆或保存网页（menuVM.sheetKind 决定） */
-  @Builder
-  sheetBuilder() {
-    if (menuVM.sheetKind === 'font') {
-      Column() {
-        Row() {
-          Text($r('app.string.font_size'))
-            .fontSize(16)
-            .fontWeight(FontWeight.Bold)
-            .fontColor($r('sys.color.font_primary'))
-            .layoutWeight(1)
-          Text(`${menuVM.fontZoomValue}%`)
-            .fontSize(16)
-            .fontColor(QhState.currentThemeColor)
-        }
-        .width('100%')
-        .height(48)
-        Slider({ value: menuVM.fontZoomValue, min: 50, max: 200, step: 5, style: SliderStyle.InSet })
-          .selectedColor(QhState.currentThemeColor)
-          .width('100%')
-          .margin({ top: 8, bottom: 12 })
-          .onChange((value: number, mode: SliderChangeMode) => {
-            menuVM.applyFontZoom(value)
-            if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
-              menuVM.persistFontZoom()
-            }
-          })
-      }
-      .width('100%')
-      .padding({ left: 24, right: 24, bottom: 8 })
-    } else if (menuVM.sheetKind === 'save') {
-      this.saveSheetContent()
-    } else {
-      SheetPicker({
-        config: menuVM.picker,
-        close: (): void => {
-          menuVM.showSheet = false
-        }
-      })
-    }
-  }
-
-  /** 保存网页弹窗：名称输入 + 保存为PDF 勾选 + 操作按钮（标题与 SheetPicker 同款居中样式） */
-  @Builder
-  saveSheetContent() {
-    Column() {
-      Text($r('app.string.save_dialog_title'))
-        .fontSize(16)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('sys.color.font_primary'))
-        .width('100%')
-        .textAlign(TextAlign.Center)
-        .height(48)
-      Column({ space: 12 }) {
-        TextInput({ text: menuVM.saveName })
-          .fontSize(15)
-          .height(44)
-          .backgroundColor($r('sys.color.comp_background_tertiary'))
-          .onChange((v: string) => {
-            menuVM.saveName = v
-          })
-        Row({ space: 8 }) {
-          Checkbox()
-            .select(menuVM.saveAsPdf)
-            .selectedColor(QhState.currentThemeColor)
-            .onChange((v: boolean) => {
-              menuVM.saveAsPdf = v
-            })
-          Text($r('app.string.save_as_pdf'))
-            .fontSize(15)
-            .fontColor($r('sys.color.font_primary'))
-        }
-        .width('100%')
-        Row({ space: 12 }) {
-          Button($r('app.string.cancel'))
-            .fontSize(15)
-            .fontWeight(FontWeight.Medium)
-            .fontColor($r('sys.color.font_primary'))
-            .backgroundColor($r('sys.color.comp_background_tertiary'))
-            .layoutWeight(1)
-            .height(40)
-            .onClick(() => {
-              menuVM.showSheet = false
-            })
-          Button($r('app.string.save'))
-            .fontSize(15)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(Color.White)
-            .backgroundColor(QhState.currentThemeColor)
-            .layoutWeight(1)
-            .height(40)
-            .onClick(() => {
-              menuVM.confirmSave()
-            })
-        }
-        .width('100%')
-      }
-      .width('100%')
-      .padding({ left: 24, right: 24, bottom: 20 })
-    }
-    .width('100%')
   }
 
   /** 添加书签编辑器：sheet 内局部 Navigation 路由 */
@@ -321,6 +217,20 @@ export struct MergedActionBar {
         .gesture(LongPressGesture().onAction((): void => {
           toolbarEventRunner.run('forward_long')
         }))
+
+        // 刷新
+        Stack() {
+          SymbolGlyph($r('sys.symbol.arrow_2_circlepath'))
+            .fontSize(22)
+            .fontColor([ActionBarColor.fg($r('sys.color.font_primary'), this.barPosition === 'top')])
+        }
+        .width(40)
+        .height('100%')
+        .alignContent(Alignment.Center)
+        .padding({ top: 4 })
+        .onClick(() => {
+          browserVM.refresh()
+        })
 
         // 主页按钮（可选）
         if (UISettings.show_home_button) {
@@ -530,15 +440,6 @@ export struct MergedActionBar {
     // 主页沉浸时背景透明，透出全屏主页背景层
     .backgroundColor(HomeImmersive.active() ? Color.Transparent
       : ActionBarColor.bg($r('sys.color.comp_background_primary'), this.barPosition === 'top'))
-    .bindSheet(menuVM.showSheet!!, this.sheetBuilder(), {
-      height: menuVM.sheetKind === 'font' ? 172 : (menuVM.sheetKind === 'save' ? 252 : menuVM.pickerHeight),
-      dragBar: true,
-      showClose: false,
-      backgroundColor: $r('sys.color.comp_background_primary'),
-      onDisappear: (): void => {
-        menuVM.showSheet = false
-      }
-    })
     .bindSheet(menuVM.showBookmarkEditor!!, this.bookmarkEditorBuilder(), {
       height: 560,
       dragBar: true,

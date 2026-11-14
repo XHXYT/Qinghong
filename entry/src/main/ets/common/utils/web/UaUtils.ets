@@ -1,6 +1,10 @@
 import { webview } from '@kit.ArkWeb';
 import { appSettings } from '../../entity/SettingsModel';
 import { tabsVM } from '../../../viewmodel/TabsViewModel';
+import { QhState } from '../../../entryability/AppState';
+import { createLogger } from '../app/Logger';
+
+const logger = createLogger('UaUtils');
 
 /**
  * 预置浏览器标识
@@ -90,8 +94,24 @@ export class UaUtils {
     return $r('app.string.ua_custom')
   }
 
-  /** 解析 id → UA 字符串（'' 表示未找到） */
+  /** 宽屏形态（宽度断点 > 1 或自由窗口）：「默认」档在此形态下自动改用桌面标识 */
+  static wideForm(): boolean {
+    return QhState.widthBp > 1 || QhState.windowMode
+  }
+
+  /** 解析 id → UA 字符串（'' 表示未找到；「默认」档自动跟随设备形态：宽屏用桌面标识，窄屏用移动标识） */
   static resolveUa(id: string): string {
+    if (id === 'default' && UaUtils.wideForm()) {
+      const wide: string = UaUtils.lookupUa('windows_chrome')
+      if (wide !== '') {
+        return wide
+      }
+    }
+    return UaUtils.lookupUa(id)
+  }
+
+  /** 按预置/自定义列表解析 id → UA 字符串（不做形态特判） */
+  private static lookupUa(id: string): string {
     for (const p of UaUtils.PRESETS) {
       if (p.id === id) {
         return p.ua
@@ -178,6 +198,7 @@ export class UaUtils {
     }
     UaUtils.syncAppUa()
     UaUtils.applyStoreHostUa()
+    logger.info('UaApply', `onWebAttach syncAppUa: wideForm=${UaUtils.wideForm()}`)
   }
 
   /** 应用级 UA 同步（setAppCustomUserAgent；能力不可用回退实例级旧路径） */
@@ -189,6 +210,7 @@ export class UaUtils {
       }
       try {
         webview.WebviewController.setAppCustomUserAgent(ua)
+        logger.info('UaApply', `setAppCustomUserAgent: ${ua.substring(0, 60)}`)
         return
       } catch (e) {
         // 801 能力不支持等 → 永久回退实例级路径

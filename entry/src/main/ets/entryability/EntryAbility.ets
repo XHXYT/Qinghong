@@ -1,5 +1,5 @@
 import { AbilityConstant, common, Configuration, EnvironmentCallback, UIAbility, Want } from '@kit.AbilityKit';
-import { window } from '@kit.ArkUI';
+import { display, window } from '@kit.ArkUI';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { AvoidanceManager, SmartAvoidance } from '../common/utils/ui/AvoidManager';
 import { QhState, _QhState } from './AppState';
@@ -21,6 +21,7 @@ import { createLogger } from '../common/utils/app/Logger';
 import { siteSettingsVM } from '../viewmodel/SiteSettingsViewModel';
 import { hostsVM } from '../viewmodel/HostsViewModel';
 import { DnsUtils } from '../common/utils/network/DnsUtils';
+import { UaUtils } from '../common/utils/web/UaUtils';
 import { tabsVM } from '../viewmodel/TabsViewModel';
 import { scriptVM } from '../viewmodel/ScriptViewModel';
 import { extensionVM } from '../viewmodel/ExtensionViewModel';
@@ -143,6 +144,9 @@ export default class EntryAbility extends UIAbility {
     } catch (error) {
       logger.error('Lifecycle', `WindowManager.setWindowStage failed: ${error}`);
     }
+    // loadContent 内部（Index 构建/恢复标签的首个 Web attach）早于 loadContent 回调，
+    // 断点不预置时 UA 会按 widthBp=0 的手机形态错误下发；先按窗口物理宽预置先导值
+    this.preinitWindowWidthBp(windowStage)
     windowStage.loadContent('pages/Index', async (err) => {
       if (err.code) {
         logger.error(`WindowStage`, `Failed to load the content., ${err}`)
@@ -348,9 +352,46 @@ export default class EntryAbility extends UIAbility {
       QhState.widthBp = UIContext.getWindowWidthBreakpoint()
       QhState.windowHeight = WindowHeight
       QhState.windowWidth = WindowWidth
+      // 断点初始化后检测形态变化：首次 Web attach 可能早于本函数（loadContent 先于回调），
+      // 此时 UA 已按 widthBp=0 的手机形态设置，需在此重应用为宽屏形态
+      this.reapplyUaIfFormChanged()
       logger.info('WindowRect', `窗口高度：${rect.height} px 宽度：${rect.width} px`)
     } catch (error) {
       logger.error(`WindowDimensions`, `Failed to getWindowProperties., ${error}`)
+    }
+  }
+
+  /**
+   * loadContent 前预置窗口宽度断点（窗口物理宽 / 屏幕密度 → vp，按 WidthBreakpoint 阈值折算）：
+   * 恢复标签的首个 Web attach 发生在 loadContent 内部、早于 initWindowDimensions，
+   * 断点不预置时 syncAppUa 会按 widthBp=0 的手机形态把移动 UA 设为应用级 UA（竞态）；
+   * 本函数提供先导值，initWindowDimensions 随后以 getWindowWidthBreakpoint() 权威值覆盖
+   */
+  private preinitWindowWidthBp(windowStage: window.WindowStage): void {
+    try {
+      const win: window.Window = windowStage.getMainWindowSync()
+      const rect: window.Rect = win.getWindowProperties().windowRect
+      const d: display.Display = display.getDefaultDisplaySync()
+      if (d.densityPixels <= 0) {
+        return
+      }
+      const widthVp: number = rect.width / d.densityPixels
+      let bp: number = 1
+      if (widthVp >= 1440) {
+        bp = 4
+      } else if (widthVp >= 840) {
+        bp = 3
+      } else if (widthVp >= 600) {
+        bp = 2
+      } else if (widthVp < 320) {
+        bp = 0
+      }
+      QhState.widthBp = bp
+      _QhState.windowWidth_px = rect.width
+      _QhState.windowHeight_px = rect.height
+      logger.info('WindowRect', `预置宽度断点: ${bp}（${Math.round(widthVp)}vp）`)
+    } catch (error) {
+      logger.error(`WindowDimensions`, `预置宽度断点失败., ${error}`)
     }
   }
 
@@ -376,6 +417,7 @@ export default class EntryAbility extends UIAbility {
     try {
       windowClass.on('freeWindowModeChange', (data) => {
         QhState.windowMode = data
+        this.reapplyUaIfFormChanged()
         logger.debug(`WindowMode 当前窗口状态：${QhState.windowMode}`)
       });
     } catch (exception) {
@@ -383,8 +425,24 @@ export default class EntryAbility extends UIAbility {
     }
   }
 
+  /** 上一次是否处于宽屏形态（跨档变化时重应用 UA） */
+  private lastWideForm: boolean = false
+
+  /** 宽屏形态跨档变化时重应用 UA（Web 未附加前跳过，由 onWebAttach 首次同步兜底） */
+  private reapplyUaIfFormChanged(): void {
+    const wide: boolean = UaUtils.wideForm()
+    if (wide !== this.lastWideForm) {
+      this.lastWideForm = wide
+      logger.info('WindowRect', `设备形态变化：wideForm=${wide}，重应用 UA`)
+      if (UaUtils.defaultUa !== '') {
+        UaUtils.applyToAll()
+      }
+    }
+  }
+
   private onWidthBpChange(UIContext: UIContext): void {
     QhState.widthBp = UIContext.getWindowWidthBreakpoint();
+    this.reapplyUaIfFormChanged()
   }
 
   private onHeightBpChange(WindowHeight: number, WindowWidth: number): void {

@@ -30,6 +30,7 @@ import { translateVM, TranslateLang } from './TranslateViewModel';
 import { shortcutVM, ShortcutViewModel } from './ShortcutViewModel';
 import { PublicDownloadDir } from '../common/utils/download/PublicDownloadDir';
 import { createLogger } from '../common/utils/app/Logger';
+import { devtoolsVM } from '../common/utils/DevTools';
 
 const logger = createLogger('MenuVM');
 
@@ -1502,6 +1503,10 @@ export class MenuViewModel {
         return true
       case 'inspect_element':
         inspectorVM.open()
+        return true
+      case 'devtools':
+        // 应用内完整开发者工具（标准面板 + 停靠分屏，菜单点击切换）
+        devtoolsVM.open()
         return true
       case 'site_settings':
         this.openCurrentSiteDetail()

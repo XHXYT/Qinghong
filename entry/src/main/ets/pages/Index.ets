@@ -14,6 +14,7 @@ import { HomeBookmarksView } from '../components/browser/HomeBookmarksView';
 import { AddressBar } from '../components/browser/AddressBar';
 import { BrowserToolbar } from '../components/browser/Toolbar';
 import { MergedActionBar } from '../components/browser/MergedActionBar';
+import { MenuSheetHost } from '../components/browser/MenuSheetHost';
 import { TabBar } from '../components/browser/TabBar';
 import { BookmarkBar } from '../components/browser/BookmarkBar';
 import { BookmarkFolderMenu } from '../components/browser/BookmarkFolderMenu';
@@ -38,6 +39,8 @@ import { WebHostedPlayerView, WebHostedPlayerSession } from '../components/brows
 import { ExtBackgroundHosts } from '../components/extension/ExtBackgroundHosts';
 import { ExtPopupView } from '../components/extension/ExtPopupView';
 import { extensionVM } from '../viewmodel/ExtensionViewModel';
+import { DevToolsDock } from '../components/browser/DevToolsDock';
+import { devtoolsVM } from '../common/utils/DevTools';
 
 @Entry
 @ComponentV2
@@ -45,6 +48,11 @@ struct Index {
 
   /** 扩展 popup 半模态开关：bindSheet isShow 需本地 @Local 布尔驱动（VM 回调同步），表达式参数对已打开 sheet 的关闭不可靠 */
   @Local popupSheetVisible: boolean = false
+  /** DevTools 分屏容器尺寸（拖拽换算占比用） */
+  @Local splitW: number = 0
+  @Local splitH: number = 0
+  /** 拖拽起始占比（onActionStart 捕获） */
+  @Local dragStartRatio: number = 0.5
 
   aboutToAppear(): void {
     // 扩展 popup 开关回调 → 驱动 bindSheet isShow
@@ -146,6 +154,11 @@ struct Index {
     // 下载确认弹窗：返回关闭
     if (downloadVM.pending !== null) {
       downloadVM.cancelDownload()
+      return true
+    }
+    // DevTools 停靠面板：返回先收起
+    if (devtoolsVM.docked) {
+      devtoolsVM.close()
       return true
     }
     if (this.inspectorVisible()) {
@@ -364,6 +377,17 @@ struct Index {
     this.applyKeyboardAvoid()
   }
 
+  /** 活动标签 id（供 @Monitor 驱动 DevTools 停靠目标切换） */
+  @Computed
+  get activeTabIdNum(): number {
+    return tabsVM.activeTabId
+  }
+
+  @Monitor('activeTabIdNum')
+  onActiveTabIdChange(): void {
+    devtoolsVM.onActiveTabChanged()
+  }
+
   /**
    * 键盘避让模式：主页（未压入设置页）时不避让键盘——主页背景/布局不被输入法顶起，
    * 键盘悬浮覆盖底部；离开主页或进入设置等路由页时恢复进入时捕获的默认模式
@@ -395,6 +419,156 @@ struct Index {
   /** HTML 主页沉浸：活动标签为 HTML 主页时网页全屏铺底渲染 */
   private htmlHomeFull(): boolean {
     return this.homeImmersive() && appSettings.isHomeHtmlMode()
+  }
+
+  /** 标签挂载区：全部标签常驻挂载，活动标签置顶 */
+  @Builder
+  tabsStack() {
+    ForEach(tabsVM.tabs, (tab: TabInfo) => {
+      Stack() {
+        this.tabContent(tab)
+      }
+      .width('100%')
+      .height('100%')
+      // 活动标签置顶：Web 为原生视图，常驻挂载下若后台标签（Visibility.None）
+      // 叠在上层，其表面仍截获触摸/滚动手势，导致可见页无法滚动
+      .zIndex(tab.id === tabsVM.activeTabId ? 1 : 0)
+      // 组件快照目标：标签管理卡片窗口缩略图
+      .id(`tabc_${tab.id}`)
+    }, (tab: TabInfo) => tab.id.toString())
+  }
+
+  /** DevTools 分屏容器方向已废弃：主区/面板/分隔条均绝对定位（切换停靠侧仅属性变化，不重建子树） */
+
+  /** 模拟器悬浮 Web 布局宽：优先用前端上报的模拟视口尺寸（页面 override 与之匹配，布局像素级一致），
+   * 缺失时退回手机框 canvas 矩形宽 */
+  private mainAreaWidth(): Length {
+    if (devtoolsVM.docked && devtoolsVM.deviceModeOn) {
+      if (devtoolsVM.deviceEmuW > 0) {
+        return devtoolsVM.deviceEmuW
+      }
+      return devtoolsVM.deviceFrameW > 0 ? devtoolsVM.deviceFrameW : '100%'
+    }
+    const side = devtoolsVM.effectiveSide()
+    return devtoolsVM.docked && (side === 'right' || side === 'left')
+      ? `${(1 - devtoolsVM.ratio) * 100}%` : '100%'
+  }
+
+  /** 模拟器悬浮 Web 布局高：优先模拟视口高，缺失时退回 canvas 矩形高 */
+  private mainAreaHeight(): Length {
+    if (devtoolsVM.docked && devtoolsVM.deviceModeOn) {
+      if (devtoolsVM.deviceEmuH > 0) {
+        return devtoolsVM.deviceEmuH
+      }
+      return devtoolsVM.deviceFrameH > 0 ? devtoolsVM.deviceFrameH : '100%'
+    }
+    return devtoolsVM.docked && devtoolsVM.effectiveSide() === 'bottom'
+      ? `${(1 - devtoolsVM.ratio) * 100}%` : '100%'
+  }
+
+  /** 主区定位：模拟器开启且 canvas 区域有效时悬浮到手机框（组件未缩放几何与 canvas 矩形同心对齐，
+   * .scale 缩放后视觉即覆盖 canvas）；正常分屏靠左停靠时让出 dock 侧 */
+  private mainAreaPos(): Position {
+    if (devtoolsVM.docked && devtoolsVM.deviceModeOn
+      && devtoolsVM.deviceFrameW > 0 && devtoolsVM.deviceFrameH > 0) {
+      const w: number = devtoolsVM.deviceEmuW > 0 ? devtoolsVM.deviceEmuW : devtoolsVM.deviceFrameW
+      const h: number = devtoolsVM.deviceEmuH > 0 ? devtoolsVM.deviceEmuH : devtoolsVM.deviceFrameH
+      return {
+        x: devtoolsVM.deviceFrameX + (devtoolsVM.deviceFrameW - w) / 2,
+        y: devtoolsVM.deviceFrameY + (devtoolsVM.deviceFrameH - h) / 2
+      }
+    }
+    if (devtoolsVM.docked && devtoolsVM.effectiveSide() === 'left') {
+      return { x: `${devtoolsVM.ratio * 100}%`, y: 0 }
+    }
+    return { x: 0, y: 0 }
+  }
+
+  /** 主区缩放：模拟器开启且区域有效时按前端 screenZoom 缩放（缩放后视觉尺寸 = canvas 矩形，
+   * 触摸经 ArkUI 逆变换映射回 Web 坐标），其余状态 1:1 */
+  private mainAreaScale(): ScaleOptions {
+    if (devtoolsVM.docked && devtoolsVM.deviceModeOn
+      && devtoolsVM.deviceFrameW > 0 && devtoolsVM.deviceFrameH > 0) {
+      const z: number = devtoolsVM.deviceEmuZoom > 0 ? devtoolsVM.deviceEmuZoom : 1
+      return { x: z, y: z, centerX: '50%', centerY: '50%' }
+    }
+    return { x: 1, y: 1, centerX: '50%', centerY: '50%' }
+  }
+
+  /** 主区层级：模拟器开启且手机框区域有效时抬升到 dock 之上（悬浮真实网页原生触摸），
+   * 其余状态沉底由 dock 遮盖或分屏错开 */
+  private mainAreaZ(): number {
+    return devtoolsVM.docked && devtoolsVM.deviceModeOn
+      && devtoolsVM.deviceFrameW > 0 && devtoolsVM.deviceFrameH > 0 ? 2 : 0
+  }
+
+  /** DevTools 面板宽：左右分屏时按占比，靠下占满；模拟器开启时铺满 */
+  private dockAreaWidth(): string {
+    if (devtoolsVM.docked && devtoolsVM.deviceModeOn) {
+      return '100%'
+    }
+    const side = devtoolsVM.effectiveSide()
+    return side === 'right' || side === 'left' ? `${devtoolsVM.ratio * 100}%` : '100%'
+  }
+
+  /** DevTools 面板高：靠下时按占比，靠右占满；模拟器开启时铺满 */
+  private dockAreaHeight(): string {
+    if (devtoolsVM.docked && devtoolsVM.deviceModeOn) {
+      return '100%'
+    }
+    return devtoolsVM.effectiveSide() === 'bottom' ? `${devtoolsVM.ratio * 100}%` : '100%'
+  }
+
+  /** DevTools 面板定位：绝对定位脱离 Flex 布局流（不占位），正常停靠贴分屏边界，模拟器开启时铺满全屏遮盖主区 */
+  private dockPos(): Position {
+    if (devtoolsVM.docked && devtoolsVM.deviceModeOn) {
+      return { x: 0, y: 0 }
+    }
+    const side = devtoolsVM.effectiveSide()
+    if (side === 'right') {
+      return { x: `${(1 - devtoolsVM.ratio) * 100}%`, y: 0 }
+    }
+    if (side === 'bottom') {
+      return { x: 0, y: `${(1 - devtoolsVM.ratio) * 100}%` }
+    }
+    return { x: 0, y: 0 }
+  }
+
+  /** 分屏拖拽分隔条：PanGesture 调整 DevTools 区域占比（0.2~0.8）；reverse 为靠左停靠时反向 */
+  @Builder
+  splitHandle(vertical: boolean, reverse: boolean) {
+    Row() {
+      Column()
+        .width(vertical ? 4 : 36)
+        .height(vertical ? 36 : 4)
+        .borderRadius(2)
+        .backgroundColor($r('sys.color.font_tertiary'))
+    }
+    .width(vertical ? 10 : '100%')
+    .height(vertical ? '100%' : 10)
+    // 绝对定位贴分屏边界（脱离 Flex 流，dock 已不占位，主区不再被分隔条挤压）
+    .position(vertical
+      ? { x: reverse ? this.splitW * devtoolsVM.ratio - 5 : this.splitW * (1 - devtoolsVM.ratio) - 5, y: 0 }
+      : { x: 0, y: this.splitH * (1 - devtoolsVM.ratio) - 5 })
+    .justifyContent(FlexAlign.Center)
+    .alignItems(VerticalAlign.Center)
+    .backgroundColor($r('sys.color.comp_background_tertiary'))
+    .gesture(PanGesture()
+      .onActionStart((e: GestureEvent) => {
+        this.dragStartRatio = devtoolsVM.ratio
+      })
+      .onActionUpdate((e: GestureEvent) => {
+        const base: number = vertical ? this.splitW : this.splitH
+        if (base <= 0) {
+          return
+        }
+        let delta: number = (vertical ? e.offsetX : e.offsetY) / base
+        // 拖向 dock 一侧 = dock 收缩（right/bottom 分隔条跟手取反）；靠左停靠 dock 固定左缘不取反
+        if (!reverse) {
+          delta = -delta
+        }
+        devtoolsVM.ratio = devtoolsVM.clampRatio(this.dragStartRatio + delta)
+      }))
   }
 
   @Builder
@@ -501,6 +675,11 @@ struct Index {
                     .zIndex(1)
                   if (UISettings.show_bookmark_bar) {
                     BookmarkBar()
+                  } else {
+                    // 操作栏与 web 内容间距（书签栏开启时由书签栏承担过渡）
+                    Column()
+                      .width('100%')
+                      .height(3)
                   }
                 } else if (!this.mergedBottom() && !this.doubleBottom()) {
                   AddressBar()
@@ -521,18 +700,33 @@ struct Index {
             }
 
             Stack({ alignContent: Alignment.Bottom }) {
-              ForEach(tabsVM.tabs, (tab: TabInfo) => {
-                Stack() {
-                  this.tabContent(tab)
-                }
-                .width('100%')
-                .height('100%')
-                // 活动标签置顶：Web 为原生视图，常驻挂载下若后台标签（Visibility.None）
-                // 叠在上层，其表面仍截获触摸/滚动手势，导致可见页无法滚动
-                .zIndex(tab.id === tabsVM.activeTabId ? 1 : 0)
-                // 组件快照目标：标签管理卡片窗口缩略图
-                .id(`tabc_${tab.id}`)
-              }, (tab: TabInfo) => tab.id.toString())
+              // 主区常驻：dock 开关不销毁/重建标签树（if/else 换容器会销毁页面 Web，
+              // 导致被调试的内核 target 失效、DevTools ws 断连）。
+              // 停靠侧切换 = Flex direction 属性变化（Row↔Column），同样不销毁子树。
+              // 主区常驻：dock 开关不销毁/重建标签树（绝对定位仅改属性，不换容器）。
+              // 模拟器开启时前端经 __qhDevTools.setDeviceFrame 上报手机框页面区域，
+              // 主区 Web 悬浮其上（zIndex 2 > dock）：原生渲染 + 原生触摸/输入法。
+              Column() {
+                this.tabsStack()
+              }
+              .width(this.mainAreaWidth())
+              .height(this.mainAreaHeight())
+              .position(this.mainAreaPos())
+              .scale(this.mainAreaScale())
+              .zIndex(this.mainAreaZ())
+
+              // DevTools 面板：绝对定位。正常停靠贴分屏边界，模拟器开启时铺满（悬浮 Web 覆盖手机框区域）。
+              if (devtoolsVM.docked) {
+                DevToolsDock()
+                  .width(this.dockAreaWidth())
+                  .height(this.dockAreaHeight())
+                  .position(this.dockPos())
+              }
+
+              if (devtoolsVM.docked && !devtoolsVM.deviceModeOn) {
+                this.splitHandle(devtoolsVM.effectiveSide() !== 'bottom',
+                  devtoolsVM.effectiveSide() === 'left')
+              }
 
               // 撤销关闭提示条
               if (tabsVM.showUndoTip) {
@@ -590,6 +784,11 @@ struct Index {
               }
             }
             .layoutWeight(1)
+            // 分屏区域实测尺寸：主区/面板/分隔条绝对定位的边界计算依据
+            .onAreaChange((_o: Area, n: Area): void => {
+              this.splitW = n.width as number
+              this.splitH = n.height as number
+            })
             // 仅栏隐藏且查找栏在底时避让小白条；合并上布局网页直接铺至屏幕底边
             .padding({ bottom: this.needsBottomPadding() ? QhState.bottomRectHeight : 0 })
             // 主页沉浸时背景由全屏主页背景层接管，内容区透明
@@ -696,6 +895,9 @@ struct Index {
         if (this.activeHostedSession !== null && this.activeHostedSession.state.show) {
           WebHostedPlayerView({ session: this.activeHostedSession, title: this.hostedTitle() })
         }
+
+        // 菜单半模态根层宿主：浏览器标识/字号/保存网页等选择 sheet（宽屏 CENTER 居中）
+        MenuSheetHost()
       }
       .width('100%')
       .height('100%')

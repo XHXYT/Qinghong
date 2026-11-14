@@ -212,12 +212,25 @@ export class TabsViewModel {
     const activeId = session.activeTabId
     const activeExists = restored.some((t: TabInfo) => t.id === activeId)
     this.activeTabId = activeExists ? activeId : restored[0].id
-    // 网页模式：主页态标签转为加载配置的主页网页
-    const home = this.homeWebUrl()
-    if (home !== '') {
-      for (const t of restored) {
-        if (t.isHome) {
-          this.navigate(t, home)
+    if (appSettings.restore_mode === 'keep') {
+      // keep 模式：上次主页态标签无可保留的浏览内容，且 keep 下方必新建主页，
+      // 先移除恢复出的主页标签（须在网页模式主页导航改写 isHome 前过滤，
+      // 否则主页标签被转为普通网页标签而漏过滤，与新建主页形成双主页）
+      const kept: TabInfo[] = this.tabs.filter((t: TabInfo): boolean => !t.isHome)
+      if (kept.length !== this.tabs.length) {
+        this.tabs = kept
+        if (kept.length === 0 || !kept.some((t: TabInfo): boolean => t.id === this.activeTabId)) {
+          this.activeTabId = kept.length > 0 ? kept[0].id : -1
+        }
+      }
+    } else {
+      // 网页模式：主页态标签转为加载配置的主页网页
+      const home = this.homeWebUrl()
+      if (home !== '') {
+        for (const t of restored) {
+          if (t.isHome) {
+            this.navigate(t, home)
+          }
         }
       }
     }
@@ -340,8 +353,10 @@ export class TabsViewModel {
    * 新标签页打开源码视图：捕获的 HTML 经 loadData 渲染，不走主流程导航
    */
   newViewSourceTab(srcUrl: string, html: string, title: string, incognito: boolean): TabInfo | null {
+    const before: number = this.tabs.length
     const tab = this.newTab('', incognito, true, true)
-    if (tab === null) {
+    // 标签数已达上限（newTab 返回当前活动标签）：不得改写活动标签状态
+    if (tab === null || this.tabs.length === before) {
       return null
     }
     tab.isHome = false
@@ -357,8 +372,10 @@ export class TabsViewModel {
    */
   newNetworkLogTab(): TabInfo | null {
     const sourceId = this.activeTabId
+    const before: number = this.tabs.length
     const tab = this.newTab('', null, true, true)
-    if (tab === null) {
+    // 标签数已达上限（newTab 返回当前活动标签）：不得改写活动标签状态
+    if (tab === null || this.tabs.length === before) {
       return null
     }
     tab.isHome = false
@@ -720,6 +737,16 @@ export class TabsViewModel {
   }
 
   /**
+   * 释放已关闭标签残留的快照原生内存（撤销槽被覆盖/清空时调用）
+   */
+  private releaseClosedSnapshot(tab: TabInfo | null): void {
+    if (tab !== null && !this.hasTab(tab.id) && tab.snapshot !== null) {
+      tab.snapshot.release()
+      tab.snapshot = null
+    }
+  }
+
+  /**
    * 展示撤销关闭提示（4 秒后自动消失）
    */
   private scheduleUndoTip(tab: TabInfo): void {
@@ -727,10 +754,15 @@ export class TabsViewModel {
     if (tab.isIncognito) {
       return
     }
-    this.recentClosed = tab
+    // 撤销槽换主：上一孤儿标签的快照立即释放，防原生内存泄漏
+    this.releaseClosedSnapshot(this.recentClosed)
+    // 未开启撤销提示（无任何撤销入口消费 recentClosed）：不留撤销槽，快照立即释放
     if (!appSettings.show_undo_close_tip) {
+      this.recentClosed = null
+      this.releaseClosedSnapshot(tab)
       return
     }
+    this.recentClosed = tab
     if (this.undoTipTimer >= 0) {
       clearTimeout(this.undoTipTimer)
     }
@@ -741,10 +773,7 @@ export class TabsViewModel {
       // 撤销期结束未被恢复：释放孤儿标签的快照原生内存
       const orphan = this.recentClosed
       this.recentClosed = null
-      if (orphan !== null && !this.hasTab(orphan.id) && orphan.snapshot !== null) {
-        orphan.snapshot.release()
-        orphan.snapshot = null
-      }
+      this.releaseClosedSnapshot(orphan)
     }, AppConstants.UNDO_TIP_DURATION)
   }
 
@@ -762,6 +791,8 @@ export class TabsViewModel {
     if (!tab) return
     if (this.tabs.length >= AppConstants.MAX_TABS) {
       toastUtil.showToast({ message: $r('app.string.tab_limit_reached') })
+      // 达上限无法恢复：孤儿快照一并释放，防原生内存泄漏
+      this.releaseClosedSnapshot(tab)
       return
     }
     // 快照文件可能已被上次会话保存清理，重新置脏落盘
@@ -782,6 +813,8 @@ export class TabsViewModel {
       this.undoTipTimer = -1
     }
     this.showUndoTip = false
+    // 撤销槽清空前释放孤儿快照，防原生内存泄漏
+    this.releaseClosedSnapshot(this.recentClosed)
     this.recentClosed = null
   }
 
@@ -992,7 +1025,9 @@ export class TabsViewModel {
               return
             }
             t.snapshot = pm
-            if (!t.isHome) {
+            if (!t.isHome && t.progress < 100) {
+              // 异步解码晚于页面加载完成（onPageEnd 已撤占位）时不再回设，
+              // 否则旧快照永久盖住已加载页面且无事件再清除
               t.showSnapshotPlaceholder = true
             }
           })
