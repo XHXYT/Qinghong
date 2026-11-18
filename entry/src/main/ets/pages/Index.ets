@@ -706,7 +706,10 @@ struct Index {
               // 主区常驻：dock 开关不销毁/重建标签树（绝对定位仅改属性，不换容器）。
               // 模拟器开启时前端经 __qhDevTools.setDeviceFrame 上报手机框页面区域，
               // 主区 Web 悬浮其上（zIndex 2 > dock）：原生渲染 + 原生触摸/输入法。
-              Column() {
+              // 主区容器必须为 Stack：tabsStack 为 @Builder（无包装节点），ForEach 的各标签容器
+              // 直接成为本容器子节点——Stack 下互相重叠铺满（仅活动标签可见）；
+              // 若用 Column 会垂直堆叠，非首标签被排到屏幕外（白屏回归）
+              Stack() {
                 this.tabsStack()
               }
               .width(this.mainAreaWidth())
