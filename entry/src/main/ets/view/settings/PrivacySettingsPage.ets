@@ -4,6 +4,7 @@ import { appSettings } from '../../common/entity/SettingsModel';
 import { CustomItemInfo, ItemActionType } from '../../common/entity/CusItemInfo';
 import { tabsVM } from '../../viewmodel/TabsViewModel';
 import { AdvancedSecurityUtils } from '../../common/utils/security/AdvancedSecurityUtils';
+import { ApiCompat } from '../../common/utils/app/ApiCompat';
 import { SitePolicy, SiteSettingsViewModel, siteSettingsVM } from '../../viewmodel/SiteSettingsViewModel';
 import { QhState } from '../../entryability/AppState';
 
@@ -109,17 +110,20 @@ struct PrivacySettingsPage {
         appSettings.disable_webrtc = v as boolean
       }
     }))
-    items.push(new CustomItemInfo({
-      id: 'disable_webrtc_udp',
-      title: $r('app.string.disable_webrtc_udp'),
-      subtitle: $r('app.string.disable_webrtc_udp_desc'),
-      type: ItemActionType.TOGGLE,
-      value: appSettings.disable_webrtc_udp,
-      onChange: (v: string | boolean | number): void => {
-        appSettings.disable_webrtc_udp = v === true
-        AdvancedSecurityUtils.apply()
-      }
-    }))
+    // Web 高级安全模式为 API 26+ 能力：低版本设备隐藏该项（接口不存在，开关无效）
+    if (ApiCompat.advancedSecurityMode()) {
+      items.push(new CustomItemInfo({
+        id: 'disable_webrtc_udp',
+        title: $r('app.string.disable_webrtc_udp'),
+        subtitle: $r('app.string.disable_webrtc_udp_desc'),
+        type: ItemActionType.TOGGLE,
+        value: appSettings.disable_webrtc_udp,
+        onChange: (v: string | boolean | number): void => {
+          appSettings.disable_webrtc_udp = v === true
+          AdvancedSecurityUtils.apply()
+        }
+      }))
+    }
     items.push(new CustomItemInfo({
       id: 'geolocation_access',
       title: $r('app.string.geolocation_access'),

@@ -1,5 +1,6 @@
 import { webview } from '@kit.ArkWeb';
 import { appSettings } from '../../entity/SettingsModel';
+import { ApiCompat } from '../app/ApiCompat';
 
 /**
  * Web 高级安全模式（API 26+，WebviewController.enableAdvancedSecurityMode，全局静态）。
@@ -23,6 +24,10 @@ export class AdvancedSecurityUtils {
   /** 应用高级安全配置（禁止/恢复 WebRTC 非代理 UDP；未指定字段保持默认 false） */
   static apply(): void {
     if (!AdvancedSecurityUtils.webReady) {
+      return
+    }
+    // API 26 前无 enableAdvancedSecurityMode：低版本设备跳过（设置项已同步隐藏）
+    if (!ApiCompat.advancedSecurityMode()) {
       return
     }
     try {

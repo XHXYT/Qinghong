@@ -2,6 +2,7 @@ import { http, connection } from '@kit.NetworkKit';
 import { fileIo } from '@kit.CoreFileKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { createLogger } from '../app/Logger';
+import { ApiCompat } from '../app/ApiCompat';
 import { ProxyUtils } from '../network/ProxyUtils';
 import { appSettings } from '../../entity/SettingsModel';
 
@@ -358,6 +359,12 @@ export class HttpDownloader {
     const host: string = appSettings.proxy_host.trim()
     const port: number = appSettings.proxy_port
     if (appSettings.proxy_type === 'socks') {
+      // usingSocks5Proxy 为 API 26+ 接口：低版本设备原生 http 不支持 SOCKS5，保持默认直连
+      // （不能回退 usingProxy=false——socks 服务器非 http 代理，强设会变明示直连；内核网页代理不受影响）
+      if (!ApiCompat.socks5HttpProxy()) {
+        logger.warn('applyProxy', '当前系统不支持 SOCKS5 原生下载代理（API 26+），本次请求直连')
+        return
+      }
       const s: connection.Socks5Proxy = { host: host, port: port }
       options.usingSocks5Proxy = s
       options.usingProxy = false

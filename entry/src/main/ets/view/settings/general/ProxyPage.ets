@@ -9,6 +9,7 @@ import { CustomListItem } from '../../../components/CusItemBuilder';
 import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../../../components/SheetPicker';
 import { buildDialogButtons } from '../../../components/dialog/AppContentDialog';
 import { toastUtil } from '../../../common/utils/ui/ToastUtils';
+import { ApiCompat } from '../../../common/utils/app/ApiCompat';
 import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
 import { QhState } from '../../../entryability/AppState';
 
@@ -172,6 +173,10 @@ struct ProxyPage {
       appSettings.proxy_type = v
       this.syncItemStates()
       ProxyUtils.apply()
+      // 低版本系统无 SOCKS5 原生 http 能力：网页代理正常，原生下载将直连，提示用户知晓
+      if (v === 'socks' && !ApiCompat.socks5HttpProxy()) {
+        toastUtil.showToast({ message: $r('app.string.proxy_socks_download_direct') })
+      }
     }
     this.pickerHeight = pickerSheetHeight(options.length)
     this.showTypePicker = true
