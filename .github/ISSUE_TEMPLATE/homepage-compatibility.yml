@@ -1,0 +1,122 @@
+name: "🏠 主页兼容性反馈"
+description: 反馈无法正常渲染或运行的 Via 主题 CSS / Logo HTML 注入脚本 / 主页样式问题
+title: "[主页兼容] "
+labels: ["homepage-compat"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢帮助完善主页兼容层！
+
+        **提交前请先搜索**是否已有相同主题/脚本的 issue（直接搜索主题名即可），如有请在原 issue 下补充，不要重复开新 issue。
+
+        主页兼容层的目标是兼容 Via 主题生态（CSS 主题、Logo HTML 注入脚本）。**CSS/HTML 原文和「Via 原版期望效果」截图是最关键的两项**，没有原文很难定位。
+
+  - type: dropdown
+    id: feedback-type
+    attributes:
+      label: 反馈类型
+      options:
+        - 自定义 CSS 主题（Via 主题 / 第三方 CSS）
+        - Logo HTML 注入脚本（如天气卡、一言）
+        - HTML 主页原生元素（搜索框 / 背景 / 收藏宫格本身异常）
+        - CSS 与原生设置的冲突（样式被覆盖 / 优先级不对）
+        - 主页整体（白屏 / 打不开 / 严重错位）
+    validations:
+      required: true
+
+  - type: input
+    id: source-link
+    attributes:
+      label: 来源链接（可选）
+      description: Via 主题帖 / 作者发布页 / 下载链接；自己写的可跳过
+      placeholder: "https://www.xxxxx.com/... 或其他"
+
+  - type: dropdown
+    id: apply-method
+    attributes:
+      label: 使用方式
+      options:
+        - 设置 → 主页定制 → 高级 → CSS 编辑框粘贴
+        - 已保存的 CSS 主题（点芯片切换）
+        - 导入文件（.css / .txt）
+        - Logo / HTML 编辑框粘贴或导入
+        - 其他
+    validations:
+      required: true
+
+  - type: dropdown
+    id: symptom-type
+    attributes:
+      label: 现象类型
+      options:
+        - 样式完全不生效（像没写一样）
+        - 样式生效了，但部分属性被原生样式压过
+        - 布局错乱（错位 / 挤压 / 拉伸 / 元素跑位 / 多出空隙）
+        - 动效或交互异常（聚焦动效 / 键盘避让 / 联想面板 / GO 按钮）
+        - 注入脚本不执行（数据不加载 / placeholder 不生效 / 元素找不到）
+        - 颜色或明暗不对（字色与背景相反 / 背景被顶掉 / 深浅模式判定错）
+        - 其他（请在具体现象中说明）
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: involved-elements
+    attributes:
+      label: 涉及的主页元素
+      description: 可多选，不确定可勾「不清楚」
+      options:
+        - label: 搜索框（.search_bar / #search_input / #search_row / #engine_select）
+        - label: 提交按钮（#search_submit）
+        - label: 联想面板（#suggest_box / #sg_panel）
+        - label: 收藏宫格（#box_container / .box / .title / .label）
+        - label: 背景（body / #bgimg / 背景图）
+        - label: 内容容器（#content / #wrap / #bookmark_part）
+        - label: Logo / 注入的 HTML
+        - label: 不清楚
+
+  - type: textarea
+    id: content
+    attributes:
+      label: CSS / HTML 原文（强烈建议）
+      description: >
+        完整粘贴正在使用的自定义 CSS 或 Logo HTML（可附文件）；
+        涉及个人隐私的 API key 等请自行打码。没有使用自定义内容可跳过。
+      render: css
+      placeholder: |
+        /* 粘贴完整 CSS；Logo HTML 问题请选「附加文件」或粘贴到具体现象里 */
+
+  - type: textarea
+    id: symptom
+    attributes:
+      label: 具体现象
+      description: 期望的效果是什么（在 Via 原版里什么样）？实际变成了什么样？改了哪个设置或哪条规则后出现的？
+      placeholder: |
+        例如：主题里 .search_bar { backdrop-filter: blur(5px) } 在 Via 上是 5px 毛玻璃，
+        实际渲染出来模糊明显更重，把设置里搜索框模糊调到 0 也没变化。
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图或录屏（可选）
+      description: >
+        最好有对比：Via 原版的期望效果 vs 本应用的实际效果；
+        布局错位类问题一张截图胜过千言。
+
+  - type: textarea
+    id: related-settings
+    attributes:
+      label: 相关的主页定制设置
+      description: 主页定制里动过哪些原生项会与 CSS 冲突：搜索框样式（矩形/线条/模糊/透明）、搜索框高度、背景图与透明度、Logo 模式等；没动过可跳过
+      placeholder: "例如：搜索框样式=模糊（16px）、背景图=自带风景图（不透明度 100%）、Logo=HTML 天气卡"
+
+  - type: input
+    id: env
+    attributes:
+      label: 环境信息
+      description: 浏览器版本 + 设备型号 + 系统版本
+      placeholder: "例如：v1.0.0 / Mate 80 Pro Max / HarmonyOS 6.0"
+    validations:
+      required: true

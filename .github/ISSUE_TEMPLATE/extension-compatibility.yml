@@ -1,0 +1,103 @@
+name: "🧩 扩展兼容性反馈"
+description: 反馈一个无法正常安装或运行的 Chrome/Edge 扩展
+title: "[扩展兼容] "
+labels: ["extension-compat"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢帮助完善扩展兼容层！
+
+        **提交前请先搜索**是否已有相同扩展的 issue（直接搜索扩展名即可），如有请在原 issue 下补充，不要重复开新 issue。
+
+        兼容性修复通常需要针对具体扩展逐一适配，**信息越具体，修复越快**。商店链接和现象描述是最关键的两项。
+
+  - type: input
+    id: ext-name
+    attributes:
+      label: 扩展名称
+      description: 商店里显示的完整名称
+      placeholder: "例如：XXX"
+    validations:
+      required: true
+
+  - type: input
+    id: ext-link
+    attributes:
+      label: 商店链接
+      description: Chrome 应用商店 / Edge Add-ons / Crx搜搜 的详情页链接
+      placeholder: "https://chromewebstore.google.com/detail/..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-source
+    attributes:
+      label: 安装来源
+      options:
+        - Chrome 应用商店（页面内直接安装）
+        - Edge Add-ons（页面内直接安装）
+        - Crx搜搜（页面内直接安装）
+        - 设置 → 扩展 → 从链接安装
+        - 本地导入（.crx / .zip 文件）
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-result
+    attributes:
+      label: 安装结果
+      options:
+        - 安装失败（提示安装失败 / 下载出错）
+        - 安装成功，但点图标弹窗打不开、白屏或一直加载
+        - 安装成功，弹窗能用，但网页上的功能不生效（如广告不过滤、脚本不注入）
+        - 安装成功且基本可用，但部分功能异常
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: broken-features
+    attributes:
+      label: 异常的功能范围
+      description: 可多选；都不涉及可选「其他」并说明
+      options:
+        - label: 图标弹窗（popup）
+        - label: 后台服务（登录状态、数据同步、消息通知）
+        - label: 网页注入（广告过滤、页面增强、脚本执行）
+        - label: 选项页 / 设置页
+        - label: 右键菜单
+        - label: 其他（请在现象描述中说明）
+
+  - type: textarea
+    id: symptom
+    attributes:
+      label: 具体现象
+      description: 卡在哪一步？期望的行为是什么？在桌面 Chrome 上它正常吗？
+      placeholder: |
+        例如：在 Chrome 应用商店点击「安装」后提示安装成功，但点击工具栏图标打开弹窗后一直停在启动 logo，等待约 1 分钟无变化。桌面 Chrome 上弹窗能正常显示登录页。
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 报错日志（可选，进阶用户）
+      description: >
+        若方便连接电脑，可用 hdc 抓取 hilog 中 JSAPP 相关报错贴到这里；
+        不会抓日志可跳过，不影响反馈受理。
+      placeholder: "hdc shell hilog -x 中包含 [ExtensionVM] / [ExtPopup] / [ExtBgHost] 的行"
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图或录屏（可选）
+      description: 安装提示、弹窗卡住的画面、网页功能不生效的对比图等，可直接拖拽上传
+
+  - type: input
+    id: env
+    attributes:
+      label: 环境信息
+      description: 浏览器版本 + 设备型号 + 系统版本
+      placeholder: "例如：v1.0.0 / Mate 60 Pro / HarmonyOS 5.0"
+    validations:
+      required: true
