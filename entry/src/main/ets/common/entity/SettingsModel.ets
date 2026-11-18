@@ -35,6 +35,19 @@ export class CustomSearchEngine {
 }
 
 /**
+ * 自定义 CSS 主题（保存的 CSS 快照，供主页定制页快速切换）
+ */
+export class CssTheme {
+  name: string = ''
+  css: string = ''
+
+  constructor(name: string, css: string) {
+    this.name = name
+    this.css = css
+  }
+}
+
+/**
  * UI 设定类（颜色模式、工具栏位置）
  */
 @ObservedV2
@@ -377,6 +390,8 @@ export class AppSettings {
   @Trace home_custom_css: string = ''
   /** 主页高级：使用自定义 CSS（关闭则不注入，内容保留不清空） */
   @Trace home_custom_css_enabled: boolean = true
+  /** 主页高级：已保存 CSS 主题（JSON [{name,css}]，上限 6 套，点击切换） */
+  @Trace home_custom_css_themes: string = '[]'
   /** 搜索建议来源（启用项逗号分隔） */
   @Trace search_suggest_sources: string = 'favorites,bookmarks,tabs,history,engine,search_history'
   /** 搜索工具栏启用 */
@@ -447,6 +462,28 @@ export class AppSettings {
   /** 自定义 CSS 是否生效：开关开启且内容非空 */
   customCssEnabled(): boolean {
     return this.home_custom_css_enabled && this.home_custom_css.trim() !== ''
+  }
+
+  /** 解析已保存的 CSS 主题列表（异常数据容错为空，截断至 6 套） */
+  cssThemes(): CssTheme[] {
+    try {
+      const raw = JSON.parse(this.home_custom_css_themes) as Object[]
+      const list: CssTheme[] = []
+      if (raw) {
+        for (const item of raw) {
+          const rec = item as Record<string, Object>
+          list.push(new CssTheme((rec["name"] as string) ?? '', (rec["css"] as string) ?? ''))
+        }
+      }
+      return list.slice(0, 6)
+    } catch (error) {
+      return []
+    }
+  }
+
+  /** 写回 CSS 主题列表（截断至 6 套；赋值 @Trace 触发自动保存） */
+  putCssThemes(list: CssTheme[]): void {
+    this.home_custom_css_themes = JSON.stringify(list.slice(0, 6))
   }
 
   /** 主页定制：是否启用本地 HTML 主页（Logo 用 HTML 代码或自定义 CSS 生效中） */
@@ -624,6 +661,7 @@ export class AppSettings {
       "home_show_search_area": this.home_show_search_area,
       "home_custom_css": this.home_custom_css,
       "home_custom_css_enabled": this.home_custom_css_enabled,
+      "home_custom_css_themes": this.home_custom_css_themes,
       "search_suggest_sources": this.search_suggest_sources,
       "search_toolbar_enabled": this.search_toolbar_enabled,
       "search_toolbar_engines": this.search_toolbar_engines,
@@ -767,6 +805,7 @@ export class AppSettings {
     this.home_show_search_area = (json["home_show_search_area"] as boolean) ?? this.home_show_search_area;
     this.home_custom_css = (json["home_custom_css"] as string) ?? this.home_custom_css;
     this.home_custom_css_enabled = (json["home_custom_css_enabled"] as boolean) ?? this.home_custom_css_enabled;
+    this.home_custom_css_themes = (json["home_custom_css_themes"] as string) ?? this.home_custom_css_themes;
     this.search_suggest_sources = (json["search_suggest_sources"] as string) ?? this.search_suggest_sources;
     this.search_toolbar_enabled = (json["search_toolbar_enabled"] as boolean) ?? this.search_toolbar_enabled;
     this.search_toolbar_engines = (json["search_toolbar_engines"] as string) ?? this.search_toolbar_engines;
@@ -859,7 +898,7 @@ export class AppSettings {
     'home_search_style', 'home_bg_image', 'home_bg_theme', 'home_bg_opacity', 'home_bg_blur',
     'home_quick_width', 'home_quick_height', 'home_quick_radius', 'home_quick_icon_style',
     'home_search_effect', 'home_search_blur', 'home_search_offset', 'home_search_height',
-    'home_show_search_area', 'home_custom_css', 'home_custom_css_enabled',
+    'home_show_search_area', 'home_custom_css', 'home_custom_css_enabled', 'home_custom_css_themes',
     'search_suggest_sources',     'search_toolbar_enabled', 'search_toolbar_engines', 'menu_layout', 'long_press_menu', 'bookmark_folders',
     'swipe_nav_enabled', 'volume_key_paging', 'keyboard_shortcuts', 'toolbar_events', 'toolbar_swipe_enabled',
     'userscript_enabled', 'userscript_debug', 'extension_enabled',
@@ -983,6 +1022,7 @@ export class AppSettings {
     this.home_show_search_area = true;
     this.home_custom_css = '';
     this.home_custom_css_enabled = true;
+    this.home_custom_css_themes = '[]';
     this.search_suggest_sources = 'favorites,bookmarks,tabs,history,engine,search_history';
     this.search_toolbar_enabled = false;
     this.search_toolbar_engines = 'baidu:1,google:1,bing:1,sogou:1,so360:1,toutiao:1,shenma:1';

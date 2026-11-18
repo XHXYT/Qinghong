@@ -145,7 +145,7 @@ struct GeneralSettingsPage {
 
   @Local clearSel: boolean[] = [false, false, false, false, false, false, false]
   @Local exitSel: boolean[] = parseExitClear('')
-  @Local exportSel: boolean[] = [false, false, false]
+  @Local exportSel: boolean[] = [false, false, false, false, false, false, false, false, false, false]
   @Local inputUrl: string = ''
 
   private clearDataDialog: CustomDialogController | undefined = undefined
@@ -540,7 +540,7 @@ struct GeneralSettingsPage {
     const docPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker()
     const options: picker.DocumentSelectOptions = {
       maxSelectNumber: 1,
-      fileSuffixFilters: ['json']
+      fileSuffixFilters: ['json', 'zip']
     }
     docPicker.select(options).then((uris: string[]): void => {
       if (uris.length === 0) {
@@ -563,21 +563,17 @@ struct GeneralSettingsPage {
     })
   }
 
-  /** 导出数据：书签/历史/设置勾选项 → JSON 备份，写入 Download/<包名>/backup */
+  /** 导出数据：按勾选项打包 zip（backup.json + 壁纸/logo + 扩展文件），写入 Download/<包名>/backup */
   private doExportData(): void {
-    if (!this.exportSel[0] && !this.exportSel[1] && !this.exportSel[2]) {
+    if (!this.exportSel.includes(true)) {
       toastUtil.showToast({ message: $r('app.string.data_export_none_selected') })
       return
     }
-    dataBackupVM.exportDataJson(this.exportSel[0], this.exportSel[1], this.exportSel[2])
-      .then((json: string): void => {
-        DataBackupViewModel.writeBackupFile('qinghong_backup.json', json).then((): void => {
-          toastUtil.showToast({ message: $r('app.string.data_export_success') })
-        }).catch((error: BusinessError): void => {
-          console.error(`[GeneralSettings] 写出备份文件失败: ${error.code} ${error.message}`)
-          toastUtil.showToast({ message: $r('app.string.data_export_failed') })
-        })
-      }).catch((error: BusinessError): void => {
+    dataBackupVM.exportBackup(this.exportSel)
+      .then((): void => {
+        toastUtil.showToast({ message: $r('app.string.data_export_success') })
+      })
+      .catch((error: BusinessError): void => {
         console.error(`[GeneralSettings] 导出数据失败: ${error.code} ${error.message}`)
         toastUtil.showToast({ message: $r('app.string.data_export_failed') })
       })
@@ -747,6 +743,20 @@ struct GeneralSettingsPage {
         onToggle: (v: boolean): void => { this.exportSel[1] = v } })
       CheckRow({ label: $r('app.string.settings'), checked: this.exportSel[2],
         onToggle: (v: boolean): void => { this.exportSel[2] = v } })
+      CheckRow({ label: $r('app.string.clear_search_history_label'), checked: this.exportSel[3],
+        onToggle: (v: boolean): void => { this.exportSel[3] = v } })
+      CheckRow({ label: $r('app.string.download_records'), checked: this.exportSel[4],
+        onToggle: (v: boolean): void => { this.exportSel[4] = v } })
+      CheckRow({ label: $r('app.string.site_settings'), checked: this.exportSel[5],
+        onToggle: (v: boolean): void => { this.exportSel[5] = v } })
+      CheckRow({ label: $r('app.string.hosts'), checked: this.exportSel[6],
+        onToggle: (v: boolean): void => { this.exportSel[6] = v } })
+      CheckRow({ label: $r('app.string.ad_block_subscription'), checked: this.exportSel[7],
+        onToggle: (v: boolean): void => { this.exportSel[7] = v } })
+      CheckRow({ label: $r('app.string.user_scripts'), checked: this.exportSel[8],
+        onToggle: (v: boolean): void => { this.exportSel[8] = v } })
+      CheckRow({ label: $r('app.string.extensions'), checked: this.exportSel[9],
+        onToggle: (v: boolean): void => { this.exportSel[9] = v } })
     }
     .width('100%')
   }

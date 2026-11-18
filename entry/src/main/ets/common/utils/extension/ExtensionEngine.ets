@@ -479,6 +479,29 @@ export class ExtensionEngine {
     return -1
   }
 
+  /**
+   * 校验 ZIP 尾部完整性：末尾须存在 EOCD（PK\x05\x06）且注释长度恰好闭合到文件尾。
+   * 流式下载在响应无 content-length 时连接提前断开会缺 truncated 判定、把截断文件当成功，
+   * 截断的 ZIP 缺 EOCD，据此拦截并交由上层断点续传重试。
+   */
+  static hasValidEocd(b: Uint8Array): boolean {
+    const len: number = b.byteLength
+    if (len < 22) {
+      return false
+    }
+    // EOCD 最小 22 字节，其后注释最长 65535 字节
+    const from: number = Math.max(0, len - 22 - 65535)
+    for (let i: number = len - 22; i >= from; i--) {
+      if (b[i] === 0x50 && b[i + 1] === 0x4B && b[i + 2] === 0x05 && b[i + 3] === 0x06) {
+        const commentLen: number = b[i + 20] | (b[i + 21] << 8)
+        if (i + 22 + commentLen === len) {
+          return true
+        }
+      }
+    }
+    return false
+  }
+
   // ==================== 商店 URL 解析 ====================
 
   /**

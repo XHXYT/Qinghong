@@ -93,6 +93,11 @@ export class ExtStoreInstallRaw {
   extId: string = ''
 }
 
+export class ExtGetContextsRaw {
+  extId: string = ''
+  cbId: number = 0
+}
+
 /** runtime.connect 发起（popup/内容脚本/bg → 原生路由 onConnect） */
 export class ExtPortConnectRaw {
   extId: string = ''
@@ -150,8 +155,12 @@ function qhMakeEvApi(store) {
 function qhMakePort(portId, name, sender) {
   var msgLs2 = [];
   var discLs2 = [];
-  ports[portId] = { msgLs: msgLs2, discLs: discLs2 };
-  return {
+  /* 注册表条目持有 Port 对象本体：onMessage/onDisconnect 监听器按 Chrome 语义
+     收到 (message, port) / (port)，扩展常在监听器里用第二参回复（真机实证
+     Bitwarden local-backed-session-storage sendMessageTo(port)） */
+  var entry = { msgLs: msgLs2, discLs: discLs2, port: null };
+  ports[portId] = entry;
+  var port = {
     name: name,
     sender: sender,
     onMessage: qhMakeEvApi(msgLs2),
@@ -169,6 +178,8 @@ function qhMakePort(portId, name, sender) {
       nat('extPortDisconnect', { portId: portId });
     }
   };
+  entry.port = port;
+  return port;
 }
 window.__qhExtCore = {
   reg: function(fn) { var id = ++seq; cbs[id] = fn; return id; },
@@ -300,7 +311,8 @@ window.__qhExtCore = {
     var m = null;
     try { m = JSON.parse(msgJson); } catch (e) { m = null; }
     for (var i = 0; i < p.msgLs.length; i++) {
-      try { p.msgLs[i](m); } catch (e) { console.warn('[qh ext] port onMessage', e); }
+      /* Chrome 语义：onMessage 监听器收 (message, port) */
+      try { p.msgLs[i](m, p.port); } catch (e) { console.warn('[qh ext] port onMessage', e); }
     }
   },
   firePortDisconnect: function(portId) {
@@ -309,7 +321,8 @@ window.__qhExtCore = {
     if (!p) { return; }
     delete ports[portId];
     for (var i = 0; i < p.discLs.length; i++) {
-      try { p.discLs[i](); } catch (e) { console.warn('[qh ext] port onDisconnect', e); }
+      /* Chrome 语义：onDisconnect 监听器收 (port) */
+      try { p.discLs[i](p.port); } catch (e) { console.warn('[qh ext] port onDisconnect', e); }
     }
   }
 };
@@ -874,6 +887,20 @@ var MANIFEST = ${manifestJson};
 try { MANIFEST.name = ${JSON.stringify(resolvedName)}; MANIFEST.description = ${JSON.stringify(resolvedDesc)}; } catch (e) {}
 var MSGS = ${messagesJson};
 var UILOC = ${JSON.stringify(uiLocale)};
+/* 未捕获异常/Promise 拒绝带堆栈上报：onConsole 只有 message 无法定位压缩代码，
+   bg/popup 控制台经宿主转发到 hilog，配合扩展自带的 *.map 在 PC 侧还原源码位置 */
+window.addEventListener('error', function (ev) {
+  try {
+    console.error('[qh jserr] ' + (ev.error && ev.error.stack ? ev.error.stack
+      : (ev.message || '') + ' @ ' + (ev.filename || '') + ':' + (ev.lineno || 0) + ':' + (ev.colno || 0)));
+  } catch (e) {}
+});
+window.addEventListener('unhandledrejection', function (ev) {
+  try {
+    var qhr = ev.reason;
+    console.error('[qh jsrej] ' + (qhr && qhr.stack ? qhr.stack : String(qhr)));
+  } catch (e) {}
+});
 var lastError = null;
 var onMsgLs = [];
 var onInstalledLs = [];
@@ -1003,6 +1030,28 @@ var runtimeApi = {
     addListener: function(fn) { CORE.addPortConnectListener(fn); },
     removeListener: function(fn) { CORE.removePortConnectListener(fn); },
     hasListener: function() { return false; }
+  },
+  /* MV3 chrome.runtime.getContexts：返回存活的扩展上下文（BACKGROUND/POPUP）。
+     不可走 stub 代理——stub 可调用但决议 undefined，Bitwarden isPopupOpen 对其
+     yield 后 .some 崩 → bg 初始化链断裂 → popup 永卡 logo（真机实证） */
+  getContexts: function(filter, cb) {
+    var f = (filter && typeof filter === 'object') ? filter : null;
+    var p = new Promise(function(res) {
+      var id = CORE.reg(function(err, list) {
+        res(Array.isArray(list) ? list : []);
+      });
+      CORE.natCall('extGetContexts', { extId: EXTID, cbId: id });
+    }).then(function(list) {
+      var types = (f && Array.isArray(f.contextTypes)) ? f.contextTypes : null;
+      if (types && types.length) {
+        return list.filter(function(c) { return c && types.indexOf(c.contextType) >= 0; });
+      }
+      return list;
+    });
+    if (typeof cb === 'function') {
+      p.then(function(v) { try { cb(v); } catch (e) {} });
+    }
+    return p;
   },
   setLastError: function(m) { lastError = m; }
 };

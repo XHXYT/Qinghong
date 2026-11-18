@@ -53,6 +53,13 @@ export class SiteSettingDao extends AutoTable<SiteSettingInfo> {
   }
 
   /**
+   * 全部覆盖项（按站点排序；导出备份用）
+   */
+  async listAll(): Promise<SiteSettingInfo[]> {
+    return this.query(this.getPredicates().orderByAsc('site'))
+  }
+
+  /**
    * 所有有设置覆盖的站点（去重）
    */
   async listSites(): Promise<string[]> {

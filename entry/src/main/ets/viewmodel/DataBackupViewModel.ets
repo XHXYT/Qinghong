@@ -1,11 +1,31 @@
 import { fileIo } from '@kit.CoreFileKit';
 import { buffer } from '@kit.ArkTS';
+import { zlib } from '@kit.BasicServicesKit';
 import { _QhState } from '../entryability/AppState';
 import BookmarkInfo from '../common/entity/BookmarkInfo';
 import HistoryInfo from '../common/entity/HistoryInfo';
+import SearchHistoryInfo from '../common/entity/SearchHistoryInfo';
+import DownloadRecordInfo from '../common/entity/DownloadRecordInfo';
+import SiteSettingInfo from '../common/entity/SiteSettingInfo';
+import HostsRuleInfo from '../common/entity/HostsRuleInfo';
+import UserScriptInfo from '../common/entity/UserScriptInfo';
+import UserScriptValue from '../common/entity/UserScriptValue';
+import ExtensionInfo from '../common/entity/ExtensionInfo';
+import ExtensionValue from '../common/entity/ExtensionValue';
 import { BookmarkDao } from '../common/utils/database/impl/BookmarkDao';
 import { HistoryDao } from '../common/utils/database/impl/HistoryDao';
-import { appSettings } from '../common/entity/SettingsModel';
+import { SearchHistoryDao } from '../common/utils/database/impl/SearchHistoryDao';
+import { DownloadRecordDao } from '../common/utils/database/impl/DownloadRecordDao';
+import { SiteSettingDao } from '../common/utils/database/impl/SiteSettingDao';
+import { HostsDao } from '../common/utils/database/impl/HostsDao';
+import { UserScriptDao } from '../common/utils/database/impl/UserScriptDao';
+import { UserScriptValueDao } from '../common/utils/database/impl/UserScriptValueDao';
+import { ExtensionDao } from '../common/utils/database/impl/ExtensionDao';
+import { ExtensionValueDao } from '../common/utils/database/impl/ExtensionValueDao';
+import { appSettings, UISettings } from '../common/entity/SettingsModel';
+import { adBlockSubsStore, AdBlockSubscription } from '../common/utils/adblock/AdBlockSubs';
+import { extensionVM } from './ExtensionViewModel';
+import { scriptVM } from './ScriptViewModel';
 import { createLogger } from '../common/utils/app/Logger';
 import { PublicDownloadDir } from '../common/utils/download/PublicDownloadDir';
 
@@ -18,6 +38,14 @@ export class DataBackupViewModel {
 
   private bookmarkDb: BookmarkDao | null = null
   private historyDb: HistoryDao | null = null
+  private searchHistoryDb: SearchHistoryDao | null = null
+  private downloadDb: DownloadRecordDao | null = null
+  private siteSettingDb: SiteSettingDao | null = null
+  private hostsDb: HostsDao | null = null
+  private userScriptDb: UserScriptDao | null = null
+  private userScriptValueDb: UserScriptValueDao | null = null
+  private extensionDb: ExtensionDao | null = null
+  private extensionValueDb: ExtensionValueDao | null = null
 
   private getBookmarkDB(): BookmarkDao {
     if (this.bookmarkDb === null) {
@@ -31,6 +59,62 @@ export class DataBackupViewModel {
       this.historyDb = new HistoryDao(_QhState.Context)
     }
     return this.historyDb
+  }
+
+  private getSearchHistoryDB(): SearchHistoryDao {
+    if (this.searchHistoryDb === null) {
+      this.searchHistoryDb = new SearchHistoryDao(_QhState.Context)
+    }
+    return this.searchHistoryDb
+  }
+
+  private getDownloadDB(): DownloadRecordDao {
+    if (this.downloadDb === null) {
+      this.downloadDb = new DownloadRecordDao(_QhState.Context)
+    }
+    return this.downloadDb
+  }
+
+  private getSiteSettingDB(): SiteSettingDao {
+    if (this.siteSettingDb === null) {
+      this.siteSettingDb = new SiteSettingDao(_QhState.Context)
+    }
+    return this.siteSettingDb
+  }
+
+  private getHostsDB(): HostsDao {
+    if (this.hostsDb === null) {
+      this.hostsDb = new HostsDao(_QhState.Context)
+    }
+    return this.hostsDb
+  }
+
+  private getUserScriptDB(): UserScriptDao {
+    if (this.userScriptDb === null) {
+      this.userScriptDb = new UserScriptDao(_QhState.Context)
+    }
+    return this.userScriptDb
+  }
+
+  private getUserScriptValueDB(): UserScriptValueDao {
+    if (this.userScriptValueDb === null) {
+      this.userScriptValueDb = new UserScriptValueDao(_QhState.Context)
+    }
+    return this.userScriptValueDb
+  }
+
+  private getExtensionDB(): ExtensionDao {
+    if (this.extensionDb === null) {
+      this.extensionDb = new ExtensionDao(_QhState.Context)
+    }
+    return this.extensionDb
+  }
+
+  private getExtensionValueDB(): ExtensionValueDao {
+    if (this.extensionValueDb === null) {
+      this.extensionValueDb = new ExtensionValueDao(_QhState.Context)
+    }
+    return this.extensionValueDb
   }
 
   /**
@@ -153,16 +237,17 @@ export class DataBackupViewModel {
   }
 
   /**
-   * 导出全量数据 JSON（书签/历史/设置），返回 JSON 文本
+   * 导出数据 JSON，返回 JSON 文本；按勾选项导出对应数据段：
+   * 0 书签 / 1 历史 / 2 设置（应用设置+界面设置） / 3 搜索历史 / 4 下载记录 /
+   * 5 站点设置 / 6 hosts / 7 广告拦截规则订阅 / 8 用户脚本 / 9 扩展
    */
-  async exportDataJson(exportBookmarks: boolean, exportHistory: boolean,
-    exportSettings: boolean): Promise<string> {
+  async exportDataJson(sel: boolean[]): Promise<string> {
     const payload: Record<string, Object> = {
       'app': 'qinghong',
-      'version': 1,
+      'version': 2,
       'export_time': new Date().getTime()
     }
-    if (exportBookmarks) {
+    if (sel[0]) {
       const all: BookmarkInfo[] = await this.getBookmarkDB().queryAll()
       const arr: Record<string, Object>[] = []
       for (const b of all) {
@@ -176,8 +261,8 @@ export class DataBackupViewModel {
       }
       payload['bookmarks'] = arr
     }
-    if (exportHistory) {
-      const all: HistoryInfo[] = await this.getHistoryDB().queryRecent(1000)
+    if (sel[1]) {
+      const all: HistoryInfo[] = await this.getHistoryDB().queryAll()
       const arr: Record<string, Object>[] = []
       for (const h of all) {
         arr.push({
@@ -188,23 +273,251 @@ export class DataBackupViewModel {
       }
       payload['history'] = arr
     }
-    if (exportSettings) {
+    if (sel[2]) {
       payload['settings'] = appSettings.toSyncData()
+      payload['ui_settings'] = UISettings.toSyncData()
+    }
+    if (sel[3]) {
+      const all: SearchHistoryInfo[] = await this.getSearchHistoryDB().queryAll()
+      const arr: Record<string, Object>[] = []
+      for (const s of all) {
+        arr.push({
+          'keyword': s.keyword,
+          'visit_time': s.visitTime
+        })
+      }
+      payload['search_history'] = arr
+    }
+    if (sel[4]) {
+      const all: DownloadRecordInfo[] = await this.getDownloadDB().queryAll()
+      const arr: Record<string, Object>[] = []
+      for (const d of all) {
+        arr.push({
+          'url': d.url,
+          'file_name': d.fileName,
+          'path': d.path,
+          'status': d.status,
+          'received_size': d.receivedSize,
+          'total_size': d.totalSize,
+          'seg_index': d.segIndex,
+          'is_hls': d.isHls,
+          'referer': d.referer,
+          'create_time': d.createTime
+        })
+      }
+      payload['download_records'] = arr
+    }
+    if (sel[5]) {
+      const all: SiteSettingInfo[] = await this.getSiteSettingDB().listAll()
+      const arr: Record<string, Object>[] = []
+      for (const s of all) {
+        arr.push({
+          'site': s.site,
+          'key': s.key,
+          'value': s.value
+        })
+      }
+      payload['site_settings'] = arr
+    }
+    if (sel[6]) {
+      const all: HostsRuleInfo[] = await this.getHostsDB().listAll()
+      const arr: Record<string, Object>[] = []
+      for (const r of all) {
+        arr.push({
+          'host': r.host,
+          'ip': r.ip
+        })
+      }
+      payload['hosts'] = arr
+    }
+    if (sel[7]) {
+      await adBlockSubsStore.load()
+      const subsArr: Record<string, Object>[] = []
+      for (const s of adBlockSubsStore.subs) {
+        subsArr.push({
+          'url': s.url,
+          'name': s.name,
+          'enabled': s.enabled,
+          'rule_count': s.ruleCount,
+          'last_updated': s.lastUpdated
+        })
+      }
+      const block: Record<string, Object> = {
+        'interval': adBlockSubsStore.interval,
+        'subs': subsArr
+      }
+      payload['ad_block'] = block
+    }
+    if (sel[8]) {
+      const all: UserScriptInfo[] = await this.getUserScriptDB().queryAll()
+      const arr: Record<string, Object>[] = []
+      for (const s of all) {
+        const valuesArr: Record<string, Object>[] = []
+        const rows: UserScriptValue[] = await this.getUserScriptValueDB().queryByScript(s.id ?? -1)
+        for (const v of rows) {
+          valuesArr.push({
+            'key': v.key,
+            'value': v.value
+          })
+        }
+        arr.push({
+          'name': s.name,
+          'version': s.version,
+          'code': s.code,
+          'enabled': s.enabled,
+          'run_at': s.runAt,
+          'matches': s.matches,
+          'excludes': s.excludes,
+          'update_url': s.updateUrl,
+          'create_time': s.createTime,
+          'update_time': s.updateTime,
+          'grants': s.grants,
+          'connects': s.connects,
+          'requires': s.requires,
+          'resources': s.resources,
+          'noframes': s.noframes,
+          'values': valuesArr
+        })
+      }
+      payload['user_scripts'] = arr
+    }
+    if (sel[9]) {
+      const all: ExtensionInfo[] = await this.getExtensionDB().queryAll()
+      const arr: Record<string, Object>[] = []
+      for (const e of all) {
+        const valuesArr: Record<string, Object>[] = []
+        const rows: ExtensionValue[] = await this.getExtensionValueDB().queryByExt(e.extId)
+        for (const v of rows) {
+          valuesArr.push({
+            'key': v.key,
+            'value': v.value
+          })
+        }
+        arr.push({
+          'ext_id': e.extId,
+          'name': e.name,
+          'version': e.version,
+          'description': e.description,
+          'manifest_version': e.manifestVersion,
+          'enabled': e.enabled,
+          'path': e.path,
+          'manifest': e.manifest,
+          'update_url': e.updateUrl,
+          'create_time': e.createTime,
+          'update_time': e.updateTime,
+          'values': valuesArr
+        })
+      }
+      payload['extensions'] = arr
     }
     return JSON.stringify(payload)
   }
 
   /**
-   * 从 URI（文件选择器返回的 JSON 备份）导入数据，返回是否成功
+   * 导出备份 zip 并写入 Download/<包名>/backup/qinghong_backup.zip：
+   * backup.json（数据段按勾选项）+ home_media/（设置勾选时随行壁纸与 logo）+
+   * extensions/<extId>/（扩展勾选时扩展解包文件）
    */
-  async importDataFromUri(uri: string): Promise<boolean> {
-    return this.importDataFromContent(await DataBackupViewModel.readTextFromUri(uri))
+  async exportBackup(sel: boolean[]): Promise<void> {
+    const filesDir: string = _QhState.Context.filesDir
+    const cacheDir: string = _QhState.Context.cacheDir
+    const stamp: number = new Date().getTime()
+    const staging: string = `${cacheDir}/qinghong_export_${stamp}`
+    const tmpZip: string = `${cacheDir}/qinghong_export_${stamp}.zip`
+    try {
+      const json: string = await this.exportDataJson(sel)
+      DataBackupViewModel.removeDirQuiet(staging)
+      DataBackupViewModel.ensureDir(staging)
+      DataBackupViewModel.writeTextSync(`${staging}/backup.json`, json)
+      if (sel[2] && fileIo.accessSync(`${filesDir}/home_media`)) {
+        DataBackupViewModel.copyDir(`${filesDir}/home_media`, `${staging}/home_media`)
+      }
+      if (sel[9]) {
+        const all: ExtensionInfo[] = await this.getExtensionDB().queryAll()
+        for (const e of all) {
+          const src: string = `${filesDir}/extensions/${e.extId}`
+          if (fileIo.accessSync(src)) {
+            DataBackupViewModel.copyDir(src, `${staging}/extensions/${e.extId}`)
+          }
+        }
+      }
+      await zlib.compressFile(staging, tmpZip, {
+        level: zlib.CompressLevel.COMPRESS_LEVEL_DEFAULT_COMPRESSION,
+        memLevel: zlib.MemLevel.MEM_LEVEL_DEFAULT,
+        strategy: zlib.CompressStrategy.COMPRESS_STRATEGY_DEFAULT_STRATEGY
+      })
+      const bytes: Uint8Array = DataBackupViewModel.readBytesSync(tmpZip)
+      const dir: string = await PublicDownloadDir.ensureDir('backup')
+      PublicDownloadDir.writeBytes(dir, 'qinghong_backup.zip', bytes)
+    } finally {
+      DataBackupViewModel.removeDirQuiet(staging)
+      DataBackupViewModel.unlinkQuiet(tmpZip)
+    }
   }
 
   /**
-   * 解析 JSON 备份并恢复（书签/历史/设置），返回是否成功
+   * 从 URI（文件选择器返回的 JSON/ZIP 备份）导入数据，返回是否成功；
+   * 按文件头自动识别：PK 开头走 zip（backup.json + 文件目录），否则按纯 JSON 解析
    */
-  async importDataFromContent(content: string): Promise<boolean> {
+  async importDataFromUri(uri: string): Promise<boolean> {
+    const bytes: Uint8Array = await DataBackupViewModel.readBytesFromUri(uri)
+    if (bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4B) {
+      return await this.importZipFromBytes(bytes)
+    }
+    return this.importDataFromContent(buffer.from(bytes.buffer).toString('utf-8'), null)
+  }
+
+  /** 解压 zip 备份到缓存目录，定位 backup.json（根目录或一级子目录）后按数据段恢复 */
+  private async importZipFromBytes(bytes: Uint8Array): Promise<boolean> {
+    const cacheDir: string = _QhState.Context.cacheDir
+    const stamp: number = new Date().getTime()
+    const tmpZip: string = `${cacheDir}/qinghong_import_${stamp}.zip`
+    const tmpDir: string = `${cacheDir}/qinghong_import_${stamp}`
+    try {
+      const buf: ArrayBuffer = new ArrayBuffer(bytes.byteLength)
+      new Uint8Array(buf).set(bytes)
+      const file: fileIo.File = fileIo.openSync(tmpZip,
+        fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+      try {
+        fileIo.writeSync(file.fd, buf)
+      } finally {
+        fileIo.closeSync(file)
+      }
+      DataBackupViewModel.removeDirQuiet(tmpDir)
+      DataBackupViewModel.ensureDir(tmpDir)
+      await zlib.decompressFile(tmpZip, tmpDir)
+      let base: string = tmpDir
+      if (!fileIo.accessSync(`${tmpDir}/backup.json`)) {
+        // 压缩目录时 zip 内可能带一层目录名
+        const names: string[] = fileIo.listFileSync(tmpDir)
+        let found: boolean = false
+        for (const name of names) {
+          const candidate: string = `${tmpDir}/${name}`
+          if (fileIo.accessSync(`${candidate}/backup.json`)) {
+            base = candidate
+            found = true
+            break
+          }
+        }
+        if (!found) {
+          logger.error('importZip', '备份 zip 中未找到 backup.json')
+          return false
+        }
+      }
+      const content: string = DataBackupViewModel.readTextSync(`${base}/backup.json`)
+      return await this.importDataFromContent(content, base)
+    } finally {
+      DataBackupViewModel.unlinkQuiet(tmpZip)
+      DataBackupViewModel.removeDirQuiet(tmpDir)
+    }
+  }
+
+  /**
+   * 解析 JSON 备份并恢复（书签/历史/设置/搜索历史/下载记录/站点设置/hosts/规则订阅/用户脚本/扩展），返回是否成功；
+   * 按备份内实际存在的数据段恢复，兼容旧版（version 1/2 纯 JSON）备份；
+   * @param fileBase zip 备份解压后的基准目录（含 backup.json 及随行文件），纯 JSON 备份传 null
+   */
+  async importDataFromContent(content: string, fileBase: string | null): Promise<boolean> {
     if (!content) {
       return false
     }
@@ -212,6 +525,11 @@ export class DataBackupViewModel {
       const raw: Record<string, Object> = JSON.parse(content) as Record<string, Object>
       if ((raw['app'] as string) !== 'qinghong') {
         return false
+      }
+      const filesDir: string = _QhState.Context.filesDir
+      // 随行文件：设置段携带的主页壁纸/logo（home_bg_image/home_logo_image 指向的路径与本机沙箱一致，先落盘再恢复设置）
+      if (fileBase !== null && fileIo.accessSync(`${fileBase}/home_media`)) {
+        DataBackupViewModel.copyDir(`${fileBase}/home_media`, `${filesDir}/home_media`)
       }
       const bookmarks = raw['bookmarks']
       if (bookmarks !== undefined && bookmarks !== null) {
@@ -242,7 +560,8 @@ export class DataBackupViewModel {
             continue
           }
           const title: string = (rec['title'] as string) ?? url
-          await this.getHistoryDB().addVisit(title, url)
+          await this.getHistoryDB().addVisit(title, url,
+            (rec['visit_time'] as number) ?? new Date().getTime())
         }
       }
       const settings = raw['settings']
@@ -250,12 +569,232 @@ export class DataBackupViewModel {
         appSettings.applySyncData(settings as Record<string, Object>)
         appSettings.save()
       }
+      const uiSettings = raw['ui_settings']
+      if (uiSettings !== undefined && uiSettings !== null) {
+        UISettings.applySyncData(uiSettings as Record<string, Object>)
+        UISettings.save()
+      }
+      const searchHistory = raw['search_history']
+      if (searchHistory !== undefined && searchHistory !== null) {
+        const arr: Object[] = searchHistory as Object[]
+        for (const item of arr) {
+          const rec: Record<string, Object> = item as Record<string, Object>
+          const keyword: string = (rec['keyword'] as string) ?? ''
+          if (keyword === '') {
+            continue
+          }
+          await this.getSearchHistoryDB().saveOrUpdate(keyword,
+            (rec['visit_time'] as number) ?? new Date().getTime())
+        }
+      }
+      const downloads = raw['download_records']
+      if (downloads !== undefined && downloads !== null) {
+        const arr: Object[] = downloads as Object[]
+        for (const item of arr) {
+          const rec: Record<string, Object> = item as Record<string, Object>
+          const path: string = (rec['path'] as string) ?? ''
+          if (path === '') {
+            continue
+          }
+          // 本地已有同路径记录则保留本地状态（避免覆盖进行中的下载进度）
+          if (await this.getDownloadDB().queryByPath(path) !== null) {
+            continue
+          }
+          const info: DownloadRecordInfo = new DownloadRecordInfo(
+            (rec['url'] as string) ?? '',
+            (rec['file_name'] as string) ?? '',
+            path,
+            (rec['status'] as string) ?? 'completed',
+            (rec['create_time'] as number) ?? new Date().getTime())
+          info.receivedSize = (rec['received_size'] as number) ?? 0
+          info.totalSize = (rec['total_size'] as number) ?? -1
+          info.segIndex = (rec['seg_index'] as number) ?? 0
+          info.isHls = (rec['is_hls'] as boolean) ?? false
+          info.referer = (rec['referer'] as string) ?? ''
+          await this.getDownloadDB().insert(info)
+        }
+      }
+      const siteSettings = raw['site_settings']
+      if (siteSettings !== undefined && siteSettings !== null) {
+        const arr: Object[] = siteSettings as Object[]
+        for (const item of arr) {
+          const rec: Record<string, Object> = item as Record<string, Object>
+          const site: string = (rec['site'] as string) ?? ''
+          const key: string = (rec['key'] as string) ?? ''
+          const value: string = (rec['value'] as string) ?? ''
+          if (site === '' || key === '') {
+            continue
+          }
+          await this.getSiteSettingDB().setOverride(site, key, value)
+        }
+      }
+      const hosts = raw['hosts']
+      if (hosts !== undefined && hosts !== null) {
+        const arr: Object[] = hosts as Object[]
+        for (const item of arr) {
+          const rec: Record<string, Object> = item as Record<string, Object>
+          const host: string = (rec['host'] as string) ?? ''
+          const ip: string = (rec['ip'] as string) ?? ''
+          if (host === '' || ip === '') {
+            continue
+          }
+          await this.getHostsDB().setRule(host, ip)
+        }
+      }
+      const adBlock = raw['ad_block']
+      if (adBlock !== undefined && adBlock !== null) {
+        await DataBackupViewModel.importAdBlock(adBlock as Record<string, Object>)
+      }
+      const userScripts = raw['user_scripts']
+      if (userScripts !== undefined && userScripts !== null) {
+        const arr: Object[] = userScripts as Object[]
+        for (const item of arr) {
+          const rec: Record<string, Object> = item as Record<string, Object>
+          const name: string = (rec['name'] as string) ?? ''
+          if (name === '') {
+            continue
+          }
+          const existing: UserScriptInfo | null = await this.getUserScriptDB().queryByName(name)
+          const info: UserScriptInfo = existing ?? new UserScriptInfo()
+          info.name = name
+          info.version = (rec['version'] as string) ?? ''
+          info.code = (rec['code'] as string) ?? ''
+          info.enabled = (rec['enabled'] as boolean) ?? true
+          info.runAt = (rec['run_at'] as string) ?? 'document-end'
+          info.matches = (rec['matches'] as string) ?? ''
+          info.excludes = (rec['excludes'] as string) ?? ''
+          info.updateUrl = (rec['update_url'] as string) ?? ''
+          info.createTime = (rec['create_time'] as number) ?? 0
+          info.updateTime = (rec['update_time'] as number) ?? 0
+          info.grants = (rec['grants'] as string) ?? '[]'
+          info.connects = (rec['connects'] as string) ?? '[]'
+          info.requires = (rec['requires'] as string) ?? '[]'
+          info.resources = (rec['resources'] as string) ?? '[]'
+          info.noframes = (rec['noframes'] as boolean) ?? false
+          if (existing === null) {
+            await this.getUserScriptDB().insert(info)
+          } else {
+            await this.getUserScriptDB().update(info)
+          }
+          // GM 存储键值：insert 不回填 id，重查取新 id 后恢复
+          const saved: UserScriptInfo | null = await this.getUserScriptDB().queryByName(name)
+          if (saved !== null && saved.id !== null) {
+            const values: Object | null = rec['values'] ?? null
+            if (values !== null) {
+              for (const v of values as Object[]) {
+                const vrec: Record<string, Object> = v as Record<string, Object>
+                const key: string = (vrec['key'] as string) ?? ''
+                if (key === '') {
+                  continue
+                }
+                await this.getUserScriptValueDB().upsert(saved.id, key,
+                  (vrec['value'] as string) ?? 'null')
+              }
+            }
+          }
+        }
+        await scriptVM.loadAll()
+      }
+      const extensions = raw['extensions']
+      if (extensions !== undefined && extensions !== null && fileBase !== null) {
+        await this.importExtensions(extensions as Object[], fileBase)
+      }
       logger.info('importData', '数据导入完成')
       return true
     } catch (e) {
       logger.error('importData', `${e}`)
       return false
     }
+  }
+
+  /** 恢复扩展：解压目录内 extensions/<extId> 解包文件 + 元数据 + chrome.storage 键值，完成后刷新扩展运行时缓存 */
+  private async importExtensions(arr: Object[], fileBase: string): Promise<void> {
+    const filesDir: string = _QhState.Context.filesDir
+    for (const item of arr) {
+      const rec: Record<string, Object> = item as Record<string, Object>
+      const extId: string = (rec['ext_id'] as string) ?? ''
+      if (extId === '') {
+        continue
+      }
+      const srcDir: string = `${fileBase}/extensions/${extId}`
+      if (!fileIo.accessSync(`${srcDir}/manifest.json`)) {
+        logger.warn('importExtensions', `备份中缺少扩展 ${extId} 的解包文件，跳过`)
+        continue
+      }
+      const destDir: string = `${filesDir}/extensions/${extId}`
+      DataBackupViewModel.removeDirQuiet(destDir)
+      DataBackupViewModel.copyDir(srcDir, destDir)
+      const existing: ExtensionInfo | null = await this.getExtensionDB().queryByExtId(extId)
+      const info: ExtensionInfo = existing ?? new ExtensionInfo()
+      info.extId = extId
+      info.name = (rec['name'] as string) ?? ''
+      info.version = (rec['version'] as string) ?? ''
+      info.description = (rec['description'] as string) ?? ''
+      info.manifestVersion = (rec['manifest_version'] as number) ?? 3
+      info.enabled = (rec['enabled'] as boolean) ?? true
+      info.path = (rec['path'] as string) ?? `extensions/${extId}`
+      info.manifest = (rec['manifest'] as string) ?? '{}'
+      info.updateUrl = (rec['update_url'] as string) ?? ''
+      if (existing === null) {
+        info.createTime = (rec['create_time'] as number) ?? new Date().getTime()
+        await this.getExtensionDB().insert(info)
+      } else {
+        info.updateTime = (rec['update_time'] as number) ?? new Date().getTime()
+        await this.getExtensionDB().update(info)
+      }
+      const values: Object | null = rec['values'] ?? null
+      if (values !== null) {
+        for (const v of values as Object[]) {
+          const vrec: Record<string, Object> = v as Record<string, Object>
+          const key: string = (vrec['key'] as string) ?? ''
+          if (key === '') {
+            continue
+          }
+          await this.getExtensionValueDB().upsert(extId, key, (vrec['value'] as string) ?? 'null')
+        }
+      }
+    }
+    await extensionVM.refreshAfterRestore()
+  }
+
+  /** 恢复广告拦截规则订阅（已存在的更新名称与开关，新订阅添加并后台下载规则） */
+  private static async importAdBlock(block: Record<string, Object>): Promise<void> {
+    await adBlockSubsStore.load()
+    const interval: string = (block['interval'] as string) ?? ''
+    if (interval !== '') {
+      adBlockSubsStore.setInterval(interval)
+    }
+    const subsObj: Object | null = block['subs'] ?? null
+    if (subsObj === null) {
+      return
+    }
+    const arr: Object[] = subsObj as Object[]
+    for (const item of arr) {
+      const rec: Record<string, Object> = item as Record<string, Object>
+      const url: string = (rec['url'] as string) ?? ''
+      if (url === '') {
+        continue
+      }
+      adBlockSubsStore.add(url)
+      const sub: AdBlockSubscription | null = DataBackupViewModel.findAdSub(url)
+      if (sub === null) {
+        continue
+      }
+      const name: string = (rec['name'] as string) ?? ''
+      if (name !== '') {
+        adBlockSubsStore.edit(sub, name, url, false)
+      }
+      adBlockSubsStore.toggle(sub, (rec['enabled'] as boolean) ?? true)
+    }
+  }
+
+  private static findAdSub(url: string): AdBlockSubscription | null {
+    for (const s of adBlockSubsStore.subs) {
+      if (s.url === url) {
+        return s
+      }
+    }
+    return null
   }
 
   /**
@@ -292,6 +831,114 @@ export class DataBackupViewModel {
       return buffer.from(buf).toString('utf-8')
     } finally {
       fileIo.closeSync(file)
+    }
+  }
+
+  static async readBytesFromUri(uri: string): Promise<Uint8Array> {
+    const file: fileIo.File = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY)
+    try {
+      const stat: fileIo.Stat = fileIo.statSync(file.fd)
+      const buf: ArrayBuffer = new ArrayBuffer(stat.size)
+      let total: number = 0
+      while (total < stat.size) {
+        const n: number = fileIo.readSync(file.fd, buf, { offset: total })
+        if (n <= 0) {
+          break
+        }
+        total += n
+      }
+      return new Uint8Array(buf)
+    } finally {
+      fileIo.closeSync(file)
+    }
+  }
+
+  private static ensureDir(path: string): void {
+    if (!fileIo.accessSync(path)) {
+      fileIo.mkdirSync(path, true)
+    }
+  }
+
+  private static removeDirQuiet(path: string): void {
+    try {
+      if (fileIo.accessSync(path)) {
+        fileIo.rmdirSync(path)
+      }
+    } catch (e) {
+      logger.error(`removeDirQuiet 失败: ${e}`)
+    }
+  }
+
+  private static unlinkQuiet(path: string): void {
+    try {
+      if (fileIo.accessSync(path)) {
+        fileIo.unlinkSync(path)
+      }
+    } catch (e) {
+      logger.error(`unlinkQuiet 失败: ${e}`)
+    }
+  }
+
+  private static writeTextSync(path: string, text: string): void {
+    const file: fileIo.File = fileIo.openSync(path,
+      fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+    try {
+      fileIo.writeSync(file.fd, text)
+    } finally {
+      fileIo.closeSync(file)
+    }
+  }
+
+  private static readTextSync(path: string): string {
+    const file: fileIo.File = fileIo.openSync(path, fileIo.OpenMode.READ_ONLY)
+    try {
+      const stat: fileIo.Stat = fileIo.statSync(file.fd)
+      const buf: ArrayBuffer = new ArrayBuffer(stat.size)
+      let total: number = 0
+      while (total < stat.size) {
+        const n: number = fileIo.readSync(file.fd, buf, { offset: total })
+        if (n <= 0) {
+          break
+        }
+        total += n
+      }
+      return buffer.from(buf).toString('utf-8')
+    } finally {
+      fileIo.closeSync(file)
+    }
+  }
+
+  private static readBytesSync(path: string): Uint8Array {
+    const file: fileIo.File = fileIo.openSync(path, fileIo.OpenMode.READ_ONLY)
+    try {
+      const stat: fileIo.Stat = fileIo.statSync(file.fd)
+      const buf: ArrayBuffer = new ArrayBuffer(stat.size)
+      let total: number = 0
+      while (total < stat.size) {
+        const n: number = fileIo.readSync(file.fd, buf, { offset: total })
+        if (n <= 0) {
+          break
+        }
+        total += n
+      }
+      return new Uint8Array(buf)
+    } finally {
+      fileIo.closeSync(file)
+    }
+  }
+
+  /** 递归复制目录（覆盖已有同名文件/目录） */
+  private static copyDir(src: string, dest: string): void {
+    DataBackupViewModel.ensureDir(dest)
+    const names: string[] = fileIo.listFileSync(src)
+    for (const name of names) {
+      const s: string = `${src}/${name}`
+      const d: string = `${dest}/${name}`
+      if (fileIo.statSync(s).isDirectory()) {
+        DataBackupViewModel.copyDir(s, d)
+      } else {
+        fileIo.copyFileSync(s, d)
+      }
     }
   }
 

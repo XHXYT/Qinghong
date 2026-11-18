@@ -12,7 +12,7 @@ import { ExtensionResources, EXT_RES_HOST, EXT_SCHEME_PREFIX } from '../common/u
 import { ChromeShim, ExtStorageGetRaw, ExtStorageSetRaw, ExtStorageRemoveRaw, ExtStorageClearRaw,
   ExtSendMsgRaw, ExtRespondRaw, ExtSendMsgBgRaw, ExtTabQueryRaw, ExtTabSendMsgRaw, ExtTabCreateRaw,
   ExtTabUpdateRaw, ExtExecuteScriptRaw,
-  ExtNotifyRaw, ExtStoreInstallRaw, ExtPortConnectRaw, ExtPortMsgRaw, ExtPortDisconnectRaw } from '../common/utils/extension/ChromeShim';
+  ExtNotifyRaw, ExtStoreInstallRaw, ExtGetContextsRaw, ExtPortConnectRaw, ExtPortMsgRaw, ExtPortDisconnectRaw } from '../common/utils/extension/ChromeShim';
 import { ResourceUtils } from '../common/utils/app/ResourceUtil';
 import { HttpDownloader, StreamOptions } from '../common/utils/download/HttpDownloader';
 import { ExtensionDao } from '../common/utils/database/impl/ExtensionDao';
@@ -325,6 +325,21 @@ export class ExtensionViewModel {
     await this.loadAll()
   }
 
+  /** 数据备份导入恢复扩展后调用：清运行时缓存并重载列表 */
+  async refreshAfterRestore(): Promise<void> {
+    this.sandboxCache.clear()
+    this.manifestCache.clear()
+    this.valuesCache.clear()
+    this.valuesLoaded.clear()
+    this.bgCodeCache.clear()
+    this.executeScriptCache.clear()
+    this.popupCodeCache.clear()
+    if (this.popupExt !== null) {
+      this.closePopup()
+    }
+    await this.loadAll()
+  }
+
   /**
    * 清理扩展各 Web origin 的 DOM 存储（bg/popup/options 页的 localStorage/Web SQL 等）。
    * scheme 页与 legacy 虚拟域子域各为一个独立 origin；卸载后残留会让重装扩展读到旧状态。
@@ -380,13 +395,22 @@ export class ExtensionViewModel {
             return null
           }
           const file: fileIo.File = fileIo.openSync(tmpPath, fileIo.OpenMode.READ_ONLY)
+          let data: Uint8Array
           try {
             const buf: ArrayBuffer = new ArrayBuffer(size)
             fileIo.readSync(file.fd, buf)
-            return new Uint8Array(buf)
+            data = new Uint8Array(buf)
           } finally {
             fileIo.closeSync(file)
           }
+          // 无 content-length 的响应提前断开时 truncated 判定失效：截断的 ZIP 缺 EOCD，
+          // 拦下并续传重试（服务器不支持 Range 时从头重写）
+          if (!ExtensionEngine.hasValidEocd(data)) {
+            logger.warn(`downloadBytes 响应被截断(缺 EOCD): ${url}, size=${size}, attempt=${attempt + 1}`)
+            continue
+          }
+          logger.info(`downloadBytes 完成: ${url}, size=${size}`)
+          return data
         } catch (e) {
           logger.warn(`downloadBytes 第 ${attempt + 1} 次失败: ${url}, ${(e as BusinessError).message}`)
         }
@@ -1099,6 +1123,58 @@ export class ExtensionViewModel {
   }
 
   /** background chrome.tabs.query：返回打开标签列表（active/url 模式过滤） */
+  /** chrome.runtime.getContexts：报告当前扩展存活上下文（bg 宿主 → BACKGROUND；popup 面板打开 → POPUP） */
+  extGetContexts(json: string, from: webview.WebviewController): void {
+    try {
+      const raw: ExtGetContextsRaw = JSON.parse(json) as ExtGetContextsRaw
+      if (typeof raw.cbId !== 'number' || typeof raw.extId !== 'string' || raw.extId === '') {
+        return
+      }
+      const out: Record<string, Object>[] = []
+      let ext: ExtensionInfo | null = null
+      for (const e of this.extensions) {
+        if (e.extId === raw.extId) {
+          ext = e
+          break
+        }
+      }
+      const model: ExtManifestModel | null = ext === null ? null : this.manifestOf(ext)
+      if (this.bgHosts.has(raw.extId)) {
+        let bgPath: string = 'background.html'
+        if (model !== null) {
+          if (model.backgroundPage !== '') {
+            bgPath = model.backgroundPage
+          } else if (model.backgroundServiceWorker !== '') {
+            bgPath = model.backgroundServiceWorker
+          } else if (model.backgroundScripts.length > 0) {
+            bgPath = model.backgroundScripts[0]
+          }
+        }
+        const bg: Record<string, Object> = {
+          'contextType': 'BACKGROUND',
+          'documentUrl': `chrome-extension://${raw.extId}/${bgPath.replace(/^\/+/, '')}`,
+          'instanceId': 1
+        }
+        out.push(bg)
+      }
+      if (this.popupExt !== null && this.popupExt.extId === raw.extId) {
+        let popupPath: string = 'popup.html'
+        if (model !== null && model.actionPopup !== '') {
+          popupPath = model.actionPopup
+        }
+        const pop: Record<string, Object> = {
+          'contextType': 'POPUP',
+          'documentUrl': `chrome-extension://${raw.extId}/${popupPath.replace(/^\/+/, '')}`,
+          'instanceId': 2
+        }
+        out.push(pop)
+      }
+      ExtensionViewModel.fireTarget(from, raw.cbId, '', JSON.stringify(out))
+    } catch (e) {
+      logger.warn(`extGetContexts: ${e}`)
+    }
+  }
+
   extTabQuery(json: string, from: webview.WebviewController): void {
     try {
       const raw: ExtTabQueryRaw = JSON.parse(json) as ExtTabQueryRaw
@@ -1706,6 +1782,9 @@ export class ExtensionViewModel {
           break
         case 'extSendMsgBg':
           this.extSendMsgFromBg(json, controller)
+          break
+        case 'extGetContexts':
+          this.extGetContexts(json, controller)
           break
         case 'extPortConnect':
           this.extPortConnect(json, controller, 'bg', null)

@@ -32,16 +32,17 @@ export class HistoryDao extends AutoTable<HistoryInfo> {
 
   /**
    * 记录一次访问（按 URL 去重，更新时间与标题）
+   * @param visitTime 访问时间（默认当前时间；导入备份时传入原时间以保真）
    */
-  async addVisit(title: string, url: string): Promise<number> {
+  async addVisit(title: string, url: string, visitTime: number = new Date().getTime()): Promise<number> {
     const results = await this.query(this.getPredicates().equalTo('url', url))
     if (results.length > 0) {
       const info = results[0]
       info.title = title || info.title
-      info.visitTime = new Date().getTime()
+      info.visitTime = visitTime
       return this.update(info)
     }
-    return this.insert(new HistoryInfo(title, url))
+    return this.insert(new HistoryInfo(title, url, visitTime))
   }
 
   /**
@@ -49,6 +50,13 @@ export class HistoryDao extends AutoTable<HistoryInfo> {
    */
   async queryRecent(limit: number = 500): Promise<HistoryInfo[]> {
     return this.query(this.getPredicates().orderByDesc('visit_time').limitAs(limit))
+  }
+
+  /**
+   * 全量历史（按访问时间倒序，无条数限制；导出备份用）
+   */
+  async queryAll(): Promise<HistoryInfo[]> {
+    return this.query(this.getPredicates().orderByDesc('visit_time'))
   }
 
   /**

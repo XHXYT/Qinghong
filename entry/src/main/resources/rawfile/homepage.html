@@ -30,6 +30,8 @@
   }
   body.theme-light { --bg: #F1F3F5; --fg: #1A1A1A; --fg2: #66000000; --sbg: rgba(0,0,0,0.05); }
   body.theme-dark  { --bg: #121212; --fg: #E6E6E6; --fg2: #99FFFFFF; --sbg: rgba(255,255,255,0.08); }
+  /* Via 主题兼容：内容根容器（主题常以 #content fixed+top 落位；left/right 静态时无效，fixed 时保证全宽） */
+  #content { position: relative; left: 0; right: 0; width: 100%; }
 
   #bgimg {
     position: fixed; left: 0; top: 0; width: 100%; height: 100%;
@@ -52,24 +54,24 @@
   }
   #logo img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto; }
 
-  /* 搜索栏（Via 主页结构：.search_part > form.search_bar > #search_input + #search_submit） */
   .search_part {
     width: 100%; margin-top: 28px;
     display: flex; justify-content: center;
     position: relative;
   }
+  /* 搜索栏（Via 主页结构：.search_part > form.search_bar > #search_row > #search_input）
+     原生可调项一律经单类+变量最低特权注入（不用双类/ID 加权）：
+     自定义 CSS 同选择器后注入即逐属性覆盖，未写的属性由原生设置兜底 */
   .search_bar {
     display: flex; align-items: center; gap: 4px;
     width: 86%; max-width: 800px; height: var(--sh, 46px); padding: 0 16px;
     border-radius: var(--sr, 23px);
     background: var(--sbg2, rgba(0,0,0,0.05));
     border: var(--sbw, 0px) solid var(--sbc, transparent);
+    border-bottom: var(--sbbw, 0px) solid var(--sbc, transparent);
+    backdrop-filter: var(--sbf, none);
+    -webkit-backdrop-filter: var(--sbf, none);
     position: relative;
-  }
-  .search_bar.blur { backdrop-filter: blur(var(--sblur, 16px)); -webkit-backdrop-filter: blur(var(--sblur, 16px)); }
-  .search_bar.line {
-    background: transparent; border: none; border-radius: 0;
-    border-bottom: var(--sbw2, 1.5px) solid var(--sbc, transparent);
   }
   .search_bar svg { flex: none; width: 20px; height: 20px; }
   #search_input {
@@ -82,7 +84,7 @@
   /* 内嵌 flex 行：不受外层 .search_bar 被 display:table 覆盖影响，保证下拉与输入框同行 */
   #search_row {
     display: flex; align-items: center; gap: 4px;
-    width: 100%; min-height: var(--sh, 46px);
+    width: 100%; height: 100%; min-height: 0; vertical-align: middle;
   }
   /* 引擎选择器（原生引擎下拉 + Logo HTML 脚本注入的 select） */
   .search_bar select {
@@ -90,15 +92,22 @@
     border: none; outline: none; background: transparent;
     color: var(--fg); font-size: 14px;
   }
-  #search_bar { min-height: var(--sh, 46px); }
   /* 原生引擎下拉：左对齐，与输入框同处 #search_row */
   #engine_select {
     flex: none; text-align: left;
-    margin: 0; height: var(--sh, 46px);
+    margin: 0; height: 100%;
     padding: 0 2px 0 6px;
     box-sizing: border-box;
   }
-  #search_submit { width: 0; height: 0; padding: 0; border: none; visibility: hidden; }
+  /* 隐藏式提交按钮：默认不显示；主题 display:block 复活为圆形箭头（Via 主题 #search_submit 惯例） */
+  #search_submit {
+    display: none;
+    position: absolute; top: 50%; right: 8px;
+    width: 32px; height: 32px; margin-top: -16px; padding: 0;
+    border: none; border-radius: 50%;
+    background: transparent; color: var(--fg);
+    font-size: 18px; text-align: center;
+  }
 
   /* 搜索联想下拉（原生拉取联想后 runJavaScript 推送渲染；点击走 qhBridge.openSuggest） */
   /* 外层定位容器（flex 居中，无 transform：backdrop-filter 元素自带 transform 会错位采样背景） */
@@ -109,6 +118,7 @@
     justify-content: center;
     pointer-events: none;
     z-index: 50;
+    transition: transform .4s ease;
   }
   #suggest_box.show { display: flex; }
   /* 内层面板：矩形样式时与搜索框同挂 search_bar 类——自定义 CSS 的 .search_bar 规则
@@ -131,6 +141,12 @@
     overflow-y: auto;
     pointer-events: auto;
   }
+  /* 面板布局守卫（ID 级）：挡住主题 .search_bar 布局类属性（height/display/margin/text-align 等）
+     经类共享误伤面板；视觉属性（背景/模糊/圆角/阴影）不守卫，仍由 .search_bar 类共享 + syncSuggestStyle 同步 */
+  #sg_panel {
+    display: flex; height: auto; min-height: 0;
+    margin: 0; padding: 0; gap: 0; text-align: left;
+  }
   .sg_row {
     display: flex; align-items: center; gap: 10px;
     height: 46px; padding: 0 16px;
@@ -145,7 +161,9 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
 
-  /* 快捷图标（Via 主页结构：#box_container > .box > .title + .label） */
+  /* 快捷图标（Via 主页结构：#bookmark_part > #box_container > .box > .title + .label）
+     原生可调项同样单类+变量注入，主题 .title/.label 后注入逐属性覆盖 */
+  #bookmark_part { width: 100%; }
   #box_container {
     display: flex; flex-wrap: wrap; justify-content: center;
     gap: 12px; width: 90%; margin-top: 28px;
@@ -154,7 +172,7 @@
     width: 72px; padding: 4px 0;
     display: flex; flex-direction: column; align-items: center;
   }
-  .box .title {
+  .title {
     width: var(--qw, 48px); height: var(--qh, 48px);
     border-radius: var(--qr, 12px);
     background: var(--accent, #007DFF);
@@ -162,8 +180,8 @@
     display: flex; align-items: center; justify-content: center;
     overflow: hidden;
   }
-  .box .title img { width: 100%; height: 100%; object-fit: cover; }
-  .box .label {
+  .title img { width: 100%; height: 100%; object-fit: cover; }
+  .label {
     margin-top: 6px; font-size: 11px; color: var(--fg);
     max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
@@ -172,16 +190,17 @@
 <style id="custom"></style>
 </head>
 <body>
+<div id="content">
 <div id="wrap">
   <div id="incognito">&#128737; <span id="incognitoText"></span></div>
   <div id="logo"></div>
   <div class="search_part" id="search_part">
-    <form class="search_bar" id="search_bar"><div id="search_row"><select id="engine_select"></select><input id="search_input" type="text" autocomplete="off" enterkeyhint="search"><input id="search_submit" type="submit" value=""></div>
-    </form>
+    <form class="search_bar" id="search_bar"><div id="search_row"><select id="engine_select"></select><input id="search_input" type="text" autocomplete="off" enterkeyhint="search"></div><input id="search_submit" type="submit" value="&#8594;"></form>
     <div id="suggest_box"><div class="sg_panel" id="sg_panel"></div></div>
   </div>
-  <div id="box_container"></div>
+  <div id="bookmark_part"><div id="box_container"></div></div>
   <div id="empty"></div>
+</div>
 </div>
 <script>
 (function () {
@@ -351,7 +370,7 @@
       img.src = src;
       img.style.opacity = cfg.bgOpacity / 100;
       img.style.filter = bgBlurCss();
-      document.body.insertBefore(img, document.getElementById('wrap'));
+      document.body.insertBefore(img, document.getElementById('content'));
     }
   }
   /* 已注入的 Logo HTML 缓存：内容没变时跳过重注入，避免重推配置时脚本重跑（天气卡等数据丢失） */
@@ -395,30 +414,32 @@
     if (!cfg.showSearchArea) { el('search_part').style.display = 'none'; return; }
     el('search_part').style.display = '';
     s.className = 'search_bar';
-    /* 高度 / 垂直偏移（联动 Logo 顶部间距）/ 模糊程度 */
+    /* 高度 / 垂直偏移（联动 Logo 顶部间距） */
     r.setProperty('--sh', (cfg.searchHeight > 0 ? cfg.searchHeight : 46) + 'px');
     r.setProperty('--soff', (cfg.searchOffset || 0) + 'px');
-    /* 面板与搜索框同类：矩形样式挂 search_bar(+blur)，自定义 CSS 直接生效；
-       线条样式保持独立 sg_panel（applySearch 线条分支的 --sg-* 回落卡片默认） */
+    /* 原生样式（矩形/线条/模糊/描边）全部经变量注入搜索框，不再用双类/ID 加权；
+       自定义 CSS 的 .search_bar 规则后注入即逐属性胜出 */
     var panel = el('sg_panel');
     panel.className = 'sg_panel';
     if (cfg.searchStyle === 'line') {
-      s.classList.add('line');
-      r.setProperty('--sbw2', (cfg.searchBorderWidth > 0 ? cfg.searchBorderWidth : 1.5) + 'px');
+      r.setProperty('--sr', '0px');
+      r.setProperty('--sbw', '0px');
+      r.setProperty('--sbbw', (cfg.searchBorderWidth > 0 ? cfg.searchBorderWidth : 1.5) + 'px');
+      r.setProperty('--sbg2', 'transparent');
+      r.setProperty('--sbf', 'none');
     } else {
-      if (cfg.searchEffect === 'blur' && cfg.searchBlur > 0) {
-        s.classList.add('blur');
-        panel.classList.add('blur');
-        r.setProperty('--sblur', cfg.searchBlur + 'px');
-      }
-      panel.classList.add('search_bar');
       r.setProperty('--sr', cfg.searchRadius + 'px');
       r.setProperty('--sbw', cfg.searchBorderWidth + 'px');
+      r.setProperty('--sbbw', '0px');
+      r.setProperty('--sbf',
+        (cfg.searchEffect === 'blur' && cfg.searchBlur > 0) ? ('blur(' + cfg.searchBlur + 'px)') : 'none');
       if (cfg.searchEffect === 'transparent') {
         r.setProperty('--sbg2', 'transparent');
       } else {
         r.setProperty('--sbg2', 'rgba(' + base + ',' + (cfg.searchOpacity / 100 * 0.08) + ')');
       }
+      /* 面板与搜索框同类：矩形样式挂 search_bar，自定义 CSS 的 .search_bar 视觉规则直接命中面板 */
+      panel.classList.add('search_bar');
     }
     /* 联想下拉背景与搜索框同步：线条样式回落卡片默认，矩形样式同底色/模糊/描边/圆角
        （透明效果下拉需可读性，底色回落 8% 半透明 + 毛玻璃） */
@@ -562,6 +583,12 @@
     applyQuick();
     /* 自定义 CSS 先于 Logo 脚本生效（注入脚本会读取计算样式） */
     el('custom').textContent = cfg.customCss || '';
+    /* 自定义 CSS 设了 body 背景图时原生背景图层让位（隐藏 #bgimg），忠于 CSS */
+    var bgEl = document.getElementById('bgimg');
+    if (bgEl) {
+      var bbg = getComputedStyle(document.body).backgroundImage;
+      bgEl.style.display = (bbg && bbg !== 'none') ? 'none' : '';
+    }
     /* 联想面板跟随搜索框最终样式（自定义 CSS 优先） */
     syncSuggestStyle();
     applyLogo();
@@ -583,6 +610,10 @@
     lastKb = kbVp || 0;
     var wrap = el('wrap');
     var r = document.documentElement.style;
+    /* 主题用 transform 上移搜索框（:focus-within）时，联想面板容器同步跟随；
+       容器带 transform 面板自身不带，避免 backdrop-filter 采样错位 */
+    var barT = getComputedStyle(el('search_bar')).transform;
+    el('suggest_box').style.transform = (barT && barT !== 'none') ? barT : '';
     var ae = document.activeElement;
     var ok = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA');
     if (!lastKb || lastKb <= 0 || !ok) {

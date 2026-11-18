@@ -1057,6 +1057,10 @@
       "value": "端口范围为 1-65535"
     },
     {
+      "name": "proxy_socks_download_direct",
+      "value": "当前系统暂不支持 SOCKS5 下载代理，原生下载将直连；网页代理不受影响"
+    },
+    {
       "name": "proxy_routed_sites",
       "value": "走代理的网站"
     },
@@ -2561,6 +2565,18 @@
       "value": "请至少选择一项"
     },
     {
+      "name": "hosts",
+      "value": "Hosts"
+    },
+    {
+      "name": "user_scripts",
+      "value": "用户脚本"
+    },
+    {
+      "name": "extensions",
+      "value": "扩展"
+    },
+    {
       "name": "data_export_success",
       "value": "数据已导出"
     },
@@ -3665,6 +3681,14 @@
     { "name": "home_html_tip", "value": "Logo 使用 HTML 或自定义 CSS 非空时，主页将以本地 HTML 主页渲染" },
     { "name": "home_import_file", "value": "导入文件" },
     { "name": "home_apply", "value": "应用" },
+    { "name": "home_css_themes", "value": "CSS 主题" },
+    { "name": "home_css_theme_hint", "value": "点击切换主题，长按删除" },
+    { "name": "home_css_theme_none", "value": "暂无保存的主题" },
+    { "name": "home_css_theme_save", "value": "保存为主题" },
+    { "name": "home_css_theme_name", "value": "主题 %d" },
+    { "name": "home_css_theme_full", "value": "最多保存 6 套主题" },
+    { "name": "home_css_theme_empty", "value": "CSS 内容为空" },
+    { "name": "home_css_theme_delete_message", "value": "删除该 CSS 主题？" },
     { "name": "home_reset", "value": "重置主页定制" },
     { "name": "home_reset_message", "value": "将恢复主页全部默认外观设置" },
     { "name": "no_quick_links", "value": "暂无快捷书签，可在书签编辑中勾选\"快捷\"" },

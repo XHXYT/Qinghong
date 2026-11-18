@@ -1,6 +1,6 @@
 import { NaviContainer } from '../../../components/NaviContainer';
 import { QhState, _QhState } from '../../../entryability/AppState';
-import { appSettings, UISettings } from '../../../common/entity/SettingsModel';
+import { appSettings, UISettings, CssTheme } from '../../../common/entity/SettingsModel';
 import { TabInfo } from '../../../viewmodel/TabsViewModel';
 import { HomepageView, HomeBgLayer } from '../../../components/browser/HomepageView';
 import { HomeHtmlView } from '../../../components/browser/HomeHtmlView';
@@ -59,6 +59,13 @@ struct HomeCustomizePage {
   @Local logoText: string = appSettings.home_logo_text
   @Local logoHtml: string = appSettings.home_logo_html
   @Local customCss: string = appSettings.home_custom_css
+  /** 当前选中（工作区绑定）的 CSS 主题名，'' = 未选中；点应用时编辑框内容回写该主题 */
+  @Local selectedCssTheme: string = ''
+  /** 已保存 CSS 主题列表（跟随 appSettings.home_custom_css_themes 变化） */
+  @Computed
+  get cssThemeList(): CssTheme[] {
+    return appSettings.cssThemes()
+  }
 
   /** 预览用假标签（非无痕主页态） */
   private previewTab: TabInfo = new TabInfo(-100)
@@ -192,10 +199,162 @@ struct HomeCustomizePage {
     this.changed()
   }
 
-  /** 应用编辑框中的自定义 CSS */
+  /** 应用编辑框中的自定义 CSS：绑定主题（显式选中或按旧生效内容自动匹配）后把编辑框内容回写进该主题，再生效 */
   private applyCustomCss(): void {
+    if (this.customCss.trim() === '') {
+      this.selectedCssTheme = ''
+    } else {
+      /* 无显式选中（重进页面）时，当前高亮主题来自旧生效内容匹配——自动绑定为工作主题 */
+      if (this.selectedCssTheme === '') {
+        const old: string = appSettings.home_custom_css
+        if (old.trim() !== '') {
+          const cur: CssTheme[] = appSettings.cssThemes()
+          for (let i = 0; i < cur.length; i++) {
+            if (cur[i].css === old) {
+              this.selectedCssTheme = cur[i].name
+              break
+            }
+          }
+        }
+      }
+      if (this.selectedCssTheme !== '') {
+        const themes: CssTheme[] = appSettings.cssThemes()
+        for (let i = 0; i < themes.length; i++) {
+          if (themes[i].name === this.selectedCssTheme) {
+            if (themes[i].css !== this.customCss) {
+              themes[i].css = this.customCss
+              appSettings.putCssThemes(themes)
+            }
+            break
+          }
+        }
+      }
+    }
     appSettings.home_custom_css = this.customCss
     this.changed()
+  }
+
+  /** 当前选中主题下标：优先按显式选中态（点应用会回写该主题），无选中时按生效内容回退（重进页面恢复高亮），-1 = 无匹配 */
+  private activeCssTheme(): number {
+    const themes: CssTheme[] = this.cssThemeList
+    if (this.selectedCssTheme !== '') {
+      for (let i = 0; i < themes.length; i++) {
+        if (themes[i].name === this.selectedCssTheme) {
+          return i
+        }
+      }
+      return -1
+    }
+    const cur: string = appSettings.home_custom_css
+    if (cur.trim() === '') {
+      return -1
+    }
+    for (let i = 0; i < themes.length; i++) {
+      if (themes[i].css === cur) {
+        return i
+      }
+    }
+    return -1
+  }
+
+  /** 主题自动命名：本地化「主题 %d」（资源读取失败回退英文） */
+  private cssThemeName(n: number): string {
+    const ctx = this.getUIContext().getHostContext()
+    if (ctx) {
+      try {
+        return ctx.resourceManager.getStringByNameSync('home_css_theme_name', n)
+      } catch (error) {
+        logger.error(`cssThemeName n=${n} failed: ${JSON.stringify(error)}`)
+      }
+    }
+    return `Theme ${n}`
+  }
+
+  /** 保存编辑框当前 CSS 为主题（自动取最小未占用编号，上限 6 套） */
+  private saveCssTheme(): void {
+    if (this.customCss.trim() === '') {
+      toastUtil.showToast({ message: $r('app.string.home_css_theme_empty') })
+      return
+    }
+    const themes: CssTheme[] = appSettings.cssThemes()
+    if (themes.length >= 6) {
+      toastUtil.showToast({ message: $r('app.string.home_css_theme_full') })
+      return
+    }
+    const used: string[] = []
+    for (const t of themes) {
+      used.push(t.name)
+    }
+    let name: string = ''
+    for (let n = 1; n <= 6; n++) {
+      const candidate: string = this.cssThemeName(n)
+      if (!used.includes(candidate)) {
+        name = candidate
+        break
+      }
+    }
+    if (name === '') {
+      name = this.cssThemeName(themes.length + 1)
+    }
+    themes.push(new CssTheme(name, this.customCss))
+    appSettings.putCssThemes(themes)
+    this.selectedCssTheme = name
+  }
+
+  /** 应用已保存的 CSS 主题：填入编辑框并立即生效，同时设为选中（后续点应用回写该主题） */
+  private applyCssTheme(idx: number): void {
+    const themes: CssTheme[] = this.cssThemeList
+    if (idx < 0 || idx >= themes.length) {
+      return
+    }
+    this.customCss = themes[idx].css
+    this.selectedCssTheme = themes[idx].name
+    appSettings.home_custom_css = themes[idx].css
+    appSettings.home_custom_css_enabled = true
+    this.changed()
+  }
+
+  /** 删除已保存的 CSS 主题（长按芯片触发，二次确认；按名称定位防错删） */
+  private confirmDeleteCssTheme(idx: number): void {
+    const themes: CssTheme[] = this.cssThemeList
+    if (idx < 0 || idx >= themes.length) {
+      return
+    }
+    const name: string = themes[idx].name
+    toastUtil.showAlertDialog({
+      title: name,
+      message: $r('app.string.home_css_theme_delete_message'),
+      buttons: [
+        {
+          value: $r('app.string.delete'),
+          fontColor: Color.Red,
+          action: (): void => {
+            const latest: CssTheme[] = appSettings.cssThemes()
+            let target: number = -1
+            for (let i = 0; i < latest.length; i++) {
+              if (latest[i].name === name) {
+                target = i
+                break
+              }
+            }
+            if (target >= 0) {
+              const deleted: string = latest[target].name
+              latest.splice(target, 1)
+              appSettings.putCssThemes(latest)
+              if (this.selectedCssTheme === deleted) {
+                this.selectedCssTheme = ''
+              }
+            }
+          }
+        },
+        {
+          value: $r('app.string.cancel'),
+          style: DialogButtonStyle.DEFAULT,
+          action: (): void => {
+          }
+        }
+      ]
+    }, 'cssThemeDelete')
   }
 
   private confirmReset(): void {
@@ -211,6 +370,7 @@ struct HomeCustomizePage {
             this.logoText = appSettings.home_logo_text
             this.logoHtml = appSettings.home_logo_html
             this.customCss = appSettings.home_custom_css
+            this.selectedCssTheme = ''
             this.changed()
           }
         },
@@ -577,6 +737,38 @@ struct HomeCustomizePage {
     .alignItems(HorizontalAlign.Start)
   }
 
+  /** 已保存 CSS 主题芯片组（点击载入并选中、长按删除；选中主题高亮，点应用回写该主题） */
+  @Builder
+  cssThemeChips() {
+    Flex({ wrap: FlexWrap.Wrap }) {
+      ForEach(this.cssThemeList, (t: CssTheme, idx: number) => {
+        Text(t.name)
+          .fontSize(13)
+          .padding({ left: 14, right: 14, top: 7, bottom: 7 })
+          .borderRadius(16)
+          .backgroundColor(this.activeCssTheme() === idx
+            ? QhState.currentThemeColor
+            : $r('sys.color.comp_background_tertiary'))
+          .fontColor(this.activeCssTheme() === idx ? Color.White : $r('sys.color.font_primary'))
+          .margin({ right: 8, top: 4, bottom: 4 })
+          .onClick(() => {
+            this.applyCssTheme(idx)
+          })
+          .gesture(LongPressGesture()
+            .onAction(() => {
+              this.confirmDeleteCssTheme(idx)
+            }))
+      }, (t: CssTheme) => t.name)
+      if (this.cssThemeList.length === 0) {
+        Text($r('app.string.home_css_theme_none'))
+          .fontSize(12)
+          .fontColor($r('sys.color.font_secondary'))
+          .margin({ top: 4, bottom: 4 })
+      }
+    }
+    .width('100%')
+  }
+
   /** 高级分区 */
   @Builder
   advancedSection() {
@@ -589,6 +781,21 @@ struct HomeCustomizePage {
           appSettings.home_custom_css_enabled = v
           this.changed()
         })
+      // CSS 主题：保存编辑框内容为新主题（上限 6 套）并选中；点击芯片载入并选中，点应用回写选中主题
+      this.groupHeader($r('app.string.home_css_themes'), false)
+      this.tipText($r('app.string.home_css_theme_hint'))
+      this.cssThemeChips()
+      Button($r('app.string.home_css_theme_save'))
+        .fontSize(13)
+        .height(34)
+        .padding({ left: 14, right: 14 })
+        .backgroundColor($r('sys.color.comp_background_tertiary'))
+        .fontColor($r('sys.color.font_primary'))
+        .margin({ top: 6 })
+        .onClick(() => {
+          this.saveCssTheme()
+        })
+
       // 提示在前，操作行次之，编辑框占满其余空间
       this.tipText($r('app.string.home_html_tip'))
       Row({ space: 10 }) {

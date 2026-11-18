@@ -1057,6 +1057,10 @@
       "value": "Port must be between 1 and 65535"
     },
     {
+      "name": "proxy_socks_download_direct",
+      "value": "SOCKS5 proxy for downloads is not supported on this system yet. Downloads will connect directly. Web proxy is unaffected"
+    },
+    {
       "name": "proxy_routed_sites",
       "value": "Sites using proxy"
     },
@@ -2561,6 +2565,18 @@
       "value": "Select at least one item"
     },
     {
+      "name": "hosts",
+      "value": "Hosts"
+    },
+    {
+      "name": "user_scripts",
+      "value": "Userscripts"
+    },
+    {
+      "name": "extensions",
+      "value": "Extensions"
+    },
+    {
       "name": "data_export_success",
       "value": "Data exported"
     },
@@ -3665,6 +3681,14 @@
     { "name": "home_html_tip", "value": "When Logo uses HTML or custom CSS is present, the home page renders as a local HTML page" },
     { "name": "home_import_file", "value": "Import File" },
     { "name": "home_apply", "value": "Apply" },
+    { "name": "home_css_themes", "value": "CSS Themes" },
+    { "name": "home_css_theme_hint", "value": "Tap to switch, long-press to delete" },
+    { "name": "home_css_theme_none", "value": "No saved themes yet" },
+    { "name": "home_css_theme_save", "value": "Save as Theme" },
+    { "name": "home_css_theme_name", "value": "Theme %d" },
+    { "name": "home_css_theme_full", "value": "Up to 6 themes" },
+    { "name": "home_css_theme_empty", "value": "CSS content is empty" },
+    { "name": "home_css_theme_delete_message", "value": "Delete this CSS theme?" },
     { "name": "home_reset", "value": "Reset home customization" },
     { "name": "home_reset_message", "value": "This will restore all home appearance settings to default" },
     { "name": "no_quick_links", "value": "No quick bookmarks yet. Mark a bookmark as \"Quick\" in its editor" },
