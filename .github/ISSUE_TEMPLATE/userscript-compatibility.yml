@@ -1,0 +1,153 @@
+name: "🐒 用户脚本兼容性反馈"
+description: 反馈一个无法正常安装、注入或运行的油猴（Userscript）脚本
+title: "[脚本兼容] "
+labels: ["userscript-compat"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢帮助完善用户脚本引擎（GM_* API 兼容层）！
+
+        **提交前请先搜索**是否已有相同脚本的 issue（直接搜索脚本名即可），如有请在原 issue 下补充，不要重复开新 issue。
+
+        **脚本来源链接 + 调试悬浮窗（HUD）显示内容 + 脚本 metadata 块**是最关键的三项信息。
+
+        排查小贴士：先到「设置 → 脚本」打开「脚本调试」开关，再访问目标网页——右下角会出现绿色 `GM` 徽标：
+        - 显示 `no userscript injected` = 脚本未被匹配/注入（检查脚本开关与 @match 规则）
+        - 列表里有脚本名但无效果 = 脚本已执行，多为 GM API 兼容问题（看面板里的 GM 调用计数与网页 console 报错）
+        - 页面 console（元素审查 → 调试页可看）中的 `[qh userscript] run: ...` 与报错行请一并贴上
+
+  - type: input
+    id: script-name
+    attributes:
+      label: 脚本名称
+      description: 脚本列表里显示的完整名称
+      placeholder: "例如：XXX"
+    validations:
+      required: true
+
+  - type: input
+    id: script-link
+    attributes:
+      label: 脚本来源链接
+      description: GreasyFork / SleazyFork / OpenUserJS / GitHub 等安装页链接
+      placeholder: "https://greasyfork.org/zh-CN/scripts/..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: 安装方式
+      options:
+        - 脚本页 → + → 从链接下载
+        - 脚本页 → + → 导入本地文件（.js / .txt）
+        - 脚本页 → + → 添加（编辑器粘贴源码）
+        - 其他
+    validations:
+      required: true
+
+  - type: dropdown
+    id: symptom-type
+    attributes:
+      label: 现象类型
+      options:
+        - 安装失败（下载失败 / 导入失败 / 列表里没有）
+        - 完全不执行（HUD 显示 no userscript injected）
+        - HUD 里有脚本名，但页面上看不到任何效果
+        - 部分功能异常（脚本能跑，某些特性不生效）
+        - GM_* API 报错或行为不对（ getValue / xhr / 菜单命令 等）
+        - 运行时机不对（需要 document-start 却明显跑晚了）
+        - iframe 里不运行 / @noframes 不生效
+        - 脚本自身报错（console 有 [qh userscript] 错误输出）
+        - 其他（请在具体现象中说明）
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: involved-apis
+    attributes:
+      label: 涉及的 GM API / 特性
+      description: 可多选；不确定可勾「不清楚」（脚本源码里 @grant 声明了哪些就优先勾哪些）
+      options:
+        - label: GM_getValue / GM_setValue / GM_deleteValue / GM_listValues
+        - label: GM_addValueChangeListener / GM_removeValueChangeListener
+        - label: GM_xmlhttpRequest（跨域请求 / @connect）
+        - label: GM_addStyle / GM_addElement
+        - label: GM_getResourceText / GM_getResourceURL（@resource）
+        - label: GM_registerMenuCommand / GM_unregisterMenuCommand（菜单命令）
+        - label: GM_setClipboard（剪贴板）
+        - label: GM_openInTab（打开标签页）
+        - label: GM_download（下载）
+        - label: GM_notification（通知）
+        - label: GM.* 点号风格（Promise 版本）
+        - label: GM_info（脚本信息）
+        - label: @require（依赖库，如 jQuery / cdn.jsdelivr.net 脚本）
+        - label: unsafeWindow
+        - label: @run-at（document-start / document-end / document-idle）
+        - label: @match / @include / @exclude（匹配规则）
+        - label: @noframes
+        - label: 不清楚
+
+  - type: textarea
+    id: metadata
+    attributes:
+      label: 脚本 metadata 块（强烈建议）
+      description: >
+        粘贴脚本头部完整的 ==UserScript== 块（含 @grant / @require / @connect / @match 等），
+        涉及个人 token 的 URL 请自行打码。
+      render: javascript
+      placeholder: |
+        // ==UserScript==
+        // @name         XXX
+        // ...
+        // ==/UserScript==
+
+  - type: textarea
+    id: hud-info
+    attributes:
+      label: 调试悬浮窗（HUD）显示内容
+      description: >
+        打开「脚本调试」后访问目标网页，点按右下角 GM 徽标展开面板，把列表内容抄下来
+        （脚本名 + 运行时机 + ×次数 + GM calls 明细）。徽标没出现也请说明。
+      placeholder: |
+        例如：
+        XXX  document-end  ×3
+        GM calls
+        GM_xmlhttpRequest ×5
+        GM_getValue ×12
+
+  - type: textarea
+    id: console-log
+    attributes:
+      label: 网页 console 输出（可选，进阶用户）
+      description: >
+        元素审查 → 调试/console 页里与脚本相关的输出，尤其是 `[qh userscript]` 开头的行和脚本报错堆栈；
+        不会看 console 可跳过，不影响反馈受理。
+
+  - type: textarea
+    id: symptom
+    attributes:
+      label: 具体现象
+      description: 期望的效果是什么（在 Via / 桌面 Tampermonkey 上什么样）？实际变成了什么样？哪个网站/页面上出现？
+      placeholder: |
+        例如：在 xxx.com 上脚本应把列表改成卡片流，实际页面无任何变化；
+        HUD 里能看到脚本名（document-end ×1），GM calls 是空的；
+        Tampermonkey 桌面 Chrome 上同脚本正常。
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图或录屏（可选）
+      description: 页面效果对比（期望 vs 实际）、HUD 面板内容、console 报错截图等，可直接拖拽上传
+
+  - type: input
+    id: env
+    attributes:
+      label: 环境信息
+      description: 浏览器版本 + 设备型号 + 系统版本
+      placeholder: "例如：v1.0.0 / Mate 80 Pro Max / HarmonyOS 6.0"
+    validations:
+      required: true

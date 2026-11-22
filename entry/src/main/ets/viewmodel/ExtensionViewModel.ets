@@ -12,7 +12,7 @@ import { ExtensionResources, EXT_RES_HOST, EXT_SCHEME_PREFIX } from '../common/u
 import { ChromeShim, ExtStorageGetRaw, ExtStorageSetRaw, ExtStorageRemoveRaw, ExtStorageClearRaw,
   ExtSendMsgRaw, ExtRespondRaw, ExtSendMsgBgRaw, ExtTabQueryRaw, ExtTabSendMsgRaw, ExtTabCreateRaw,
   ExtTabUpdateRaw, ExtExecuteScriptRaw,
-  ExtNotifyRaw, ExtStoreInstallRaw, ExtGetContextsRaw, ExtPortConnectRaw, ExtPortMsgRaw, ExtPortDisconnectRaw } from '../common/utils/extension/ChromeShim';
+  ExtNotifyRaw, ExtStoreInstallRaw, ExtGetContextsRaw, ExtSetBadgeRaw, ExtPortConnectRaw, ExtPortMsgRaw, ExtPortDisconnectRaw } from '../common/utils/extension/ChromeShim';
 import { ResourceUtils } from '../common/utils/app/ResourceUtil';
 import { HttpDownloader, StreamOptions } from '../common/utils/download/HttpDownloader';
 import { ExtensionDao } from '../common/utils/database/impl/ExtensionDao';
@@ -34,6 +34,19 @@ class ExtPendingRespond {
     this.target = target
     this.cbId = cbId
   }
+}
+
+/**
+ * 扩展角标状态（chrome.action.setBadge*）：@Trace 驱动工具栏固定图标与扩展菜单角标渲染
+ */
+@ObservedV2
+export class ExtBadgeState {
+  /** 当前显示文本（按激活标签解析 per-tab 覆盖 → 默认；'' = 无角标） */
+  @Trace text: string = ''
+  /** 角标背景色（#rrggbb） */
+  @Trace bgColor: string = '#666666'
+  /** 角标文字色（#rrggbb） */
+  @Trace txtColor: string = '#FFFFFF'
 }
 
 /**
@@ -128,6 +141,18 @@ export class ExtensionViewModel {
 
   /** 商店直装全流程进行中（含下载阶段；防连点并发互相顶掉） */
   private storeInstalling: boolean = false
+
+  /** 角标状态：extId → 显示状态（@ObservedV2 驱动 UI） */
+  private badgeStates: Map<string, ExtBadgeState> = new Map()
+
+  /** 角标 per-tab 文本：extId → (tabId → text) */
+  private badgeTabTexts: Map<string, Map<number, string>> = new Map()
+
+  /** 角标默认文本：extId → text */
+  private badgeDefaults: Map<string, string> = new Map()
+
+  /** 无角标扩展的共享空状态（避免各处判空） */
+  private static readonly EMPTY_BADGE: ExtBadgeState = new ExtBadgeState()
 
   constructor() {
     // 标签生命周期事件源挂钩：TabsViewModel → chrome.tabs.onCreated/onUpdated/onActivated/onRemoved
@@ -302,6 +327,67 @@ export class ExtensionViewModel {
       this.closePopup()
     }
     await this.loadAll()
+  }
+
+  /** 固定/取消固定到工具栏（PC 浏览器 pin 语义；持久化 + 重查驱动 UI 刷新） */
+  async togglePin(info: ExtensionInfo): Promise<void> {
+    info.pinned = !info.pinned
+    await this.getDB().update(info)
+    await this.loadAll()
+  }
+
+  /** 扩展当前角标状态（无角标返回共享空状态，text='' 不渲染） */
+  badgeOf(extId: string): ExtBadgeState {
+    return this.badgeStates.get(extId) ?? ExtensionViewModel.EMPTY_BADGE
+  }
+
+  /** chrome.action.setBadge* 上报：textOp=1 时 text 有效（'' 代表清除对应记录），
+      其余为颜色增量合并；显示文本按激活标签重解析 */
+  extSetBadge(raw: ExtSetBadgeRaw): void {
+    if (raw.textOp === 1) {
+      let tabs: Map<number, string> | undefined = this.badgeTabTexts.get(raw.extId)
+      if (tabs === undefined) {
+        tabs = new Map<number, string>()
+        this.badgeTabTexts.set(raw.extId, tabs)
+      }
+      if (raw.tabId > 0) {
+        // per-tab 记录（含空串清除，空串=该标签无角标，不回落默认）
+        tabs.set(raw.tabId, raw.text)
+      } else if (raw.text !== '') {
+        this.badgeDefaults.set(raw.extId, raw.text)
+      } else {
+        this.badgeDefaults.delete(raw.extId)
+      }
+    }
+    let state: ExtBadgeState | undefined = this.badgeStates.get(raw.extId)
+    if (state === undefined) {
+      state = new ExtBadgeState()
+      this.badgeStates.set(raw.extId, state)
+    }
+    if (raw.bg !== '') {
+      state.bgColor = raw.bg
+    }
+    if (raw.fg !== '') {
+      state.txtColor = raw.fg
+    }
+    this.refreshBadgeText(raw.extId, state)
+  }
+
+  /** 按激活标签解析角标显示文本：有 per-tab 记录用之（空串=无角标），否则用默认文本 */
+  private refreshBadgeText(extId: string, state: ExtBadgeState): void {
+    const tabs: Map<number, string> | undefined = this.badgeTabTexts.get(extId)
+    if (tabs !== undefined && tabs.has(tabsVM.activeTabId)) {
+      state.text = tabs.get(tabsVM.activeTabId) ?? ''
+    } else {
+      state.text = this.badgeDefaults.get(extId) ?? ''
+    }
+  }
+
+  /** 标签切换/激活变化后刷新全部扩展角标显示文本 */
+  refreshAllBadges(): void {
+    this.badgeStates.forEach((state: ExtBadgeState, extId: string) => {
+      this.refreshBadgeText(extId, state)
+    })
   }
 
   /** 卸载（连带 storage 值、Web origin DOM 存储与解包目录） */
@@ -1437,6 +1523,14 @@ export class ExtensionViewModel {
     if (event === 'removed') {
       // 标签关闭：断开该标签控制器（内容脚本侧）的全部 Port 通道（不受 bgHosts 早退影响）
       this.teardownPortsOf(tab.controller)
+      // per-tab 角标文本随标签移除清理
+      this.badgeTabTexts.forEach((tabs: Map<number, string>): void => {
+        tabs.delete(tab.id)
+      })
+    }
+    // 激活标签切换：角标显示文本按新激活标签重解析（不受 bgHosts 早退影响）
+    if (event === 'activated') {
+      this.refreshAllBadges()
     }
     if (this.bgHosts.size === 0) {
       return
@@ -1800,6 +1894,10 @@ export class ExtensionViewModel {
           if (raw.text !== '') {
             toastUtil.showToast({ message: raw.text })
           }
+          break
+        }
+        case 'extSetBadge': {
+          this.extSetBadge(JSON.parse(json) as ExtSetBadgeRaw)
           break
         }
         default:

@@ -98,6 +98,17 @@ export class ExtGetContextsRaw {
   cbId: number = 0
 }
 
+/** action.setBadge* 角标更新（bg/popup → 原生，按字段增量合并） */
+export class ExtSetBadgeRaw {
+  extId: string = ''
+  tabId: number = 0
+  text: string = ''
+  /** 1=setBadgeText 调用（text 字段有效，'' 代表清除）；0=纯颜色上报 */
+  textOp: number = 0
+  bg: string = ''
+  fg: string = ''
+}
+
 /** runtime.connect 发起（popup/内容脚本/bg → 原生路由 onConnect） */
 export class ExtPortConnectRaw {
   extId: string = ''
@@ -138,6 +149,31 @@ var chgLs = {};
 var ports = {};
 var portSeq = 0;
 var portConnLs = [];
+/* 多扩展派发（ArkWeb 无隔离世界，各扩展内容沙箱共用页面主世界 window.chrome）：
+   旧 first-wins 合并会让后注入扩展的 webextension-polyfill（加载时经 globalThis.chrome
+   捕获目标）拿到先注入扩展的 runtime —— 真机实证 AdGuard assistant 监听器被注册到
+   先注入扩展名下，bg 消息派发 ls=-1 永远空响应。此处安装派发 getter：
+   沙箱求值期间 window.chrome/browser 指向本扩展 API，polyfill 加载时同步捕获即
+   锁定正确对象；沙箱外回落内建对象（页面自身探测 chrome 不受污染） */
+var qhCurApi = null;
+var qhLastApi = null;
+var qhOrigChrome = window.chrome;
+var qhOrigBrowser = window.browser;
+function qhChromeGet() {
+  return qhCurApi || qhLastApi || qhOrigChrome || {};
+}
+function qhBrowserGet() {
+  return qhCurApi || qhLastApi || qhOrigBrowser;
+}
+function qhInstallGetters() {
+  try {
+    Object.defineProperty(window, 'chrome', { get: qhChromeGet, configurable: true });
+  } catch (e) {}
+  try {
+    Object.defineProperty(window, 'browser', { get: qhBrowserGet, configurable: true });
+  } catch (e) {}
+}
+qhInstallGetters();
 function nat(api, obj) {
   try {
     var n = window.__qhNative;
@@ -203,6 +239,7 @@ window.__qhExtCore = {
       }
     }
     var ls = msgLs[extId];
+    try { console.warn('[qh ext] fireMessage ' + extId + ' ls=' + (ls ? ls.length : -1) + ' msg=' + String(msgJson || '').substring(0, 160)); } catch (e) {}
     if (!ls || !ls.length) {
       respondOnce(undefined);
       return;
@@ -231,7 +268,10 @@ window.__qhExtCore = {
   addMsgListener: function(extId, fn) {
     if (!msgLs[extId]) { msgLs[extId] = []; }
     msgLs[extId].push(fn);
+    try { console.warn('[qh ext] addMsgListener ' + extId + ' n=' + msgLs[extId].length); } catch (e) {}
   },
+  setCurExt: function(api) { qhCurApi = api; qhLastApi = api; qhInstallGetters(); },
+  clearCurExt: function() { qhCurApi = null; },
   storageGet: function(extId, keysJson, cb) {
     var id = this.reg(cb);
     nat('extStorageGet', { extId: extId, cbId: id, keysJson: keysJson });
@@ -520,6 +560,19 @@ var MANIFEST = ${manifestJson};
 try { MANIFEST.name = ${JSON.stringify(resolvedName)}; MANIFEST.description = ${JSON.stringify(resolvedDesc)}; } catch (e) {}
 var MSGS = ${messagesJson};
 var UILOC = ${JSON.stringify(uiLocale)};
+/* 未捕获异常/Promise 拒绝带堆栈上报（内容脚本侧）：页面 console 经 ARKWEB-CONSOLE 进 hilog */
+window.addEventListener('error', function (ev) {
+  try {
+    console.error('[qh jserr] ' + (ev.error && ev.error.stack ? ev.error.stack
+      : (ev.message || '') + ' @ ' + (ev.filename || '') + ':' + (ev.lineno || 0) + ':' + (ev.colno || 0)));
+  } catch (e) {}
+});
+window.addEventListener('unhandledrejection', function (ev) {
+  try {
+    var qhr = ev.reason;
+    console.error('[qh jsrej] ' + (qhr && qhr.stack ? qhr.stack : String(qhr)));
+  } catch (e) {}
+});
 var lastError = null;
 var onMsgLs = [];
 function getMessage(name, subs) {
@@ -719,16 +772,102 @@ var chromeApi = {
     removeAll: function(cb) { if (typeof cb === 'function') { cb(); } return Promise.resolve(); }
   },
   commands: { onCommand: { addListener: function() {} } },
-  action: {
-    /* MV3 语义：均返回 Promise（AdGuard setIcon 链式 .then，undefined 即 TypeError） */
-    setTitle: function(o, cb) { if (typeof cb === 'function') { cb(); } return Promise.resolve(); },
-    setIcon: function(o, cb) { if (typeof cb === 'function') { cb(); } return Promise.resolve(); },
-    setBadgeText: function(o, cb) { if (typeof cb === 'function') { cb(); } return Promise.resolve(); },
-    setBadgeBackgroundColor: function(o, cb) { if (typeof cb === 'function') { cb(); } return Promise.resolve(); },
-    setBadgeTextColor: function(o, cb) { if (typeof cb === 'function') { cb(); } return Promise.resolve(); },
-    setPopup: function(o, cb) { if (typeof cb === 'function') { cb(); } return Promise.resolve(); },
-    onClicked: { addListener: function() {} }
-  },
+  action: (function() {
+    /* MV3 语义：均返回 Promise（AdGuard setIcon 链式 .then，undefined 即 TypeError）。
+       setBadge* 维护 JS 侧缓存（getBadgeText 同构可读）并上报原生 extSetBadge 渲染角标；
+       文本按 Chrome 规范截 4 字符，tabId>0 为 per-tab 覆盖，否则为默认文本 */
+    var B = { defText: '', tabText: {}, bg: '', fg: '', title: '', popup: '' };
+    function normColor(c) {
+      try {
+        if (Object.prototype.toString.call(c) === '[object Array]' && c.length >= 3) {
+          var out = '#';
+          for (var ci = 0; ci < 3; ci++) {
+            var v = Math.max(0, Math.min(255, Math.round(Number(c[ci]) || 0)));
+            var h = v.toString(16);
+            out += h.length < 2 ? '0' + h : h;
+          }
+          return out;
+        }
+        if (typeof c === 'string') {
+          var s = c.trim();
+          if (s.charAt(0) === '#') {
+            var hx = s.substring(1);
+            if (hx.length === 3) {
+              return '#' + hx.charAt(0) + hx.charAt(0) + hx.charAt(1) + hx.charAt(1) + hx.charAt(2) + hx.charAt(2);
+            }
+            if (hx.length >= 6) { return '#' + hx.substring(0, 6).toLowerCase(); }
+          }
+          var pi = s.indexOf('(');
+          if (pi > 0 && s.indexOf(')') > pi && s.substring(0, pi).indexOf('rgb') === 0) {
+            var ps = s.substring(pi + 1, s.indexOf(')', pi + 1)).split(',');
+            if (ps.length >= 3) { return normColor([Number(ps[0]), Number(ps[1]), Number(ps[2])]); }
+          }
+        }
+      } catch (e) {}
+      return '';
+    }
+    return {
+      setTitle: function(o, cb) {
+        if (o && typeof o.title === 'string') { B.title = o.title; }
+        if (typeof cb === 'function') { cb(); }
+        return Promise.resolve();
+      },
+      getTitle: function(o, cb) {
+        var p = Promise.resolve(B.title || '');
+        if (typeof cb === 'function') { p.then(function(v) { try { cb(v); } catch (e) {} }); }
+        return p;
+      },
+      setIcon: function(o, cb) { if (typeof cb === 'function') { cb(); } return Promise.resolve(); },
+      setBadgeText: function(o, cb) {
+        try {
+          var t = o && o.text !== undefined && o.text !== null ? String(o.text) : '';
+          if (t.length > 4) { t = t.substring(0, 4); }
+          var tid = o && typeof o.tabId === 'number' && o.tabId > 0 ? o.tabId : 0;
+          if (tid > 0) { B.tabText[tid] = t; } else { B.defText = t; }
+          CORE.natCall('extSetBadge', { extId: EXTID, tabId: tid, text: t, textOp: 1 });
+        } catch (e) {}
+        if (typeof cb === 'function') { cb(); }
+        return Promise.resolve();
+      },
+      getBadgeText: function(o, cb) {
+        var t = '';
+        try {
+          var tid = o && typeof o.tabId === 'number' && o.tabId > 0 ? o.tabId : 0;
+          t = tid > 0 ? (B.tabText[tid] || '') : (B.defText || '');
+        } catch (e) {}
+        var p = Promise.resolve(t);
+        if (typeof cb === 'function') { p.then(function(v) { try { cb(v); } catch (e) {} }); }
+        return p;
+      },
+      setBadgeBackgroundColor: function(o, cb) {
+        try {
+          var col = normColor(o && o.color);
+          if (col !== '') { B.bg = col; CORE.natCall('extSetBadge', { extId: EXTID, bg: col }); }
+        } catch (e) {}
+        if (typeof cb === 'function') { cb(); }
+        return Promise.resolve();
+      },
+      setBadgeTextColor: function(o, cb) {
+        try {
+          var col = normColor(o && o.color);
+          if (col !== '') { B.fg = col; CORE.natCall('extSetBadge', { extId: EXTID, fg: col }); }
+        } catch (e) {}
+        if (typeof cb === 'function') { cb(); }
+        return Promise.resolve();
+      },
+      setPopup: function(o, cb) {
+        if (o && typeof o.popup === 'string') { B.popup = o.popup; }
+        if (typeof cb === 'function') { cb(); }
+        return Promise.resolve();
+      },
+      getPopup: function(o, cb) {
+        var p = Promise.resolve(B.popup || '');
+        if (typeof cb === 'function') { p.then(function(v) { try { cb(v); } catch (e) {} }); }
+        return p;
+      },
+      onClicked: { addListener: function() {} }
+    };
+  })(),
   declarativeNetRequest: {
     /* 真实 Chrome 数值语义：数组/计数 API 返回空集与上限余量，
        防止 AdGuard getEnabledRulesets().map 之类 undefined 崩
@@ -764,28 +903,33 @@ ${ChromeShim.stubProxyJs()}
 var chrome = chromeApiSafe;
 var browser = chromeApiSafe;
 /* window/globalThis 暴露：内容脚本经 UMD/globalThis 取 chrome 时拿不到 IIFE 局部变量
-   （ArkWeb 无隔离世界，内容沙箱跑在页面主世界）；ArkWeb 内建 window.chrome 无 runtime 成员，
-   合并补充——保留内建成员，仅补缺失键；无内建时 getter 覆盖 */
+   （ArkWeb 无隔离世界，内容沙箱跑在页面主世界）。多扩展共用主世界 window.chrome，
+   旧 first-wins 合并内建对象会让后注入扩展的 polyfill（globalThis.chrome 捕获）
+   拿到先注入扩展的 runtime（真机实证 AdGuard assistant 监听器注册到 5bddc 名下、
+   bg 派发 ls=-1）——改经 core 派发 getter，求值期间指向本扩展 API，
+   polyfill 加载时同步捕获即锁定正确对象 */
+try { CORE.setCurExt(chromeApiSafe); } catch (e) {}
 try {
-  var wc = window.chrome;
-  if (wc && typeof wc === 'object') {
-    for (var wck in chromeApi) {
-      try { if (wc[wck] === undefined) { wc[wck] = chromeApi[wck]; } } catch (e3) {}
+  if (window.chrome !== chromeApiSafe) {
+    /* 派发 getter 未生效（内建属性不可配置等）：退回覆盖式合并（last-wins，
+       保证每个沙箱求值期 polyfill 经 globalThis.chrome 捕获到本扩展 API） */
+    var wc = window.chrome;
+    if (wc && typeof wc === 'object') {
+      for (var wck in chromeApi) {
+        try { wc[wck] = chromeApi[wck]; } catch (e3) {}
+      }
+    } else {
+      window.chrome = chromeApiSafe;
     }
+    try { window.browser = chromeApiSafe; } catch (e4) {}
   }
-  if (!window.chrome || !window.chrome.runtime) {
-    Object.defineProperty(window, 'chrome', { get: function() { return chromeApiSafe; }, configurable: true });
-  }
-} catch (e) { try { window.chrome = chromeApiSafe; } catch (e2) {} }
-try {
-  if (!window.browser) {
-    Object.defineProperty(window, 'browser', { get: function() { return chromeApiSafe; }, configurable: true });
-  }
-} catch (e) { try { window.browser = chromeApiSafe; } catch (e2) {} }
+} catch (e2) {}
 try { if (window.__qhHud) { window.__qhHud.report(EXTID, 'ext: ${ExtensionShimUtil.escapeJs(resolvedName)}', 'content'); } } catch (e) {}
 ${cssCode}
 ${jsCode}
-}catch(e){console.warn('[qh ext]',e)}
+try { console.info('[qh ext] cs done ' + EXTID); } catch (e) {}
+try { CORE.clearCurExt(); } catch (e) {}
+}catch(e){ try { CORE.clearCurExt(); } catch (e2) {} console.warn('[qh ext]',e)}
 })();
 `;
   }
@@ -1330,16 +1474,102 @@ var chromeApi = {
     removeAll: function(cb) { if (typeof cb === 'function') { cb(); } return Promise.resolve(); }
   },
   commands: { onCommand: { addListener: function() {} } },
-  action: {
-    /* MV3 语义：均返回 Promise（AdGuard setIcon 链式 .then，undefined 即 TypeError） */
-    setTitle: function(o, cb) { if (typeof cb === 'function') { cb(); } return Promise.resolve(); },
-    setIcon: function(o, cb) { if (typeof cb === 'function') { cb(); } return Promise.resolve(); },
-    setBadgeText: function(o, cb) { if (typeof cb === 'function') { cb(); } return Promise.resolve(); },
-    setBadgeBackgroundColor: function(o, cb) { if (typeof cb === 'function') { cb(); } return Promise.resolve(); },
-    setBadgeTextColor: function(o, cb) { if (typeof cb === 'function') { cb(); } return Promise.resolve(); },
-    setPopup: function(o, cb) { if (typeof cb === 'function') { cb(); } return Promise.resolve(); },
-    onClicked: { addListener: function() {} }
-  },
+  action: (function() {
+    /* MV3 语义：均返回 Promise（AdGuard setIcon 链式 .then，undefined 即 TypeError）。
+       setBadge* 维护 JS 侧缓存（getBadgeText 同构可读）并上报原生 extSetBadge 渲染角标；
+       文本按 Chrome 规范截 4 字符，tabId>0 为 per-tab 覆盖，否则为默认文本 */
+    var B = { defText: '', tabText: {}, bg: '', fg: '', title: '', popup: '' };
+    function normColor(c) {
+      try {
+        if (Object.prototype.toString.call(c) === '[object Array]' && c.length >= 3) {
+          var out = '#';
+          for (var ci = 0; ci < 3; ci++) {
+            var v = Math.max(0, Math.min(255, Math.round(Number(c[ci]) || 0)));
+            var h = v.toString(16);
+            out += h.length < 2 ? '0' + h : h;
+          }
+          return out;
+        }
+        if (typeof c === 'string') {
+          var s = c.trim();
+          if (s.charAt(0) === '#') {
+            var hx = s.substring(1);
+            if (hx.length === 3) {
+              return '#' + hx.charAt(0) + hx.charAt(0) + hx.charAt(1) + hx.charAt(1) + hx.charAt(2) + hx.charAt(2);
+            }
+            if (hx.length >= 6) { return '#' + hx.substring(0, 6).toLowerCase(); }
+          }
+          var pi = s.indexOf('(');
+          if (pi > 0 && s.indexOf(')') > pi && s.substring(0, pi).indexOf('rgb') === 0) {
+            var ps = s.substring(pi + 1, s.indexOf(')', pi + 1)).split(',');
+            if (ps.length >= 3) { return normColor([Number(ps[0]), Number(ps[1]), Number(ps[2])]); }
+          }
+        }
+      } catch (e) {}
+      return '';
+    }
+    return {
+      setTitle: function(o, cb) {
+        if (o && typeof o.title === 'string') { B.title = o.title; }
+        if (typeof cb === 'function') { cb(); }
+        return Promise.resolve();
+      },
+      getTitle: function(o, cb) {
+        var p = Promise.resolve(B.title || '');
+        if (typeof cb === 'function') { p.then(function(v) { try { cb(v); } catch (e) {} }); }
+        return p;
+      },
+      setIcon: function(o, cb) { if (typeof cb === 'function') { cb(); } return Promise.resolve(); },
+      setBadgeText: function(o, cb) {
+        try {
+          var t = o && o.text !== undefined && o.text !== null ? String(o.text) : '';
+          if (t.length > 4) { t = t.substring(0, 4); }
+          var tid = o && typeof o.tabId === 'number' && o.tabId > 0 ? o.tabId : 0;
+          if (tid > 0) { B.tabText[tid] = t; } else { B.defText = t; }
+          CORE.natCall('extSetBadge', { extId: EXTID, tabId: tid, text: t, textOp: 1 });
+        } catch (e) {}
+        if (typeof cb === 'function') { cb(); }
+        return Promise.resolve();
+      },
+      getBadgeText: function(o, cb) {
+        var t = '';
+        try {
+          var tid = o && typeof o.tabId === 'number' && o.tabId > 0 ? o.tabId : 0;
+          t = tid > 0 ? (B.tabText[tid] || '') : (B.defText || '');
+        } catch (e) {}
+        var p = Promise.resolve(t);
+        if (typeof cb === 'function') { p.then(function(v) { try { cb(v); } catch (e) {} }); }
+        return p;
+      },
+      setBadgeBackgroundColor: function(o, cb) {
+        try {
+          var col = normColor(o && o.color);
+          if (col !== '') { B.bg = col; CORE.natCall('extSetBadge', { extId: EXTID, bg: col }); }
+        } catch (e) {}
+        if (typeof cb === 'function') { cb(); }
+        return Promise.resolve();
+      },
+      setBadgeTextColor: function(o, cb) {
+        try {
+          var col = normColor(o && o.color);
+          if (col !== '') { B.fg = col; CORE.natCall('extSetBadge', { extId: EXTID, fg: col }); }
+        } catch (e) {}
+        if (typeof cb === 'function') { cb(); }
+        return Promise.resolve();
+      },
+      setPopup: function(o, cb) {
+        if (o && typeof o.popup === 'string') { B.popup = o.popup; }
+        if (typeof cb === 'function') { cb(); }
+        return Promise.resolve();
+      },
+      getPopup: function(o, cb) {
+        var p = Promise.resolve(B.popup || '');
+        if (typeof cb === 'function') { p.then(function(v) { try { cb(v); } catch (e) {} }); }
+        return p;
+      },
+      onClicked: { addListener: function() {} }
+    };
+  })(),
   declarativeNetRequest: {
     /* 真实 Chrome 数值语义：数组/计数 API 返回空集与上限余量，
        防止 AdGuard getEnabledRulesets().map 之类 undefined 崩

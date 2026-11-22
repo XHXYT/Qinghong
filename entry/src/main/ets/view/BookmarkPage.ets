@@ -964,7 +964,7 @@ struct BookmarkPage {
         }
       }
     }
-    .backgroundColor($r('app.color.start_window_background'))
+    .backgroundColor($r('app.color.background_color'))
     .borderRadius(20)
   }
 

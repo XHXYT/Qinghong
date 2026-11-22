@@ -152,7 +152,7 @@ export struct BookmarkFolderMenu {
     .alignItems(HorizontalAlign.Start)
     .constraintSize({ maxWidth: 280 })
     .borderRadius(16)
-    .backgroundColor($r('app.color.start_window_background'))
+    .backgroundColor($r('app.color.background_color'))
     .shadow({ radius: 24, color: 'rgba(0,0,0,0.18)', offsetY: 4 })
     .clip(true)
   }

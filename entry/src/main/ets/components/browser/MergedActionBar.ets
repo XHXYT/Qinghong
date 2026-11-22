@@ -17,6 +17,7 @@ import { toolbarEventRunner } from '../../common/utils/ui/ToolbarEventRunner';
 import { scriptVM } from '../../viewmodel/ScriptViewModel';
 import { GmMenuCommand } from '../../common/utils/userscript/GmRuntime';
 import { ExtToolbarButton } from '../extension/ExtToolbarButton';
+import { ExtPinnedIcons } from '../extension/ExtPinnedIcons';
 
 /**
  * 合并操作栏（返回/前进/地址胶囊/标签/菜单单行合并），
@@ -355,8 +356,10 @@ export struct MergedActionBar {
           }))
         }
 
-        // 扩展（拼图按钮：PC 浏览器扩展入口样式，菜单按钮左侧；操作栏设置开关 + 扩展总开关控制）
+        // 扩展（固定图标列 + 拼图按钮：PC 浏览器扩展入口样式，菜单按钮左侧；操作栏设置开关 + 扩展总开关控制）
         if (UISettings.show_extension_button && appSettings.extension_enabled) {
+          ExtPinnedIcons({ anchor: this.barPosition })
+            .margin({ right: 2 })
           ExtToolbarButton({ anchor: this.barPosition })
             .margin({ top: 3 })
         }

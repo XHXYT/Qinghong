@@ -23,13 +23,30 @@ import { UserScriptValueDao } from '../common/utils/database/impl/UserScriptValu
 import { ExtensionDao } from '../common/utils/database/impl/ExtensionDao';
 import { ExtensionValueDao } from '../common/utils/database/impl/ExtensionValueDao';
 import { appSettings, UISettings } from '../common/entity/SettingsModel';
+import { UserScriptEngine } from '../common/utils/userscript/UserScriptEngine';
 import { adBlockSubsStore, AdBlockSubscription } from '../common/utils/adblock/AdBlockSubs';
 import { extensionVM } from './ExtensionViewModel';
 import { scriptVM } from './ScriptViewModel';
+import { tabsVM } from './TabsViewModel';
+import { AppConstants } from '../common/constants/AppConstants';
+import { HomeImageUtil } from '../common/utils/home/HomeImageUtil';
 import { createLogger } from '../common/utils/app/Logger';
 import { PublicDownloadDir } from '../common/utils/download/PublicDownloadDir';
 
 const logger = createLogger('DataBackup')
+
+/** Via 安卓版导出内 script 元数据（settings.txt 的 {"script":{...}} 行） */
+class ViaScriptMeta {
+  url: string = ''
+  enabled: boolean = true
+}
+
+/** Via 安卓版导出内会话标签（tabs.txt 单行） */
+class ViaTabEntry {
+  title: string = ''
+  url: string = ''
+  updated: number = 0
+}
 
 /**
  * 数据备份/导入：书签 HTML（Netscape 格式）与全量数据 JSON
@@ -500,6 +517,11 @@ export class DataBackupViewModel {
           }
         }
         if (!found) {
+          // 非 Qinghong 备份：尝试识别 Via 安卓版导出（settings.txt + bookmarks.html 等）
+          const viaBase: string | null = DataBackupViewModel.findViaBase(tmpDir)
+          if (viaBase !== null) {
+            return await this.importViaFromBase(viaBase)
+          }
           logger.error('importZip', '备份 zip 中未找到 backup.json')
           return false
         }
@@ -509,6 +531,246 @@ export class DataBackupViewModel {
     } finally {
       DataBackupViewModel.unlinkQuiet(tmpZip)
       DataBackupViewModel.removeDirQuiet(tmpDir)
+    }
+  }
+
+  /**
+   * 导入 Via 安卓版导出目录：
+   * bookmarks.html 书签（Netscape 格式，复用现有解析器）/ favorites.txt 主页收藏（转快速访问书签）
+   * / history.txt 历史 / settings.txt 内 filters 广告规则订阅 + script 元数据 / script-*.txt 用户脚本
+   * / tabs.txt 会话标签（按更新时间取前若干，容量上限内）/ bg.jpg 主页背景
+   */
+  private async importViaFromBase(base: string): Promise<boolean> {
+    try {
+      let imported: number = 0
+      // 书签
+      const bmPath: string = `${base}/bookmarks.html`
+      if (DataBackupViewModel.exists(bmPath)) {
+        imported += await this.importBookmarksFromContent(DataBackupViewModel.readTextSync(bmPath))
+      }
+      // 主页收藏 → 快速访问书签
+      const favPath: string = `${base}/favorites.txt`
+      if (DataBackupViewModel.exists(favPath)) {
+        const lines: string[] = DataBackupViewModel.readTextSync(favPath).split('\n')
+        for (const line of lines) {
+          const rec: Record<string, Object> | null = DataBackupViewModel.parseJsonLine(line)
+          if (rec === null) {
+            continue
+          }
+          const url: string = (rec['url'] as string) ?? ''
+          if (url === '') {
+            continue
+          }
+          const title: string = (rec['title'] as string) ?? url
+          const info: BookmarkInfo = new BookmarkInfo(title, url, true)
+          info.folder = ''
+          info.createTime = new Date().getTime() - imported
+          await this.upsertImported(info)
+          imported++
+        }
+      }
+      // 历史（updated_at 秒级时间戳）
+      const hisPath: string = `${base}/history.txt`
+      if (DataBackupViewModel.exists(hisPath)) {
+        const lines: string[] = DataBackupViewModel.readTextSync(hisPath).split('\n')
+        for (const line of lines) {
+          const rec: Record<string, Object> | null = DataBackupViewModel.parseJsonLine(line)
+          if (rec === null) {
+            continue
+          }
+          const url: string = (rec['url'] as string) ?? ''
+          if (url === '') {
+            continue
+          }
+          const title: string = (rec['title'] as string) ?? url
+          let stamp: number = (rec['updated_at'] as number) ?? 0
+          if (stamp > 0 && stamp < 1e12) {
+            stamp *= 1000
+          }
+          await this.getHistoryDB().addVisit(title, url, stamp > 0 ? stamp : new Date().getTime())
+        }
+      }
+      // settings.txt：filters 规则订阅 + script 元数据（按文件名索引）
+      const scriptMeta: Record<string, ViaScriptMeta> = {}
+      const setPath: string = `${base}/settings.txt`
+      if (DataBackupViewModel.exists(setPath)) {
+        const lines: string[] = DataBackupViewModel.readTextSync(setPath).split('\n')
+        let subsLoaded: boolean = false
+        for (const line of lines) {
+          const rec: Record<string, Object> | null = DataBackupViewModel.parseJsonLine(line)
+          if (rec === null) {
+            continue
+          }
+          const filters: Object | undefined = rec['filters']
+          if (filters !== undefined) {
+            const f: Record<string, Object> = filters as Record<string, Object>
+            const url: string = (f['url'] as string) ?? ''
+            if (url === '') {
+              continue
+            }
+            if (!subsLoaded) {
+              await adBlockSubsStore.load()
+              subsLoaded = true
+            }
+            adBlockSubsStore.add(url)
+            const sub: AdBlockSubscription | null = DataBackupViewModel.findAdSub(url)
+            if (sub !== null) {
+              const title: string = (f['title'] as string) ?? ''
+              if (title !== '') {
+                adBlockSubsStore.edit(sub, title, url, false)
+              }
+              adBlockSubsStore.toggle(sub, (f['enabled'] as boolean) ?? true)
+            }
+            continue
+          }
+          const script: Object | undefined = rec['script']
+          if (script !== undefined) {
+            const s: Record<string, Object> = script as Record<string, Object>
+            const path: string = (s['path'] as string) ?? ''
+            if (path === '') {
+              continue
+            }
+            const meta: ViaScriptMeta = new ViaScriptMeta()
+            meta.url = (s['url'] as string) ?? ''
+            meta.enabled = (s['enabled'] as boolean) ?? true
+            scriptMeta[path] = meta
+          }
+        }
+      }
+      // 用户脚本：目录内全部 script-*.txt（含 settings.txt 未登记的本地脚本），按 settings 元数据带更新源/开关
+      const names: string[] = fileIo.listFileSync(base)
+      let scriptsImported: number = 0
+      for (const name of names) {
+        if (!name.startsWith('script-') || !name.endsWith('.txt')) {
+          continue
+        }
+        const code: string = DataBackupViewModel.readTextSync(`${base}/${name}`)
+        if (code.indexOf('==UserScript==') < 0) {
+          logger.warn('importVia', `跳过非用户脚本文件: ${name}`)
+          continue
+        }
+        const meta: ViaScriptMeta | undefined = scriptMeta[name]
+        await scriptVM.addFromCode(code, meta === undefined ? '' : meta.url)
+        scriptsImported++
+        // Via 中已停用的脚本还原停用状态
+        if (meta !== undefined && !meta.enabled) {
+          const parsedName: string = UserScriptEngine.parseMeta(code).name
+          const saved: UserScriptInfo | null = await this.getUserScriptDB().queryByName(parsedName)
+          if (saved !== null) {
+            saved.enabled = false
+            await this.getUserScriptDB().update(saved)
+          }
+        }
+      }
+      if (scriptsImported > 0) {
+        await scriptVM.loadAll()
+      }
+      // 会话标签：按更新时间降序去重（含当前已开标签），导入至剩余标签容量上限
+      const tabsPath: string = `${base}/tabs.txt`
+      if (DataBackupViewModel.exists(tabsPath)) {
+        const entries: ViaTabEntry[] = []
+        const tabLines: string[] = DataBackupViewModel.readTextSync(tabsPath).split('\n')
+        for (const line of tabLines) {
+          const rec: Record<string, Object> | null = DataBackupViewModel.parseJsonLine(line)
+          if (rec === null) {
+            continue
+          }
+          const url: string = (rec['url'] as string) ?? ''
+          if (url === '' || url.startsWith('about:')) {
+            continue
+          }
+          const e: ViaTabEntry = new ViaTabEntry()
+          e.title = (rec['title'] as string) ?? url
+          e.url = url
+          e.updated = (rec['updated_at'] as number) ?? 0
+          entries.push(e)
+        }
+        entries.sort((a: ViaTabEntry, b: ViaTabEntry): number => b.updated - a.updated)
+        const seen: Set<string> = new Set<string>()
+        for (const t of tabsVM.tabs) {
+          seen.add(t.url)
+        }
+        const capacity: number = AppConstants.MAX_TABS - tabsVM.tabs.length
+        const origActive: number = tabsVM.activeTabId
+        let restored: number = 0
+        for (const e of entries) {
+          if (restored >= capacity) {
+            break
+          }
+          if (seen.has(e.url)) {
+            continue
+          }
+          seen.add(e.url)
+          tabsVM.newTab(e.url, false, false, true)
+          restored++
+        }
+        if (restored > 0) {
+          tabsVM.switchTab(origActive)
+        }
+        logger.info('importVia', `会话标签导入 ${restored} 个`)
+      }
+      // 主页背景：bg.jpg 转存 home_media/bg.png 并设为背景
+      const bgPath: string = `${base}/bg.jpg`
+      if (DataBackupViewModel.exists(bgPath)) {
+        const dir: string = HomeImageUtil.ensureDir(`${_QhState.Context.filesDir}/home_media`)
+        if (await HomeImageUtil.savePicked(bgPath, `${dir}/bg.png`, 2560, 100)) {
+          appSettings.home_bg_image = `${dir}/bg.png`
+          appSettings.save()
+        } else {
+          logger.warn('importVia', 'bg.jpg 转存失败，跳过主页背景')
+        }
+      }
+      logger.info('importVia', `Via 导出导入完成：${imported} 条书签/收藏，${scriptsImported} 个脚本`)
+      return true
+    } catch (e) {
+      logger.error('importVia', `${e}`)
+      return false
+    }
+  }
+
+  /** Via 导出目录特征：settings.txt + （bookmarks.html / favorites.txt / history.txt）任一 */
+  private static isViaExportDir(dir: string): boolean {
+    return DataBackupViewModel.exists(`${dir}/settings.txt`)
+      && (DataBackupViewModel.exists(`${dir}/bookmarks.html`)
+        || DataBackupViewModel.exists(`${dir}/favorites.txt`)
+        || DataBackupViewModel.exists(`${dir}/history.txt`))
+  }
+
+  /** 根目录或一级子目录中定位 Via 导出目录，未找到返回 null */
+  private static findViaBase(root: string): string | null {
+    if (DataBackupViewModel.isViaExportDir(root)) {
+      return root
+    }
+    const names: string[] = fileIo.listFileSync(root)
+    for (const name of names) {
+      const candidate: string = `${root}/${name}`
+      if (DataBackupViewModel.exists(`${candidate}/settings.txt`)
+        && DataBackupViewModel.isViaExportDir(candidate)) {
+        return candidate
+      }
+    }
+    return null
+  }
+
+  /** 文件/目录是否存在（不抛异常） */
+  private static exists(path: string): boolean {
+    try {
+      return fileIo.accessSync(path)
+    } catch (e) {
+      return false
+    }
+  }
+
+  /** 解析单行 JSON（空行/坏行返回 null），Via 导出的 txt 均为按行 JSON */
+  private static parseJsonLine(line: string): Record<string, Object> | null {
+    const t: string = line.trim()
+    if (t === '') {
+      return null
+    }
+    try {
+      return JSON.parse(t) as Record<string, Object>
+    } catch (e) {
+      return null
     }
   }
 

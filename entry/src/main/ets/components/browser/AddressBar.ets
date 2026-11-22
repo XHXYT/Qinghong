@@ -11,6 +11,7 @@ import { menuVM } from '../../viewmodel/MenuViewModel';
 import { searchVM } from '../../viewmodel/SearchViewModel';
 import { SearchSuggestPanel } from './SearchSuggestPanel';
 import { ExtToolbarButton } from '../extension/ExtToolbarButton';
+import { ExtPinnedIcons } from '../extension/ExtPinnedIcons';
 import { EXT_SCHEME_PREFIX } from '../../common/utils/extension/ExtensionResources';
 
 /**
@@ -57,7 +58,7 @@ export struct AddressEntryIcon {
           })
       }, (e: ToolbarEngineEntry) => e.id)
     }
-    .backgroundColor($r('app.color.start_window_background'))
+    .backgroundColor($r('app.color.background_color'))
     .borderRadius(16)
   }
 
@@ -189,8 +190,9 @@ export struct AddressBar {
               browserVM.refresh()
             })
 
-          // 扩展入口（拼图按钮：刷新按钮右侧，菜单向下/向上随布局；操作栏设置开关 + 扩展总开关控制）
+          // 扩展入口（固定图标列 + 拼图按钮：刷新按钮右侧，菜单向下/向上随布局；操作栏设置开关 + 扩展总开关控制）
           if (UISettings.show_extension_button && appSettings.extension_enabled) {
+            ExtPinnedIcons({ anchor: this.suggestBelow ? 'top' : 'bottom' })
             ExtToolbarButton({ anchor: this.suggestBelow ? 'top' : 'bottom' })
           }
         }
@@ -247,8 +249,9 @@ export struct AddressBar {
               menuVM.startScan()
             })
 
-          // 扩展入口（主页态常驻右上角，与网页态地址栏一致，便于随时打开扩展 popup；操作栏设置开关 + 扩展总开关控制）
+          // 扩展入口（固定图标列 + 拼图按钮：主页态常驻右上角，与网页态地址栏一致，便于随时打开扩展 popup；操作栏设置开关 + 扩展总开关控制）
           if (UISettings.show_extension_button && appSettings.extension_enabled) {
+            ExtPinnedIcons({ anchor: this.suggestBelow ? 'top' : 'bottom', bar: 'addr' })
             ExtToolbarButton({ anchor: this.suggestBelow ? 'top' : 'bottom', bar: 'addr' })
           }
         }

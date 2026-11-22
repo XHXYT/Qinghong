@@ -967,7 +967,7 @@ struct HomeCustomizePage {
           .align(Alignment.Top)
           .scrollBar(BarState.Auto)
           .edgeEffect(EdgeEffect.Spring)
-          .backgroundColor($r('app.color.start_window_background'))
+          .backgroundColor($r('app.color.background_color'))
           .borderRadius({ topLeft: 20, topRight: 20 })
           .shadow({ radius: 12, color: 'rgba(0,0,0,0.12)', offsetY: -4 })
           .transition(TransitionEffect.translate({ y: 420 })
@@ -1039,7 +1039,7 @@ struct HomeCustomizePage {
         .width('100%')
         .padding({ left: 16, right: 16, top: 8, bottom: 8 + QhState.bottomRectHeight })
         .justifyContent(FlexAlign.Start)
-        .backgroundColor($r('app.color.start_window_background'))
+        .backgroundColor($r('app.color.background_color'))
         .borderRadius({ topLeft: 20, topRight: 20 })
         .shadow({ radius: 8, color: 'rgba(0,0,0,0.06)', offsetY: -2 })
       }

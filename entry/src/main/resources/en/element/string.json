@@ -565,6 +565,10 @@
       "value": "This extension has no popup"
     },
     {
+      "name": "ext_unpin",
+      "value": "Unpinned"
+    },
+    {
       "name": "ext_store_install",
       "value": "Add extension"
     },

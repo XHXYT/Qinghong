@@ -272,7 +272,7 @@ export struct NaviContainer {
           })
       }, (mi: ContextMenuItem, index: number) => `${index}`)
     }
-    .backgroundColor($r('app.color.start_window_background'))
+    .backgroundColor($r('app.color.background_color'))
     .borderRadius(UIConstants.BORDER_RADIUS_20)
   }
 

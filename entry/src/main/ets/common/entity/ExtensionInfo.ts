@@ -82,6 +82,17 @@ export default class ExtensionInfo {
   enabled: boolean = true;
 
   /**
+   * 是否固定到工具栏（PC 浏览器 pin 语义）
+   */
+  @Column({
+    name: 'pinned',
+    type: 'BOOLEAN',
+    notNull: true,
+    defaultValue: false
+  })
+  pinned: boolean = false;
+
+  /**
    * 解包目录（相对应用沙箱，如 extensions/<extId>）
    */
   @Column({

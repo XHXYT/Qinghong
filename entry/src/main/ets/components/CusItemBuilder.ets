@@ -217,7 +217,7 @@ export struct CustomListItem {
           })
       }, (mi: ContextMenuItem, index: number) => `${index}`)
     }
-    .backgroundColor($r("app.color.start_window_background"))
+    .backgroundColor($r("app.color.background_color"))
     .borderRadius(UIConstants.BORDER_RADIUS_20)
   }
 }
@@ -362,7 +362,7 @@ export function MenuSelectWitch(item: CustomItemInfo, onSelect: (item: MenuOptio
       }).key((menu: MenuOption) => menu.value.toString())
   }
   .menuItemDivider({ color: $r("sys.color.alert_divider_color"), strokeWidth: LengthMetrics.vp(1), startMargin: LengthMetrics.vp(UIConstants.PADDING_VALUE_12), endMargin: LengthMetrics.vp(UIConstants.PADDING_VALUE_12) })
-  .backgroundColor($r("app.color.start_window_background"))
+  .backgroundColor($r("app.color.background_color"))
   .borderRadius(UIConstants.BORDER_RADIUS_20)
 }
 

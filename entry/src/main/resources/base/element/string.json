@@ -565,6 +565,10 @@
       "value": "该扩展没有弹出页面"
     },
     {
+      "name": "ext_unpin",
+      "value": "已取消固定"
+    },
+    {
       "name": "ext_store_install",
       "value": "添加扩展"
     },
