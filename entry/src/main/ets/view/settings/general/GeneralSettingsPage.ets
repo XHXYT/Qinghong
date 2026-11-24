@@ -16,6 +16,7 @@ import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
 import { DataClearer } from '../../../common/utils/app/DataClearer';
 import { SettingsUtils } from '../../../common/utils/app/SettingsUtils';
 import { AppConstants } from '../../../common/constants/AppConstants';
+import { StatusBarSync } from '../../../common/utils/ui/StatusBarSync';
 
 const CLEAR_KEYS: string[] = DataClearer.KEYS;
 
@@ -453,6 +454,8 @@ struct GeneralSettingsPage {
         return
       }
       appSettings.home_page_mode = v
+      // 主页模式切换影响主页沉浸判定，状态栏图标色需重算
+      StatusBarSync.sync()
       this.setItemValue('home_page', ResourceUtils.getString(homeModeLabel(v)))
     })
   }
@@ -468,6 +471,8 @@ struct GeneralSettingsPage {
     }
     appSettings.home_page_url = url
     appSettings.home_page_mode = 'web'
+    // 离开沉浸主页，状态栏图标色还原默认
+    StatusBarSync.sync()
     this.setItemValue('home_page', ResourceUtils.getString(homeModeLabel('web')))
   }
 

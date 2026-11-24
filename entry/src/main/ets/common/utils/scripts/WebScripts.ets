@@ -448,7 +448,9 @@ export class WebScripts {
         "try{" +
         "if(!u){return;}" +
         "u=abs(String(u));" +
-        "if(!/^https?:/i.test(u)){return;}" +
+        // 协议过滤：http(s) 任意上报走扩展名判定；blob: 仅在显式 kind（元素检测）
+        // 时放行（MSE 无扩展名视频，悬浮按钮依赖此路径）
+        "if(!/^https?:/i.test(u)){if(!(k&&/^blob:/i.test(u))){return;}}" +
         "k=k||'';" +
         "if(!k){if(VE.test(u)){k='video';}else if(AE.test(u)){k='audio';}}" +
         "if(!k){return;}" +
@@ -458,6 +460,12 @@ export class WebScripts {
         "else if(window.parent!==window){try{window.parent.postMessage({__qhSniff:{u:u,k:k}},'*');}catch(e){}}" +
         "}catch(e){}" +
         "}" +
+        // 元素 kind：video/audio 元素本身即媒体证据（扩展名无关）
+        "function ekind(el){return el.tagName==='VIDEO'?'video':(el.tagName==='AUDIO'?'audio':'');}" +
+        // 任意媒体元素起播即上报（捕获监听，MSE/晚起播/无扩展名 URL 兜底）
+        "document.addEventListener('playing',function(ev){" +
+        "try{var t=ev.target;if(t&&(t.tagName==='VIDEO'||t.tagName==='AUDIO')){rep(t.currentSrc||t.src||'',ekind(t));}}catch(e){}" +
+        "},true);" +
         "window.addEventListener('message',function(ev){" +
         "try{var d=ev.data;" +
         "if(d&&typeof d==='object'&&d.__qhSniff&&d.__qhSniff.u){rep(d.__qhSniff.u,d.__qhSniff.k||'');}" +
@@ -474,7 +482,7 @@ export class WebScripts {
         "}catch(e){}" +
         "try{" +
         "var els=document.querySelectorAll('video,audio,source');" +
-        "for(var i=0;i<els.length;i++){rep(els[i].currentSrc||els[i].src||'','');}" +
+        "for(var i=0;i<els.length;i++){rep(els[i].currentSrc||els[i].src||'',ekind(els[i]));}" +
         "}catch(e){}" +
         "}" +
         "function sched(){scan();setTimeout(scan,1500);setTimeout(scan,4000);}" +
@@ -485,7 +493,7 @@ export class WebScripts {
         "if(d&&d.set){" +
         "Object.defineProperty(HTMLMediaElement.prototype,'src',{configurable:true,enumerable:d.enumerable," +
         "get:function(){return d.get.call(this);}," +
-        "set:function(v){rep(v,'');return d.set.call(this,v);}});" +
+        "set:function(v){rep(v,ekind(this));return d.set.call(this,v);}});" +
         "}" +
         "}catch(e){}" +
         "try{" +

@@ -149,11 +149,14 @@ export struct MergedActionBar {
     return addressDisplayText(tab.url, tab.title)
   }
 
-  /** 地址胶囊底色：色彩模式且位于顶部时按页面色深浅取半透明黑/白；主页沉浸时按主页背景明暗取半透明底 */
+  /** 地址胶囊底色：色彩模式按所在位置的页面条带色（顶=页面顶色，底=视口底部条带色）深浅取半透明黑/白；主页沉浸时按主页背景明暗取半透明底 */
   private pillBg(): ResourceColor {
     const tab = tabsVM.activeTab
-    if (this.barPosition === 'top' && UISettings.action_bar_color_mode && tab !== null && tab.themeColor !== '') {
-      return ActionBarColor.isDarkColor(tab.themeColor) ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)'
+    if (UISettings.action_bar_color_mode && tab !== null) {
+      const color: string = this.barPosition === 'top' ? tab.themeColor : tab.themeColorBottom
+      if (color !== '') {
+        return ActionBarColor.isDarkColor(color) ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)'
+      }
     }
     if (HomeImmersive.active()) {
       return homeBg.dark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.06)'

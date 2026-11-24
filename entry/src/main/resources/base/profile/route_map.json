@@ -206,11 +206,6 @@
       "buildFunction": "VideoSettingsBuilder"
     },
     {
-      "name": "settings_video_control",
-      "pageSourceFile": "src/main/ets/view/settings/general/VideoControlPage.ets",
-      "buildFunction": "VideoControlBuilder"
-    },
-    {
       "name": "settings_dns",
       "pageSourceFile": "src/main/ets/view/settings/general/DnsPage.ets",
       "buildFunction": "DnsSettingsBuilder"

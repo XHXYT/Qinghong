@@ -2125,16 +2125,16 @@
       "value": "外置视频播放器"
     },
     {
+      "name": "video_settings",
+      "value": "视频设置"
+    },
+    {
       "name": "vp_none",
       "value": "不使用"
     },
     {
       "name": "vp_system",
       "value": "系统播放器"
-    },
-    {
-      "name": "video_settings",
-      "value": "视频设置"
     },
     {
       "name": "video_settings_group_player",
@@ -2150,7 +2150,7 @@
     },
     {
       "name": "video_control_desc",
-      "value": "双击快进、滑动调节、长按倍速与键盘快捷键"
+      "value": "双击分区、滑动调节、长按倍速与键盘快捷键"
     },
     {
       "name": "video_control_group_gestures",
@@ -2166,19 +2166,31 @@
     },
     {
       "name": "video_gesture_enable_desc",
-      "value": "在网页视频上使用触屏手势控制播放"
+      "value": "控制手势是否作用于网页内视频"
     },
     {
-      "name": "video_gesture_disabled_hint",
-      "value": "请先开启视频手势"
+      "name": "video_dtap_left",
+      "value": "左区双击"
     },
     {
-      "name": "video_gesture_double_tap",
-      "value": "双击快进/快退"
+      "name": "video_dtap_left_desc",
+      "value": "双击屏幕左 1/3 区域执行的动作"
     },
     {
-      "name": "video_gesture_double_tap_desc",
-      "value": "双击视频左侧快退10秒，右侧快进10秒"
+      "name": "video_dtap_middle",
+      "value": "中区双击"
+    },
+    {
+      "name": "video_dtap_middle_desc",
+      "value": "双击屏幕中间 1/3 区域执行的动作"
+    },
+    {
+      "name": "video_dtap_right",
+      "value": "右区双击"
+    },
+    {
+      "name": "video_dtap_right_desc",
+      "value": "双击屏幕右 1/3 区域执行的动作"
     },
     {
       "name": "video_gesture_swipe_seek",
@@ -2189,20 +2201,20 @@
       "value": "按住视频左右滑动调整进度，松开生效"
     },
     {
-      "name": "video_gesture_side_slide",
-      "value": "上下滑调亮度音量"
+      "name": "video_slide_left",
+      "value": "左侧上下滑"
     },
     {
-      "name": "video_gesture_side_slide_desc",
-      "value": "全屏时左侧上下滑动调亮度，右侧调音量"
+      "name": "video_slide_left_desc",
+      "value": "全屏时屏幕左半侧上下滑动的调节项"
     },
     {
-      "name": "video_gesture_tap_toggle",
-      "value": "单击暂停/播放"
+      "name": "video_slide_right",
+      "value": "右侧上下滑"
     },
     {
-      "name": "video_gesture_tap_toggle_desc",
-      "value": "单击视频区域切换暂停与播放"
+      "name": "video_slide_right_desc",
+      "value": "全屏时屏幕右半侧上下滑动的调节项"
     },
     {
       "name": "video_gesture_long_press",
@@ -2210,7 +2222,39 @@
     },
     {
       "name": "video_gesture_long_press_desc",
-      "value": "长按视频以3倍速播放，松开恢复"
+      "value": "长按视频临时加速播放，松开恢复"
+    },
+    {
+      "name": "video_dtap_sec",
+      "value": "跳转秒数"
+    },
+    {
+      "name": "video_dtap_sec_desc",
+      "value": "双击快退或快进时跳转的秒数"
+    },
+    {
+      "name": "video_action_none",
+      "value": "无"
+    },
+    {
+      "name": "video_action_rewind",
+      "value": "快退"
+    },
+    {
+      "name": "video_action_forward",
+      "value": "快进"
+    },
+    {
+      "name": "video_action_playpause",
+      "value": "播放/暂停"
+    },
+    {
+      "name": "video_action_brightness",
+      "value": "调节亮度"
+    },
+    {
+      "name": "video_action_volume",
+      "value": "调节音量"
     },
     {
       "name": "video_keyboard_shortcuts",
@@ -2871,6 +2915,38 @@
     {
       "name": "video_host_play_failed",
       "value": "视频播放失败"
+    },
+    {
+      "name": "video_fullscreen",
+      "value": "全屏播放"
+    },
+    {
+      "name": "video_fs_no_video",
+      "value": "未发现正在播放的视频"
+    },
+    {
+      "name": "video_fs_live",
+      "value": "直播"
+    },
+    {
+      "name": "video_fs_boost",
+      "value": "3X 倍速中"
+    },
+    {
+      "name": "video_pip_unsupported",
+      "value": "当前网页不支持小窗播放"
+    },
+    {
+      "name": "video_pip_fail",
+      "value": "小窗播放启动失败"
+    },
+    {
+      "name": "video_cast_unsupported",
+      "value": "当前网页不支持投屏"
+    },
+    {
+      "name": "video_cast_fail",
+      "value": "投屏启动失败"
     },
     {
       "name": "cast_play",
@@ -3626,6 +3702,7 @@
   { "name": "bookmark_bar", "value": "书签栏" },
   { "name": "parent_folder", "value": "返回上级" },
     { "name": "tab_bar_layout_hint", "value": "标签栏需配合工具栏在上或在下的布局使用，请选择：" },
+    { "name": "address_bar", "value": "地址栏" },
     { "name": "address_bar_content", "value": "地址栏内容" },
     { "name": "address_content_title", "value": "标题" },
     { "name": "address_content_url", "value": "地址" },

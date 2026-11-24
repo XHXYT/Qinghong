@@ -13,6 +13,7 @@ import { SiteSettingsViewModel, siteSettingsVM } from './SiteSettingsViewModel';
 import { ViewSourceScripts } from '../common/utils/scripts/ViewSourceScripts';
 import { VideoFullScreen } from '../common/utils/ui/VideoFullScreen';
 import { WebHostedPlayerSession } from '../components/browser/WebHostedPlayer';
+import { StatusBarSync } from '../common/utils/ui/StatusBarSync';
 
 const logger = createLogger('TabsViewModel')
 
@@ -63,10 +64,34 @@ export class TabInfo {
   @Trace themeColor: string = ''
   /** 页面顶部渐变第二色（色彩模式渐变延续模拟用；'' = 纯色） */
   @Trace themeColor2: string = ''
+  /** 页面视口底部条带色（色彩模式底部栏自适应用；'' = 未提取） */
+  @Trace themeColorBottom: string = ''
   /** 操作栏隐藏态（自动隐藏：滑动/点击切换；按标签记忆，导航时重置） */
   @Trace actionBarHidden: boolean = false
   /** 网页视频全屏中（HTML5 全屏请求：应用隐藏所有栏，视频区铺满全屏） */
   @Trace videoFullScreen: boolean = false
+  /** 全屏播放待处理（网页助手菜单「全屏播放」触发置 true，onFullScreenEnter 消费置 false） */
+  @Trace nativeFsPending: boolean = false
+  /** 全屏播放原生控制层激活（菜单触发的全屏：原生控制层覆盖 Web 接管交互；退出全屏复位） */
+  @Trace videoNativeOverlay: boolean = false
+  /** 全屏播放：视频当前播放位置（秒，状态桥上报） */
+  @Trace videoPos: number = 0
+  /** 全屏播放：视频时长（秒；0 = 直播/未知） */
+  @Trace videoDur: number = 0
+  /** 全屏播放：播放中（状态桥上报） */
+  @Trace videoPlaying: boolean = false
+  /** 全屏播放：视频音量 0-1（注入脚本设 video.volume，状态桥回填确认） */
+  @Trace videoVol: number = 1
+  /** 全屏播放：已静音（整页静音原生直控 setAudioMuted） */
+  @Trace videoMuted: boolean = false
+  /** 全屏播放：播放倍速（状态桥上报） */
+  @Trace videoRate: number = 1
+  /** 全屏播放：缓冲进度（秒，状态桥上报） */
+  @Trace videoBuf: number = 0
+  /** 全屏播放：网页支持 Web 标准画中画（requestPictureInPicture，内核自适应） */
+  @Trace videoPip: boolean = false
+  /** 全屏播放：网页支持 Web 标准投屏（Remote Playback API，内核自适应） */
+  @Trace videoCast: boolean = false
   /** 视频托管待触发（一次性：网页助手菜单触发置 true，页面刷新后内核接管首个 URL 视频并消费；不持久化） */
   @Trace pendingHostVideo: boolean = false
   /** 视频托管会话（内核接管后创建；null = 未托管）。全屏托管播放器挂 Index 根层 */
@@ -538,6 +563,8 @@ export class TabsViewModel {
     this.activeTabId = id
     this.emitTabEvent('activated', this.tabById(id))
     this.saveSessionDebounced()
+    // 状态栏图标色随新活动标签的页面色重新计算
+    StatusBarSync.sync()
   }
 
   /**
@@ -717,6 +744,8 @@ export class TabsViewModel {
     // 全屏中的标签被关闭：恢复系统栏与方向（Web 随标签销毁不会再回调退出）
     if (tab.videoFullScreen) {
       tab.videoFullScreen = false
+      tab.videoNativeOverlay = false
+      tab.nativeFsPending = false
       tab.videoExitHandler = null
       VideoFullScreen.exit()
     }

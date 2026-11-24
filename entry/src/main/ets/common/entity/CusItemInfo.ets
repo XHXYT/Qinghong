@@ -133,6 +133,7 @@ export enum ItemActionType {
   ROUTER_BLANK = 'Router_Blank', // 跳转(不含箭头)
   TEXT = 'Text', // 纯文本展示
   INPUT = 'Input', // 输入框
+  INPUT_INLINE = 'Input_Inline', // 行内输入框（标题在左，右侧小输入框）
   BUTTON = 'Button', // 按钮
   RADIO = 'Radio', // 单选
   CHECK = 'Check', // 多选

@@ -9,6 +9,7 @@ import { webview } from '@kit.ArkWeb';
 import { HomepageView, HomeBgLayer } from '../components/browser/HomepageView';
 import { HomeImmersive } from '../common/utils/home/HomeImmersive';
 import { homeBg } from '../common/utils/home/HomeBg';
+import { StatusBarSync } from '../common/utils/ui/StatusBarSync';
 import { HomeHtmlView } from '../components/browser/HomeHtmlView';
 import { HomeBookmarksView } from '../components/browser/HomeBookmarksView';
 import { AddressBar } from '../components/browser/AddressBar';
@@ -299,6 +300,13 @@ struct Index {
           assistantVM.triggerVideoHosting()
         })
       MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_up_left_and_arrow_down_right')),
+        content: $r('app.string.video_fullscreen')
+      })
+        .onClick(() => {
+          assistantVM.triggerNativeFullscreen()
+        })
+      MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.screen_share')),
         content: $r('app.string.cast_play')
       })
@@ -329,8 +337,8 @@ struct Index {
     if (this.mergedTop()) {
       return true
     }
-    // 传统布局：顶部地址栏在位，其背景延伸至状态栏（双底/底部布局顶部无栏）
-    return !this.mergedBottom() && !this.doubleBottom()
+    // 传统布局：顶部地址栏在位，其背景延伸至状态栏（双底/底部布局顶部无栏；地址栏关闭后顶部无栏）
+    return !this.mergedBottom() && !this.doubleBottom() && UISettings.show_address_bar
   }
 
   /** 状态栏沉浸色条颜色：与最顶行栏背景一致（含色彩模式；渐变时为透明，由顶栏组延续渐变覆盖状态栏区域） */
@@ -375,6 +383,8 @@ struct Index {
   @Monitor('homeTabActive')
   onHomeTabActiveChange(): void {
     this.applyKeyboardAvoid()
+    // 进出主页：状态栏图标色按主页沉浸背景明暗重算
+    StatusBarSync.sync()
   }
 
   /** 活动标签 id（供 @Monitor 驱动 DevTools 停靠目标切换） */
@@ -664,30 +674,40 @@ struct Index {
         Stack({ alignContent: Alignment.Top }) {
           Column() {
             // 顶部操作区：合并栏在上（标签栏常驻其正上方、书签栏贴其下方）/ 传统布局地址栏；底部布局组此处留空
-            if (!this.readerActive() && !this.barsHidden() && !browserVM.gameMode) {
-              Column() {
-                if (this.mergedTop()) {
-                  if (this.showTabBarRow()) {
-                    TabBar()
+            if (!this.readerActive() && !browserVM.gameMode) {
+              // 槽位包裹层：背景/渐变即时就位（不随栏滑入位移），过渡期间先填满栏位，避免露出外层容器底色
+              Stack() {
+                if (!this.barsHidden()) {
+                  Column() {
+                    if (this.mergedTop()) {
+                      if (this.showTabBarRow()) {
+                        TabBar()
+                      }
+                      MergedActionBar({ barPosition: 'top' })
+                        // 抬升合并栏层级：搜索联想面板向下溢出渲染时不被后绘制的书签栏覆盖
+                        .zIndex(1)
+                      if (UISettings.show_bookmark_bar) {
+                        BookmarkBar()
+                      } else {
+                        // 操作栏与 web 内容间距（书签栏开启时由书签栏承担过渡）
+                        Column()
+                          .width('100%')
+                          .height(3)
+                      }
+                    } else if (!this.mergedBottom() && !this.doubleBottom() && UISettings.show_address_bar) {
+                      AddressBar()
+                    }
                   }
-                  MergedActionBar({ barPosition: 'top' })
-                    // 抬升合并栏层级：搜索联想面板向下溢出渲染时不被后绘制的书签栏覆盖
-                    .zIndex(1)
-                  if (UISettings.show_bookmark_bar) {
-                    BookmarkBar()
-                  } else {
-                    // 操作栏与 web 内容间距（书签栏开启时由书签栏承担过渡）
-                    Column()
-                      .width('100%')
-                      .height(3)
-                  }
-                } else if (!this.mergedBottom() && !this.doubleBottom()) {
-                  AddressBar()
+                  .width('100%')
+                  // 顶部避让内化为栏容器内边距：背景层不再被整体推下，主页背景可铺至状态栏
+                  .padding({ top: QhState.topRectHeight })
+                  .transition(this.barTransition('top'))
                 }
               }
               .width('100%')
-              // 顶部避让内化为栏容器内边距：背景层不再被整体推下，主页背景可铺至状态栏
-              .padding({ top: QhState.topRectHeight })
+              // 槽位即时底色（主页沉浸时透明，透出主页背景层）
+              .backgroundColor(this.homeImmersive() ? Color.Transparent
+                : ActionBarColor.bg($r('sys.color.comp_background_primary')))
               // 色彩模式：页面顶部渐变的延续模拟（含状态栏内边距区域，下端衔接页面顶色；纯色时为全透明不绘制）
               .linearGradient(ActionBarColor.gradient())
               // 抬升顶部栏层级：地址栏搜索联想面板可覆盖内容区渲染
@@ -794,10 +814,11 @@ struct Index {
             })
             // 仅栏隐藏且查找栏在底时避让小白条；合并上布局网页直接铺至屏幕底边
             .padding({ bottom: this.needsBottomPadding() ? QhState.bottomRectHeight : 0 })
-            // 主页沉浸时背景由全屏主页背景层接管，内容区透明
+            // 主页沉浸时背景由全屏主页背景层接管，内容区透明；
+            // 色彩模式跟随底栏色（页面视口底部条带色）：栏滑动/网页尺寸变化过渡期露出的容器层不再泛白
             .backgroundColor(this.homeImmersive()
               ? Color.Transparent
-              : $r('app.color.background_color_accent'))
+              : ActionBarColor.bg($r('app.color.background_color_accent'), false))
             // HTML 主页沉浸时内容区穿透触摸给底层全屏 Web
             .hitTestBehavior(this.htmlHomeFull()
               ? HitTestMode.Transparent
@@ -808,24 +829,36 @@ struct Index {
             }
 
             // 底部操作区：合并栏在下（标签栏常驻其正上方、书签栏贴其上方）/ 双行地址栏+工具栏 / 传统布局工具栏
-            if (!this.readerActive() && !this.barsHidden() && !browserVM.gameMode) {
-              Column() {
-                if (this.mergedBottom()) {
-                  if (UISettings.show_bookmark_bar) {
-                    BookmarkBar()
+            if (!this.readerActive() && !browserVM.gameMode) {
+              // 槽位包裹层：底色即时就位（不随栏上滑位移），滑入过渡期间先填满栏位，避免露出外层容器底色
+              Stack() {
+                if (!this.barsHidden()) {
+                  Column() {
+                    if (this.mergedBottom()) {
+                      if (UISettings.show_bookmark_bar) {
+                        BookmarkBar()
+                      }
+                      if (this.showTabBarRow()) {
+                        TabBar()
+                      }
+                      MergedActionBar({ barPosition: 'bottom' })
+                    } else if (this.doubleBottom()) {
+                      if (UISettings.show_address_bar) {
+                        AddressBar({ suggestBelow: false })
+                      }
+                      BrowserToolbar()
+                    } else if (!this.mergedTop()) {
+                      BrowserToolbar()
+                    }
                   }
-                  if (this.showTabBarRow()) {
-                    TabBar()
-                  }
-                  MergedActionBar({ barPosition: 'bottom' })
-                } else if (this.doubleBottom()) {
-                  AddressBar({ suggestBelow: false })
-                  BrowserToolbar()
-                } else if (!this.mergedTop()) {
-                  BrowserToolbar()
+                  .width('100%')
+                  .transition(this.barTransition('bottom'))
                 }
               }
               .width('100%')
+              // 槽位即时底色：与底栏一致（色彩模式取页面视口底部条带色；主页沉浸时透明透出主页背景层）
+              .backgroundColor(this.homeImmersive() ? Color.Transparent
+                : ActionBarColor.bg($r('sys.color.comp_background_primary'), false))
               .transition(this.barTransition('bottom'))
               // 实测底栏总高：定制页全屏预览按此还原真实主页栏占位
               .onAreaChange((_o: Area, n: Area): void => {
@@ -904,6 +937,8 @@ struct Index {
       }
       .width('100%')
       .height('100%')
+      // 根层底色兜底：窗口默认白底之上再铺应用背景（栏过渡/网页 resize 的任何露底不再泛白）
+      .backgroundColor($r('app.color.background_color_accent'))
       // 主页整窗快照目标（标签管理卡片：背景层与内容一次截全）
       .id('mainRoot')
       // 扩展 popup：居中半模态（SheetType.CENTER），内容为虚拟域 popup 文档

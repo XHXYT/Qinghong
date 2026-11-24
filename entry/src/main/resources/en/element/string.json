@@ -2125,16 +2125,16 @@
       "value": "External video player"
     },
     {
+      "name": "video_settings",
+      "value": "Video Settings"
+    },
+    {
       "name": "vp_none",
       "value": "None"
     },
     {
       "name": "vp_system",
       "value": "System player"
-    },
-    {
-      "name": "video_settings",
-      "value": "Video Settings"
     },
     {
       "name": "video_settings_group_player",
@@ -2150,7 +2150,7 @@
     },
     {
       "name": "video_control_desc",
-      "value": "Double-tap seek, swipe, long-press speed & keyboard shortcuts"
+      "value": "Zoned double-tap, swipe, long-press speed & keyboard shortcuts"
     },
     {
       "name": "video_control_group_gestures",
@@ -2166,19 +2166,31 @@
     },
     {
       "name": "video_gesture_enable_desc",
-      "value": "Control web videos with touch gestures"
+      "value": "Controls whether gestures apply to in-page videos"
     },
     {
-      "name": "video_gesture_disabled_hint",
-      "value": "Enable video gestures first"
+      "name": "video_dtap_left",
+      "value": "Left double-tap"
     },
     {
-      "name": "video_gesture_double_tap",
-      "value": "Double-tap seek"
+      "name": "video_dtap_left_desc",
+      "value": "Action for double-tapping the left third of the screen"
     },
     {
-      "name": "video_gesture_double_tap_desc",
-      "value": "Double-tap left to rewind 10s, right to forward 10s"
+      "name": "video_dtap_middle",
+      "value": "Middle double-tap"
+    },
+    {
+      "name": "video_dtap_middle_desc",
+      "value": "Action for double-tapping the middle third of the screen"
+    },
+    {
+      "name": "video_dtap_right",
+      "value": "Right double-tap"
+    },
+    {
+      "name": "video_dtap_right_desc",
+      "value": "Action for double-tapping the right third of the screen"
     },
     {
       "name": "video_gesture_swipe_seek",
@@ -2189,20 +2201,20 @@
       "value": "Hold and swipe horizontally on the video, release to apply"
     },
     {
-      "name": "video_gesture_side_slide",
-      "value": "Slide for brightness & volume"
+      "name": "video_slide_left",
+      "value": "Left vertical slide"
     },
     {
-      "name": "video_gesture_side_slide_desc",
-      "value": "In fullscreen, slide vertically on the left for brightness, right for volume"
+      "name": "video_slide_left_desc",
+      "value": "Adjusted by sliding vertically on the left half in fullscreen"
     },
     {
-      "name": "video_gesture_tap_toggle",
-      "value": "Tap to play/pause"
+      "name": "video_slide_right",
+      "value": "Right vertical slide"
     },
     {
-      "name": "video_gesture_tap_toggle_desc",
-      "value": "Tap the video area to toggle playback"
+      "name": "video_slide_right_desc",
+      "value": "Adjusted by sliding vertically on the right half in fullscreen"
     },
     {
       "name": "video_gesture_long_press",
@@ -2210,7 +2222,39 @@
     },
     {
       "name": "video_gesture_long_press_desc",
-      "value": "Hold the video for 3x speed, release to restore"
+      "value": "Hold the video for a temporary speed boost, release to restore"
+    },
+    {
+      "name": "video_dtap_sec",
+      "value": "Seek seconds"
+    },
+    {
+      "name": "video_dtap_sec_desc",
+      "value": "Seconds to seek on double-tap rewind or forward"
+    },
+    {
+      "name": "video_action_none",
+      "value": "None"
+    },
+    {
+      "name": "video_action_rewind",
+      "value": "Rewind"
+    },
+    {
+      "name": "video_action_forward",
+      "value": "Forward"
+    },
+    {
+      "name": "video_action_playpause",
+      "value": "Play/Pause"
+    },
+    {
+      "name": "video_action_brightness",
+      "value": "Brightness"
+    },
+    {
+      "name": "video_action_volume",
+      "value": "Volume"
     },
     {
       "name": "video_keyboard_shortcuts",
@@ -2871,6 +2915,38 @@
     {
       "name": "video_host_play_failed",
       "value": "Playback failed"
+    },
+    {
+      "name": "video_fullscreen",
+      "value": "Fullscreen playback"
+    },
+    {
+      "name": "video_fs_no_video",
+      "value": "No playing video found"
+    },
+    {
+      "name": "video_fs_live",
+      "value": "LIVE"
+    },
+    {
+      "name": "video_fs_boost",
+      "value": "3X speed"
+    },
+    {
+      "name": "video_pip_unsupported",
+      "value": "Picture-in-picture is not supported by this page"
+    },
+    {
+      "name": "video_pip_fail",
+      "value": "Failed to start picture-in-picture"
+    },
+    {
+      "name": "video_cast_unsupported",
+      "value": "Casting is not supported by this page"
+    },
+    {
+      "name": "video_cast_fail",
+      "value": "Failed to start casting"
     },
     {
       "name": "cast_play",
@@ -3626,6 +3702,7 @@
   { "name": "bookmark_bar", "value": "Bookmark bar" },
   { "name": "parent_folder", "value": "Parent folder" },
     { "name": "tab_bar_layout_hint", "value": "Tab bar requires toolbar on top or bottom. Please choose:" },
+    { "name": "address_bar", "value": "Address bar" },
     { "name": "address_bar_content", "value": "Address bar content" },
     { "name": "address_content_title", "value": "Title" },
     { "name": "address_content_url", "value": "Address" },

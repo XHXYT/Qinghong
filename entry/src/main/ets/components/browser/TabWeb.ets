@@ -23,6 +23,7 @@ import { WebHostedPlayerSession } from './WebHostedPlayer';
 import { ReaderScripts } from '../../common/utils/scripts/ReaderScripts';
 import { ViewSourceScripts } from '../../common/utils/scripts/ViewSourceScripts';
 import { SitePolicy, SiteSettingsViewModel, siteSettingsVM } from '../../viewmodel/SiteSettingsViewModel';
+import { StatusBarSync } from '../../common/utils/ui/StatusBarSync';
 import { hostsVM } from '../../viewmodel/HostsViewModel';
 import { passwordVM, PasswordDecision } from '../../viewmodel/PasswordViewModel';
 import PasswordInfo from '../../common/entity/PasswordInfo';
@@ -50,6 +51,18 @@ interface SelectionRect {
   w: number
   h: number
   iw: number
+}
+
+/** 全屏播放状态桥上报的原始 JSON（字段经 typeof 校验后拷入 TabInfo 视频状态字段；vo 回填音量，mu 不回填：videoMuted 为整页静音状态由原生维护；pip/cast 为 Web 标准能力旗标驱动按钮显隐） */
+interface VideoStateRaw {
+  p?: number
+  d?: number
+  pl?: boolean
+  vo?: number
+  r?: number
+  b?: number
+  pip?: number
+  cast?: number
 }
 
 /** HTML 文本/属性转义（错误页 URL 注入防 XSS） */
@@ -304,6 +317,8 @@ export struct TabWeb {
     // 全屏中组件销毁（Web 随之销毁不会再回调退出）：恢复系统栏与方向
     if (this.tab.videoFullScreen) {
       this.tab.videoFullScreen = false
+      this.tab.videoNativeOverlay = false
+      this.tab.nativeFsPending = false
       this.tab.videoExitHandler = null
       VideoFullScreen.exit()
     }
@@ -552,7 +567,9 @@ export struct TabWeb {
 
   /**
    * 视频手势原生请求（__qhNative.videoRequest）：
-   * brightness 设窗口亮度（0-1）、brightnessReset 恢复跟随系统（-1）
+   * brightness 设窗口亮度（0-1）、brightnessReset 恢复跟随系统（-1）；
+   * state 全屏播放状态上报（状态桥 JSON → TabInfo 视频状态字段驱动原生控制层）；
+   * fsNotFound 全屏播放未发现播放中视频（清待处理标记 + toast 提示）
    */
   private handleVideoRequest(api: string, arg: string): void {
     const win = _QhState.window
@@ -571,9 +588,80 @@ export struct TabWeb {
         win.setWindowBrightness(-1)
           .catch((): void => {
           })
+      } else if (api === 'state') {
+        this.applyVideoState(arg)
+      } else if (api === 'log') {
+        // 全屏播放注入脚本诊断日志转发（网页 console 不进 hilog）
+        console.info(`[QHFS] ${arg}`)
+      } else if (api === 'fsNotFound') {
+        this.tab.nativeFsPending = false
+        toastUtil.showToast({ message: $r('app.string.video_fs_no_video') })
+      } else if (api === 'exitFs') {
+        // Web 控制层返回按钮：原生退出句柄优先（与返回键同链路），失败回退 JS exitFullscreen
+        const h: FullScreenExitHandler | null = this.tab.videoExitHandler
+        if (h !== null) {
+          try {
+            h.exitFullScreen()
+            return
+          } catch (e) {
+            console.error(`[QHFS] exitFullScreen failed: ${e}`)
+          }
+        }
+        tabsVM.ensureController(this.tab).runJavaScript('__qhVideoCmd("exitFullscreen")')
+      } else if (api === 'pageMute') {
+        // Web 控制层整页静音桥（WebviewController.setAudioMuted，站点不可回写）：
+        // 叠加标签自身静音态（audioMuted 标签静音中不解除）
+        const m: boolean = arg === '1' || this.tab.audioMuted
+        tabsVM.ensureController(this.tab).setAudioMuted(m)
+      } else if (api === 'pipFail') {
+        // 网页浮钮 PiP 失败（编码不支持等）：toast（浮钮 JS 侧已自行隐藏）
+        console.error(`[QHFS] pipFail: ${arg}`)
+        toastUtil.showToast({ message: $r('app.string.video_pip_fail') })
+      } else if (api === 'castFail') {
+        // 网页浮钮 Remote Playback 失败：toast（浮钮 JS 侧已自行隐藏）
+        console.error(`[QHFS] castFail: ${arg}`)
+        toastUtil.showToast({ message: $r('app.string.video_cast_fail') })
       }
     } catch (e) {
       console.error(`[TabWeb] 视频手势亮度请求失败: ${e}`)
+    }
+  }
+
+  /** 应用全屏播放状态（状态桥 JSON → TabInfo 视频状态字段；非法字段保持原值） */
+  private applyVideoState(json: string): void {
+    try {
+      const raw: VideoStateRaw = JSON.parse(json) as VideoStateRaw
+      const t: TabInfo = this.tab
+      if (typeof raw.p === 'number' && raw.p >= 0) {
+        t.videoPos = raw.p
+      }
+      if (typeof raw.d === 'number' && raw.d >= 0) {
+        t.videoDur = raw.d
+      }
+      if (typeof raw.pl === 'boolean') {
+        t.videoPlaying = raw.pl
+      }
+      // 视频音量回填（滑动值经页面应用后确认；站点重设音量时回跳真实值）
+      if (typeof raw.vo === 'number') {
+        t.videoVol = Math.min(1, Math.max(0, raw.vo))
+      }
+      if (typeof raw.r === 'number' && raw.r > 0) {
+        t.videoRate = raw.r
+      }
+      if (typeof raw.b === 'number' && raw.b >= 0) {
+        t.videoBuf = raw.b
+      }
+      // Web 标准小窗/投屏能力（内核自适应）：仅能力变化时写状态避免高频刷新
+      const pip: boolean = raw.pip === 1
+      if (pip !== t.videoPip) {
+        t.videoPip = pip
+      }
+      const cast: boolean = raw.cast === 1
+      if (cast !== t.videoCast) {
+        t.videoCast = cast
+      }
+    } catch (e) {
+      // 状态 JSON 非法忽略（保持上次状态）
     }
   }
 
@@ -594,6 +682,8 @@ export struct TabWeb {
     if (videoScript !== null) {
       scripts.push(videoScript)
     }
+    // 全屏播放：命令入口 + 状态上报桥（网页助手菜单触发，恒注入，与手势/快捷键设置无关）
+    scripts.push(VideoScripts.nativeControlScript())
     // 用户脚本：@run-at document-start（@match 规则做 URL 预过滤）
     for (const item of scriptVM.docStartScriptItems()) {
       scripts.push(item)
@@ -1622,9 +1712,10 @@ export struct TabWeb {
   }
 
   /**
-   * 色彩模式：提取页面顶部条带颜色供操作栏自适应（提取失败保持默认色）。
-   * 优先采样网页顶部（elementFromPoint 逐点取元素/祖先不透明背景色，检测 linear-gradient 渐变），
-   * 无采样结果回退 meta theme-color，再回退 body/html 背景；返回 ["#hex", "#hex"]，第二色为渐变端色（纯色为 ""）
+   * 色彩模式：提取页面顶部/底部条带颜色供操作栏自适应（提取失败保持默认色）。
+   * 优先采样网页顶部/底部（elementFromPoint 逐点取元素/祖先不透明背景色，顶部检测 linear-gradient 渐变），
+   * 顶部无采样结果回退 meta theme-color，再回退 body/html 背景；底部仅取视口底部条带平均色（底栏附近背景色）。
+   * 返回 ["#hex顶部", "#hex顶部渐变端色", "#hex底部"]，渐变端色/底部色缺失为 ""
    */
   private detectThemeColor(): void {
     if (!UISettings.action_bar_color_mode || this.tab.isHome) {
@@ -1651,12 +1742,16 @@ export struct TabWeb {
       'var w=innerWidth,r=[0,0,0],n=0,ga=null,gb=null;' +
       'for(var y=2;y<=44;y+=7){for(var i=1;i<=3;i++){var q=at(w*i/4,y);' +
       'if(q){r[0]+=q.c[0];r[1]+=q.c[1];r[2]+=q.c[2];n++;if(q.g&&!ga){ga=q.c;gb=q.g}}}}' +
-      'if(n>0){if(ga&&gb)return JSON.stringify([hx(ga),hx(gb)]);' +
-      'return JSON.stringify([hx([r[0]/n,r[1]/n,r[2]/n]),""])}' +
+      'var rb=[0,0,0],nb=0;' +
+      'for(var y2=innerHeight-4;y2>=innerHeight-44;y2-=7){for(var i2=1;i2<=3;i2++){var q2=at(w*i2/4,y2);' +
+      'if(q2){rb[0]+=q2.c[0];rb[1]+=q2.c[1];rb[2]+=q2.c[2];nb++}}}' +
+      'var bs=nb>0?hx([rb[0]/nb,rb[1]/nb,rb[2]/nb]):"";' +
+      'if(n>0){if(ga&&gb)return JSON.stringify([hx(ga),hx(gb),bs]);' +
+      'return JSON.stringify([hx([r[0]/n,r[1]/n,r[2]/n]),"",bs])}' +
       'var m=document.querySelector(\'meta[name="theme-color"]\');' +
-      'if(m&&m.content)return JSON.stringify([m.content,""]);' +
+      'if(m&&m.content)return JSON.stringify([m.content,"",bs]);' +
       'var b=eb(document.body)||eb(document.documentElement);' +
-      'return b?JSON.stringify([hx(b.c),""]):""' +
+      'return b?JSON.stringify([hx(b.c),"",bs]):(bs?JSON.stringify(["","",bs]):"")' +
       '})()'
     c.runJavaScript(script)
       .then((raw: string) => {
@@ -1673,9 +1768,15 @@ export struct TabWeb {
         }
         try {
           const pair: string[] = JSON.parse(v) as string[]
-          if (pair.length === 2 && pair[0].startsWith('#')) {
-            this.tab.themeColor = pair[0]
-            this.tab.themeColor2 = pair[1].startsWith('#') ? pair[1] : ''
+          if (pair.length === 3) {
+            if (pair[0].startsWith('#')) {
+              this.tab.themeColor = pair[0]
+              this.tab.themeColor2 = pair[1].startsWith('#') ? pair[1] : ''
+              // 状态栏图标色随页面色深浅反色（幂等，活动标签生效）
+              StatusBarSync.sync()
+            }
+            // 底部条带色：底栏（传统工具栏/合并下栏/双行在下）自适应用
+            this.tab.themeColorBottom = pair[2].startsWith('#') ? pair[2] : ''
           }
         } catch (e) {
           // 解析失败保持默认色
@@ -2296,6 +2397,29 @@ export struct TabWeb {
       })
   }
 
+  /** Web 自身底色：色彩模式取到视口底部条带色时跟随底栏色（与底栏一致，resize 自绘区不泛白）；否则透明透出衬底 */
+  private webOwnBackground(): ResourceColor {
+    if (UISettings.action_bar_color_mode && this.tab.themeColorBottom !== '') {
+      return this.tab.themeColorBottom
+    }
+    return Color.Transparent
+  }
+
+  /**
+   * 色彩模式网页衬底：顶=页面顶部色、底=视口底部条带色的纵向渐变。
+   * ArkWeb 尺寸变化（栏滑入滑出 resize）过渡期表面未及时覆盖处露出衬底，避免泛白；
+   * 未开启或未提取到颜色时为全透明渐变（不产生可见绘制）
+   */
+  private webBackdrop(): LinearGradient {
+    if (!UISettings.action_bar_color_mode
+      || (this.tab.themeColor === '' && this.tab.themeColorBottom === '')) {
+      return { angle: 180, colors: [[Color.Transparent, 0], [Color.Transparent, 1]] }
+    }
+    const top: string = this.tab.themeColor !== '' ? this.tab.themeColor : this.tab.themeColorBottom
+    const bottom: string = this.tab.themeColorBottom !== '' ? this.tab.themeColorBottom : this.tab.themeColor
+    return { angle: 180, colors: [[top, 0], [bottom, 1]] }
+  }
+
   build() {
     Stack() {
       Web({
@@ -2408,10 +2532,14 @@ export struct TabWeb {
         .onFullScreenEnter((event: FullScreenEnterEvent) => {
           this.tab.videoFullScreen = true
           this.tab.videoExitHandler = event.handler
+          // 全屏播放（原生控制层接管）：菜单触发标记消费，原生控制层覆盖 Web 接管交互
+          this.tab.videoNativeOverlay = this.tab.nativeFsPending
+          this.tab.nativeFsPending = false
           VideoFullScreen.enter(event.videoWidth ?? 0, event.videoHeight ?? 0)
         })
         .onFullScreenExit(() => {
           this.tab.videoFullScreen = false
+          this.tab.videoNativeOverlay = false
           this.tab.videoExitHandler = null
           VideoFullScreen.exit()
           // 手势调亮度过兜底恢复：退出网页全屏时恢复跟随系统亮度
@@ -2621,6 +2749,9 @@ export struct TabWeb {
           // 色彩模式：新页面 theme-color 重新提取
           this.tab.themeColor = ''
           this.tab.themeColor2 = ''
+          this.tab.themeColorBottom = ''
+          // 状态栏图标色还原默认（新页面尚未提取页面色）
+          StatusBarSync.sync()
           // 新导航开始，诊断覆盖层退场；响应已到达（onPageBegin 触发）取消看门狗——
           // 看门狗只守「响应未到达」的真悬挂，慢但在出内容的页面不再被 10s 误盖
           // （真机实测 hap.atomgit.com 慢加载误报）；已提交页面的白屏由内置白屏检测判定；
@@ -2764,6 +2895,9 @@ export struct TabWeb {
         .onDownloadStart((event: OnDownloadStartEvent) => {
           downloadVM.download(event.url, this.tab.url)
         })
+        // Web 自身底色：色彩模式提取到页面色时跟随底栏色——ArkWeb resize（栏滑入滑出）期间
+        // 自绘背景区域不再用内核默认白；未提取到时透明，透出下层衬底渐变/容器底色
+        .backgroundColor(this.webOwnBackground())
 
       // 会话恢复占位：磁盘旧快照顶替加载中的网页（onPageEnd/进度 100 撤下；夜间蒙版等叠其上）
       if (this.tab.showSnapshotPlaceholder && this.tab.snapshot !== null) {
@@ -2807,6 +2941,8 @@ export struct TabWeb {
     }
     .width('100%')
     .height('100%')
+    // 色彩模式网页衬底（衬在 Web 表面之下：resize 过渡期露底不泛白）
+    .linearGradient(this.webBackdrop())
     .visibility(this.tab.id === tabsVM.activeTabId ? Visibility.Visible : Visibility.None)
     .onAreaChange((_oldValue: Area, newValue: Area) => {
       const w = newValue.width

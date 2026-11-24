@@ -122,7 +122,25 @@ export struct CustomListItem {
         .alignItems(HorizontalAlign.Start)
       }.layoutWeight(1)
 
-      if (this.item.type !== ItemActionType.INPUT) {
+      if (this.item.type === ItemActionType.INPUT_INLINE) {
+        // 行内输入框：右侧小输入框（数字输入，如双击跳转秒数）
+        TextInput({ text: this.item.value as ResourceStr })
+          .type(InputType.Number)
+          .width(76)
+          .height(36)
+          .borderRadius(8)
+          .fontSize(14)
+          .textAlign(TextAlign.Center)
+          .padding({ left: 6, right: 6 })
+          .backgroundColor($r('sys.color.comp_background_primary'))
+          .enabled(this.item.enabled)
+          .onChange((v: string) => {
+            this.item.value = v
+            if (this.item.onChange != null) {
+              this.item.onChange(v)
+            }
+          })
+      } else if (this.item.type !== ItemActionType.INPUT) {
         ListItemRightAction({
           item: this.item,
           onSliderChange: (v: number) => {

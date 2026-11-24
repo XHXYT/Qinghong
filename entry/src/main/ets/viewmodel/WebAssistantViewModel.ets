@@ -55,6 +55,47 @@ export class WebAssistantViewModel {
   }
 
   /**
+   * 全屏播放触发（菜单项点击）：播放中网页视频进全屏（注入脚本定位→requestFullscreen），
+   * onFullScreenEnter 消费待处理标记后原生控制层覆盖接管交互；
+   * 未发现播放中视频由注入脚本经状态桥上报 toast 提示；
+   * 2.5s 安全超时清残留标记（全屏请求悬挂时防误接管后续站点全屏）
+   */
+  triggerNativeFullscreen(): void {
+    this.closeMenu()
+    const tab: TabInfo | null = tabsVM.activeTab
+    if (tab === null || tab.isHome || tab.controller === null) {
+      return
+    }
+    const controller: webview.WebviewController = tab.controller
+    if (tab.videoFullScreen) {
+      // 已在网页全屏中（站点先行全屏）：原地接管——控制层直接挂上，脚本隐藏站点控件
+      tab.videoNativeOverlay = true
+      try {
+        controller.runJavaScript('__qhVideoCmd("fullscreen")')
+          .catch((): void => {
+          })
+      } catch (e) {
+      }
+      return
+    }
+    tab.nativeFsPending = true
+    try {
+      controller.runJavaScript('__qhVideoCmd("fullscreen")')
+        .catch((): void => {
+          tab.nativeFsPending = false
+        })
+    } catch (e) {
+      tab.nativeFsPending = false
+      return
+    }
+    setTimeout((): void => {
+      if (tab.nativeFsPending && !tab.videoNativeOverlay) {
+        tab.nativeFsPending = false
+      }
+    }, 2500)
+  }
+
+  /**
    * 视频托管触发（菜单项点击，免刷新秒接管）：
    * 1. 已有托管会话 → 直接唤起全屏托管播放器；
    * 2. DOM 探测播放中视频 → 直链或网络日志嗅探的 m3u8/mp4 补位；

@@ -1,9 +1,11 @@
 import { webview } from '@kit.ArkWeb';
 import { media } from '@kit.MediaKit';
-import { window } from '@kit.ArkUI';
+import { window, PiPWindow } from '@kit.ArkUI';
+import { avSession, AVCastPicker, AVCastPickerState } from '@kit.AVSessionKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { createLogger } from '../../common/utils/app/Logger';
 import { ResourceUtils } from '../../common/utils/app/ResourceUtil';
+import { toastUtil } from '../../common/utils/ui/ToastUtils';
 import { VideoFullScreen } from '../../common/utils/ui/VideoFullScreen';
 import { QhState, _QhState } from '../../entryability/AppState';
 import { appSettings } from '../../common/entity/SettingsModel';
@@ -138,6 +140,11 @@ export class WebHostedPlayerSession implements webview.NativeMediaPlayerBridge {
   hide(): void {
     this.pause()
     this.state.show = false
+  }
+
+  /** 媒体直链（投屏远端拉流源；托管模式创建侧已过滤 MSE/blob，恒为 http(s)） */
+  getUrl(): string {
+    return this.url
   }
 
   /** 控制栏：播放/暂停切换 */
@@ -706,6 +713,8 @@ export struct WebHostedPlayerView {
   private seekOverlayTimer: number = -1
   private slideHideTimer: number = -1
   private slideBase: number = 1
+  /** 本次会话亮度记忆（纵滑起点续接上次值，组件卸载即重置） */
+  private curBrightness: number = 1
   private panAxis: number = 0
   /** 键位名 → 动作 id（与网页视频共用设置，含用户自定义覆盖） */
   private keyActions: Record<string, string> = {}
@@ -713,9 +722,23 @@ export struct WebHostedPlayerView {
   private panStartY: number = 0
   private gestureBlocked: boolean = false
   private seekDragStartPos: number = 0
+  /** 原生画中画控制器（PiPWindow；null = 未创建） */
+  private pipController: PiPWindow.PiPController | null = null
+  /** 设备支持画中画（aboutToAppear 探测，按钮显隐依据） */
+  @Local pipSupported: boolean = false
+  /** 画中画窗口进行中（stateChange 上报） */
+  @Local pipActive: boolean = false
+  /** 投屏 AVSession（懒建；null = 未创建） */
+  private castSession: avSession.AVSession | null = null
+  /** 投屏设备选择器（bindSheet）显隐 */
+  @Local castPickerVisible: boolean = false
+  /** 投屏已连接远端（outputDeviceChange 上报） */
+  @Local castingActive: boolean = false
 
   aboutToAppear(): void {
     this.scheduleAutoHide()
+    // 原生画中画能力探测（PiPWindow：按钮显隐依据）
+    this.pipSupported = PiPWindow.isPiPEnabled()
     // 进入全屏托管：隐藏系统状态栏/导航栏，视频尺寸已知且为横屏时转横屏
     // （尺寸起播后才上报，videoSizeChange 回调补转；竖屏视频保持当前方向）
     VideoFullScreen.enter(this.session.state.videoWidth, this.session.state.videoHeight)
@@ -742,6 +765,9 @@ export struct WebHostedPlayerView {
     VideoFullScreen.exit()
     this.session.rewindStop()
     this.session.speedBoostEnd()
+    // 原生小窗/投屏资源释放（停 PiP 窗口 + 停投销毁会话）
+    this.releasePip()
+    this.releaseCast()
   }
 
   /** 暂停标识可见（可恢复的暂停态：已就绪、未出错、未在缓冲且未播放） */
@@ -837,6 +863,7 @@ export struct WebHostedPlayerView {
         win.setWindowBrightness(Math.max(0.02, v)).catch((): void => {
         })
       }
+      this.curBrightness = v
     } else {
       this.session.setVolume(v)
       this.session.setMuted(v === 0)
@@ -965,6 +992,167 @@ export struct WebHostedPlayerView {
     return this.session.state.currentTime
   }
 
+  /** 原生画中画切换（进行中→停止；未启动→复用 XComponent surface 起 PiP 窗口） */
+  private togglePiP(): void {
+    logger.info(`togglePiP active=${this.pipActive} supported=${this.pipSupported}`)
+    if (this.pipActive) {
+      this.stopPipWindow()
+      return
+    }
+    this.startPipWindow()
+  }
+
+  private startPipWindow(): void {
+    logger.info('startPipWindow enter')
+    const existing: PiPWindow.PiPController | null = this.pipController
+    if (existing !== null) {
+      logger.info('startPipWindow restart existing')
+      existing.startPiP().catch((e: BusinessError): void => {
+        logger.warn(`pip restart failed: ${e}`)
+      })
+      return
+    }
+    const config: PiPWindow.PiPConfiguration = {
+      context: _QhState.Context,
+      componentController: this.session.xComponentController,
+      templateType: PiPWindow.PiPTemplateType.VIDEO_PLAY
+    }
+    PiPWindow.create(config)
+      .then((controller: PiPWindow.PiPController): void => {
+        controller.on('stateChange', (state: PiPWindow.PiPState, reason: string): void => {
+          logger.info(`pip state ${state} reason ${reason}`)
+          if (state === PiPWindow.PiPState.STARTED) {
+            this.pipActive = true
+          } else if (state === PiPWindow.PiPState.STOPPED) {
+            this.pipActive = false
+          }
+        })
+        controller.on('controlEvent', (param: PiPWindow.ControlEventParam): void => {
+          if (param.controlType === PiPWindow.PiPControlType.VIDEO_PLAY_PAUSE) {
+            this.session.togglePlay()
+          } else if (param.controlType === PiPWindow.PiPControlType.FAST_FORWARD) {
+            this.session.seekTo(this.session.state.currentTime + 10)
+          } else if (param.controlType === PiPWindow.PiPControlType.FAST_BACKWARD) {
+            this.session.seekTo(Math.max(0, this.session.state.currentTime - 10))
+          }
+        })
+        this.pipController = controller
+        controller.startPiP().catch((e: BusinessError): void => {
+          logger.error(`pip start failed: ${e}`)
+          toastUtil.showToast({ message: $r('app.string.video_pip_fail') })
+        })
+      })
+      .catch((e: BusinessError): void => {
+        logger.error(`pip create failed: ${e}`)
+        toastUtil.showToast({ message: $r('app.string.video_pip_fail') })
+      })
+  }
+
+  private stopPipWindow(): void {
+    const controller: PiPWindow.PiPController | null = this.pipController
+    if (controller !== null) {
+      controller.stopPiP().catch((e: BusinessError): void => {
+        logger.warn(`pip stop failed: ${e}`)
+      })
+    }
+  }
+
+  /** 画中画资源释放（组件卸载：解注册 + 停窗口） */
+  private releasePip(): void {
+    const controller: PiPWindow.PiPController | null = this.pipController
+    if (controller === null) {
+      return
+    }
+    this.pipController = null
+    this.pipActive = false
+    controller.off('stateChange')
+    controller.off('controlEvent')
+    controller.stopPiP().catch((): void => {
+    })
+  }
+
+  /** 原生投屏：懒建 AVSession（video）+ 激活后弹系统设备选择器（AVCastPicker） */
+  private async startCast(): Promise<void> {
+    logger.info('startCast enter (cast btn tapped)')
+    try {
+      if (this.castSession === null) {
+        logger.info('cast: creating AVSession')
+        const session: avSession.AVSession =
+          await avSession.createAVSession(_QhState.Context, 'qinghong_video', 'video')
+        this.castSession = session
+        const meta: avSession.AVMetadata = {
+          assetId: this.session.embedId,
+          title: this.title,
+          duration: Math.round(this.session.state.duration * 1000)
+        }
+        await session.setAVMetadata(meta)
+        await session.setAVQueueItems([this.buildCastItem()])
+        session.on('outputDeviceChange',
+          (state: avSession.ConnectionState, device: avSession.OutputDeviceInfo): void => {
+            this.onCastDeviceChange(state, device)
+          })
+        await session.activate()
+        logger.info('cast: AVSession ready')
+      }
+      this.castPickerVisible = true
+    } catch (e) {
+      logger.error(`cast session init failed: ${e}`)
+      toastUtil.showToast({ message: $r('app.string.video_cast_fail') })
+    }
+  }
+
+  /** 投屏播放队列项（mediaUri 直链为远端拉流源） */
+  private buildCastItem(): avSession.AVQueueItem {
+    const desc: avSession.AVMediaDescription = {
+      assetId: this.session.embedId,
+      title: this.title,
+      mediaUri: this.session.getUrl(),
+      mediaType: 'video'
+    }
+    return { itemId: 0, description: desc }
+  }
+
+  /** 投屏设备连接变化：连接成功取 AVCastController 启动远端播放并暂停本地（防双端同播）；断开复位标记 */
+  private onCastDeviceChange(state: avSession.ConnectionState, device: avSession.OutputDeviceInfo): void {
+    logger.info(`cast device change state=${state} count=${device.devices.length}`)
+    if (state === avSession.ConnectionState.STATE_CONNECTED) {
+      this.castingActive = true
+      this.castPickerVisible = false
+      const session: avSession.AVSession | null = this.castSession
+      if (session !== null) {
+        session.getAVCastController()
+          .then((controller: avSession.AVCastController): Promise<void> => controller.start(this.buildCastItem()))
+          .catch((e: BusinessError): void => {
+            logger.error(`cast start failed: ${e}`)
+            toastUtil.showToast({ message: $r('app.string.video_cast_fail') })
+          })
+        this.session.pause()
+      }
+    } else if (state === avSession.ConnectionState.STATE_DISCONNECTED) {
+      this.castingActive = false
+    }
+  }
+
+  /** 投屏资源释放（组件卸载：停投 + 销毁会话；未投屏时 stopCasting 报 6600109 忽略） */
+  private async releaseCast(): Promise<void> {
+    const session: avSession.AVSession | null = this.castSession
+    if (session === null) {
+      return
+    }
+    this.castSession = null
+    this.castingActive = false
+    try {
+      await session.stopCasting()
+    } catch (e) {
+      // 未建立投屏连接时忽略（6600109）
+    }
+    try {
+      await session.destroy()
+    } catch (e) {
+      logger.warn(`cast session destroy failed: ${e}`)
+    }
+  }
+
   build() {
     Stack({ alignContent: Alignment.Center }) {
       XComponent({
@@ -1085,7 +1273,7 @@ export struct WebHostedPlayerView {
             } else {
               this.panAxis = 1
               this.slideIsBrightness = this.panStartX < this.areaWidth / 2
-              this.slideBase = this.slideIsBrightness ? 1 : this.session.currentVolume()
+              this.slideBase = this.slideIsBrightness ? this.curBrightness : this.session.currentVolume()
               this.slideDragging = true
               this.cancelSlideHide()
               this.applySlide(this.slideBase)
@@ -1163,6 +1351,27 @@ export struct WebHostedPlayerView {
           }
         })
     )
+    .bindSheet(this.castPickerVisible, this.CastPickerBuilder, {
+      // 任意方式关闭（下滑/点外部）写回状态，避免残留导致下次不弹
+      onDisappear: () => {
+        this.castPickerVisible = false
+      }
+    })
+  }
+
+  /** 投屏设备选择器（系统 AVCastPicker，video 会话） */
+  @Builder
+  CastPickerBuilder() {
+    Column() {
+      AVCastPicker({
+        sessionType: 'video',
+        onStateChange: (state: AVCastPickerState): void => {
+          logger.info(`cast picker state ${state}`)
+        }
+      })
+    }
+    .width('100%')
+    .padding({ top: 16, bottom: 24 })
   }
 
   /** 拖动进度 / 纵滑调节 / 长按快退快进提示浮层 */
@@ -1365,6 +1574,24 @@ export struct WebHostedPlayerView {
               this.scheduleAutoHide()
             })
           Blank()
+          if (this.pipSupported) {
+            SymbolGlyph($r('sys.symbol.smal_window_playback'))
+              .fontSize(22)
+              .fontColor([Color.White])
+              .margin({ right: 18 })
+              .onClick(() => {
+                this.togglePiP()
+                this.scheduleAutoHide()
+              })
+          }
+          SymbolGlyph($r('sys.symbol.airplayaudio'))
+            .fontSize(22)
+            .fontColor([Color.White])
+            .margin({ right: 18 })
+            .onClick(() => {
+              this.startCast()
+              this.scheduleAutoHide()
+            })
           Text(`${this.session.state.speed}X`)
             .padding({ left: 8, right: 8, top: 4, bottom: 4 })
             .borderWidth(1)

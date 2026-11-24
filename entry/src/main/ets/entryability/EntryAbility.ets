@@ -27,6 +27,7 @@ import { scriptVM } from '../viewmodel/ScriptViewModel';
 import { extensionVM } from '../viewmodel/ExtensionViewModel';
 import { ShortcutViewModel } from '../viewmodel/ShortcutViewModel';
 import { DataClearer } from '../common/utils/app/DataClearer';
+import { StatusBarSync } from '../common/utils/ui/StatusBarSync';
 import { EXT_SCHEME } from '../common/utils/extension/ExtensionResources';
 import { webview } from '@kit.ArkWeb';
 import { TextReader, WindowManager } from '@kit.SpeechKit';
@@ -198,6 +199,8 @@ export default class EntryAbility extends UIAbility {
   }
 
   onConfigurationUpdate(newConfig: Configuration): void {
+    // 深浅色切换：还原态状态栏图标色需跟随刷新（色彩模式覆盖态不受影响）
+    StatusBarSync.sync()
   }
 
   onWindowStageWillDestroy(windowStage: window.WindowStage): void {
@@ -355,6 +358,8 @@ export default class EntryAbility extends UIAbility {
       // 断点初始化后检测形态变化：首次 Web attach 可能早于本函数（loadContent 先于回调），
       // 此时 UA 已按 widthBp=0 的手机形态设置，需在此重应用为宽屏形态
       this.reapplyUaIfFormChanged()
+      // 窗口就绪后再同步一次状态栏图标色：主页背景明暗重估可能早于此处（_QhState.window 未就绪时 sync 空转）
+      StatusBarSync.sync()
       logger.info('WindowRect', `窗口高度：${rect.height} px 宽度：${rect.width} px`)
     } catch (error) {
       logger.error(`WindowDimensions`, `Failed to getWindowProperties., ${error}`)
@@ -411,6 +416,8 @@ export default class EntryAbility extends UIAbility {
 
       this.onWidthBpChange(UIContext)
       this.onHeightBpChange(WindowHeight, WindowWidth)
+      // 小窗/分屏进出全屏形态：状态栏图标色重新计算
+      StatusBarSync.sync()
     });
 
     // 窗口模式状态监听
@@ -418,6 +425,8 @@ export default class EntryAbility extends UIAbility {
       windowClass.on('freeWindowModeChange', (data) => {
         QhState.windowMode = data
         this.reapplyUaIfFormChanged()
+        // 自由窗口模式不覆盖状态栏：图标色还原默认
+        StatusBarSync.sync()
         logger.debug(`WindowMode 当前窗口状态：${QhState.windowMode}`)
       });
     } catch (exception) {

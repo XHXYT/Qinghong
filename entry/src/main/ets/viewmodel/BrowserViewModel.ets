@@ -10,6 +10,7 @@ import { appSettings } from '../common/entity/SettingsModel';
 import { toastUtil } from '../common/utils/ui/ToastUtils';
 import { ResourceUtils } from '../common/utils/app/ResourceUtil';
 import { _QhState, QhState } from '../entryability/AppState';
+import { StatusBarSync } from '../common/utils/ui/StatusBarSync';
 
 const logger = createLogger('BrowserViewModel')
 
@@ -100,12 +101,16 @@ export class BrowserViewModel {
   openReader(article: ReaderArticle): void {
     this.readerArticle = article
     this.showReader = true
+    // 阅读沉浸：顶栏不覆盖状态栏，图标色还原默认
+    StatusBarSync.sync()
   }
 
   /** 关闭阅读模式覆盖层 */
   closeReader(): void {
     this.showReader = false
     this.readerArticle = new ReaderArticle()
+    // 退出阅读：顶栏回归，图标色按页面色重新计算
+    StatusBarSync.sync()
   }
 
   /** 指定标签当前是否处于阅读模式 */

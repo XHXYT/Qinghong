@@ -135,23 +135,28 @@ export struct ExtPopupView {
       + '}'
       + 'var b=document.body,h=document.documentElement;'
       + 'return solid(b)||solid(h)||solid(b&&b.firstElementChild)||"";})()'
-    this.controller.runJavaScript(expr)
-      .then((r: string) => {
-        if (onlyIfUnresolved && this.bgResolved) {
-          return
-        }
-        const hex: string = this.normalizeProbeHex(r)
-        if (hex === '') {
-          return
-        }
-        if (hex !== this.defaultProbeHex()) {
-          this.bgResolved = true
-        }
-        extensionVM.popupBg = hex
-        logger.info(`popup 面板背景=${hex}`)
-      })
-      .catch((): void => {
-      })
+    /* popup 关闭后 controller 解绑，runJavaScript 同步抛 17100001（.catch 只能接异步拒绝），必须 try/catch */
+    try {
+      this.controller.runJavaScript(expr)
+        .then((r: string) => {
+          if (onlyIfUnresolved && this.bgResolved) {
+            return
+          }
+          const hex: string = this.normalizeProbeHex(r)
+          if (hex === '') {
+            return
+          }
+          if (hex !== this.defaultProbeHex()) {
+            this.bgResolved = true
+          }
+          extensionVM.popupBg = hex
+          logger.info(`popup 面板背景=${hex}`)
+        })
+        .catch((): void => {
+        })
+    } catch (e) {
+      /* popup 已销毁：静默 */
+    }
   }
 
   /** 延迟探测内容自然宽度：仅当显著窄于视口时收窄居中（AdGuard body 固定 --popup-width:320px） */
@@ -161,16 +166,21 @@ export struct ExtPopupView {
         + 'var w=document.body?Math.round(document.body.getBoundingClientRect().width):0;'
         + 'var vw=window.innerWidth;'
         + 'return (w>=200&&w<vw-8)?w:0;})()'
-      this.controller.runJavaScript(expr)
-        .then((r: string) => {
-          const n: number = Number(r)
-          if (Number.isFinite(n) && n > 0) {
-            this.contentWidth = n
-            logger.info(`popup 内容宽度=${n}`)
-          }
-        })
-        .catch((): void => {
-        })
+      /* popup 关闭后 controller 解绑，runJavaScript 同步抛 17100001（.catch 只能接异步拒绝），必须 try/catch */
+      try {
+        this.controller.runJavaScript(expr)
+          .then((r: string) => {
+            const n: number = Number(r)
+            if (Number.isFinite(n) && n > 0) {
+              this.contentWidth = n
+              logger.info(`popup 内容宽度=${n}`)
+            }
+          })
+          .catch((): void => {
+          })
+      } catch (e) {
+        /* popup 已销毁：静默 */
+      }
     }, 500)
   }
 
@@ -229,13 +239,18 @@ export struct ExtPopupView {
         })
         .onPageEnd(() => {
           logger.info(`popup 加载完成: ${this.ext.name}`)
-          /* 诊断：主文档 DOM 规模（其它扩展空白页定位保留） */
-          this.controller.runJavaScript('document.documentElement.outerHTML.length')
-            .then((len: string) => {
-              logger.info(`popup DOM 长度=${len}`)
-            })
-            .catch((): void => {
-            })
+          /* 诊断：主文档 DOM 规模（其它扩展空白页定位保留）；onPageEnd 时 Web 已附着，
+             但 popup 若在此之前销毁仍可能解绑，try/catch 兜底 */
+          try {
+            this.controller.runJavaScript('document.documentElement.outerHTML.length')
+              .then((len: string) => {
+                logger.info(`popup DOM 长度=${len}`)
+              })
+              .catch((): void => {
+              })
+          } catch (e) {
+            /* popup 已销毁：静默 */
+          }
           /* 诊断：3s 后 dump 渲染状态（React 是否挂载/样式是否加载） */
           setTimeout((): void => {
             const expr: string = '(function(){'
@@ -245,12 +260,17 @@ export struct ExtPopupView {
               + 'var el=b.querySelectorAll("*").length;'
               + 'var rc=b.firstElementChild?b.firstElementChild.innerHTML.length:-1;'
               + 'return JSON.stringify({ss:ss,el:el,rc:rc,txt:txt});})()'
-            this.controller.runJavaScript(expr)
-              .then((r: string) => {
-                logger.info(`popup 渲染状态=${r}`)
-              })
-              .catch((): void => {
-              })
+            /* popup 关闭后 controller 解绑，runJavaScript 同步抛 17100001（.catch 只能接异步拒绝），必须 try/catch */
+            try {
+              this.controller.runJavaScript(expr)
+                .then((r: string) => {
+                  logger.info(`popup 渲染状态=${r}`)
+                })
+                .catch((): void => {
+                })
+            } catch (e) {
+              /* popup 已销毁：静默 */
+            }
           }, 3000)
           this.probeContentWidth()
           /* 背景色自适应：700ms 首探；3s 补探（仅首次未获非默认页色时生效，覆盖异步渲染后才有背景的页面） */

@@ -4,6 +4,7 @@ import { CustomItemInfo, ItemActionType } from '../../../common/entity/CusItemIn
 import { PickerConfig, PickerOption, pickerSheetHeight, SheetPicker } from '../../../components/SheetPicker';
 import { ResourceUtils } from '../../../common/utils/app/ResourceUtil';
 import { toastUtil } from '../../../common/utils/ui/ToastUtils';
+import { StatusBarSync } from '../../../common/utils/ui/StatusBarSync';
 
 
 @Builder
@@ -94,6 +95,16 @@ struct ToolbarSettingsPage {
       UISettings.show_bookmark_bar = v === true
     }
   })
+  private addressBarItem: CustomItemInfo = new CustomItemInfo({
+    id: 'show_address_bar',
+    title: $r('app.string.address_bar'),
+    type: ItemActionType.TOGGLE,
+    onChange: (v: string | boolean | number): void => {
+      UISettings.show_address_bar = v === true
+      // 地址栏关闭后"地址栏内容"行随之隐藏，需重建列表
+      this.syncItems()
+    }
+  })
   private homeButtonItem: CustomItemInfo = new CustomItemInfo({
     id: 'show_home_button',
     title: $r('app.string.home_button'),
@@ -129,6 +140,8 @@ struct ToolbarSettingsPage {
     type: ItemActionType.TOGGLE,
     onChange: (v: string | boolean | number): void => {
       UISettings.action_bar_color_mode = v === true
+      // 色彩模式开关：状态栏图标色同步/还原
+      StatusBarSync.sync()
     }
   })
 
@@ -149,7 +162,17 @@ struct ToolbarSettingsPage {
     this.downloadButtonItem.value = UISettings.show_download_button
     this.extensionButtonItem.value = UISettings.show_extension_button
     this.colorModeItem.value = UISettings.action_bar_color_mode
-    const items: CustomItemInfo[] = [this.appLayoutItem, this.autoHideItem, this.addressContentItem, this.extensionButtonItem]
+    this.addressBarItem.value = UISettings.show_address_bar
+    // 传统/双行在下布局：地址栏为独立行，可选关闭（关闭后"地址栏内容"行随之隐藏）
+    const barAddressable: boolean = UISettings.app_layout === 'traditional' || UISettings.app_layout === 'bottom_double'
+    const items: CustomItemInfo[] = [this.appLayoutItem, this.autoHideItem]
+    if (barAddressable) {
+      items.push(this.addressBarItem)
+    }
+    if (!barAddressable || UISettings.show_address_bar) {
+      items.push(this.addressContentItem)
+    }
+    items.push(this.extensionButtonItem)
     if (UISettings.app_layout === 'top' || UISettings.app_layout === 'bottom') {
       items.push(this.tabBarItem, this.bookmarkBarItem, this.homeButtonItem, this.downloadButtonItem)
     }
@@ -161,6 +184,8 @@ struct ToolbarSettingsPage {
   private applyLayout(layout: string): void {
     UISettings.app_layout = layout
     this.syncItems()
+    // 顶部无栏布局（合并在下/双行在下）不覆盖状态栏：状态栏图标色还原默认
+    StatusBarSync.sync()
   }
 
   private openLayoutPicker(): void {
@@ -461,7 +486,9 @@ struct ToolbarSettingsPage {
     Column() {
       Column() {
         if (UISettings.app_layout === 'traditional') {
-          this.miniAddressBar()
+          if (UISettings.show_address_bar) {
+            this.miniAddressBar()
+          }
           this.miniContent()
           this.miniToolbar()
         } else if (UISettings.app_layout === 'top') {
@@ -484,7 +511,9 @@ struct ToolbarSettingsPage {
           this.miniMergedBar()
         } else {
           this.miniContent()
-          this.miniAddressBar()
+          if (UISettings.show_address_bar) {
+            this.miniAddressBar()
+          }
           this.miniToolbar()
         }
       }

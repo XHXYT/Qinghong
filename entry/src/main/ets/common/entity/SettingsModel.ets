@@ -65,6 +65,8 @@ export class _UISettings {
   @Trace show_download_button: boolean = false
   /** 启用书签栏（配合 'top'/'bottom' 布局，贴操作栏内容侧） */
   @Trace show_bookmark_bar: boolean = false
+  /** 显示地址栏（'traditional'/'bottom_double' 布局可关闭地址栏） */
+  @Trace show_address_bar: boolean = true
   /** 操作栏显示拓展按钮（扩展入口，默认关闭） */
   @Trace show_extension_button: boolean = false
   /** 地址栏内容 'title' | 'url' | 'domain' */
@@ -102,6 +104,7 @@ export class _UISettings {
       "show_home_button": this.show_home_button,
       "show_download_button": this.show_download_button,
       "show_bookmark_bar": this.show_bookmark_bar,
+      "show_address_bar": this.show_address_bar,
       "show_extension_button": this.show_extension_button,
       "address_bar_content": this.address_bar_content,
       "devtools_layout": this.devtools_layout,
@@ -131,6 +134,7 @@ export class _UISettings {
     this.show_home_button = (json["show_home_button"] as boolean) ?? this.show_home_button;
     this.show_download_button = (json["show_download_button"] as boolean) ?? this.show_download_button;
     this.show_bookmark_bar = (json["show_bookmark_bar"] as boolean) ?? this.show_bookmark_bar;
+    this.show_address_bar = (json["show_address_bar"] as boolean) ?? this.show_address_bar;
     this.show_extension_button = (json["show_extension_button"] as boolean) ?? this.show_extension_button;
     const content = json["address_bar_content"] as string;
     if (content === 'title' || content === 'url' || content === 'domain') {
@@ -145,7 +149,7 @@ export class _UISettings {
 
   @Monitor('color_mode', 'app_layout', 'auto_hide_action_bar', 'show_tab_bar',
     'show_home_button', 'show_download_button', 'show_bookmark_bar',
-    'show_extension_button', 'address_bar_content', 'devtools_layout', 'action_bar_color_mode')
+    'show_address_bar', 'show_extension_button', 'address_bar_content', 'devtools_layout', 'action_bar_color_mode')
   public async save(): Promise<void> {
     try {
       const jsonStr: string = JSON.stringify(this.toSyncData());
@@ -163,6 +167,7 @@ export class _UISettings {
     this.show_home_button = false;
     this.show_download_button = false;
     this.show_bookmark_bar = false;
+    this.show_address_bar = true;
     this.show_extension_button = false;
     this.address_bar_content = 'title';
     this.devtools_layout = '';
@@ -240,16 +245,26 @@ export class AppSettings {
   @Trace video_player: string = 'system'
   /** 视频控制：启用视频手势（网页视频触屏手势总开关） */
   @Trace video_gesture_enabled: boolean = false
-  /** 视频手势：双击快进/快退（双击视频左侧快退、右侧快进） */
-  @Trace video_gesture_double_tap: boolean = true
+  /** 视频手势：左区双击动作 'rewind'|'forward'|'playpause'|'none' */
+  @Trace video_dtap_left: string = 'rewind'
+  /** 视频手势：左区双击快退/快进秒数（动作为 rewind/forward 时生效） */
+  @Trace video_dtap_left_sec: number = 10
+  /** 视频手势：中区双击动作 */
+  @Trace video_dtap_middle: string = 'playpause'
+  /** 视频手势：中区双击快退/快进秒数 */
+  @Trace video_dtap_middle_sec: number = 10
+  /** 视频手势：右区双击动作 */
+  @Trace video_dtap_right: string = 'forward'
+  /** 视频手势：右区双击快退/快进秒数 */
+  @Trace video_dtap_right_sec: number = 10
   /** 视频手势：滑动调节进度（按住视频左右滑动，松开生效） */
   @Trace video_gesture_swipe_seek: boolean = true
-  /** 视频手势：上下滑调亮度音量（全屏时左侧亮度、右侧音量） */
-  @Trace video_gesture_side_slide: boolean = true
-  /** 视频手势：单击暂停/播放 */
-  @Trace video_gesture_tap_toggle: boolean = true
-  /** 视频手势：长按倍速（3 倍速播放，松开恢复） */
-  @Trace video_gesture_long_press: boolean = true
+  /** 视频手势：全屏左侧上下滑动作 'brightness'|'volume'|'none' */
+  @Trace video_slide_left: string = 'brightness'
+  /** 视频手势：全屏右侧上下滑动作 */
+  @Trace video_slide_right: string = 'volume'
+  /** 视频手势：长按倍速档位 'off'|'2'|'2.5'|'3'|'4'（off=关闭） */
+  @Trace video_long_press_rate: string = '3'
   /** 视频控制：常用键盘快捷键（空格/方向键/M/F 等控制视频） */
   @Trace video_keyboard_shortcuts: boolean = false
   /** 视频快捷键自定义键位（"id:键,...", 空串=全部默认） */
@@ -587,11 +602,16 @@ export class AppSettings {
       "itp_bypass_hosts": this.itp_bypass_hosts,
       "video_player": this.video_player,
       "video_gesture_enabled": this.video_gesture_enabled,
-      "video_gesture_double_tap": this.video_gesture_double_tap,
+      "video_dtap_left": this.video_dtap_left,
+      "video_dtap_left_sec": this.video_dtap_left_sec,
+      "video_dtap_middle": this.video_dtap_middle,
+      "video_dtap_middle_sec": this.video_dtap_middle_sec,
+      "video_dtap_right": this.video_dtap_right,
+      "video_dtap_right_sec": this.video_dtap_right_sec,
       "video_gesture_swipe_seek": this.video_gesture_swipe_seek,
-      "video_gesture_side_slide": this.video_gesture_side_slide,
-      "video_gesture_tap_toggle": this.video_gesture_tap_toggle,
-      "video_gesture_long_press": this.video_gesture_long_press,
+      "video_slide_left": this.video_slide_left,
+      "video_slide_right": this.video_slide_right,
+      "video_long_press_rate": this.video_long_press_rate,
       "video_keyboard_shortcuts": this.video_keyboard_shortcuts,
       "video_kb_keys": this.video_kb_keys,
       "exit_clear_data": this.exit_clear_data,
@@ -731,11 +751,16 @@ export class AppSettings {
     this.ua_simplify = (json["ua_simplify"] as boolean) ?? this.ua_simplify;
     this.video_player = (json["video_player"] as string) ?? this.video_player;
     this.video_gesture_enabled = (json["video_gesture_enabled"] as boolean) ?? this.video_gesture_enabled;
-    this.video_gesture_double_tap = (json["video_gesture_double_tap"] as boolean) ?? this.video_gesture_double_tap;
+    this.video_dtap_left = (json["video_dtap_left"] as string) ?? this.video_dtap_left;
+    this.video_dtap_left_sec = (json["video_dtap_left_sec"] as number) ?? this.video_dtap_left_sec;
+    this.video_dtap_middle = (json["video_dtap_middle"] as string) ?? this.video_dtap_middle;
+    this.video_dtap_middle_sec = (json["video_dtap_middle_sec"] as number) ?? this.video_dtap_middle_sec;
+    this.video_dtap_right = (json["video_dtap_right"] as string) ?? this.video_dtap_right;
+    this.video_dtap_right_sec = (json["video_dtap_right_sec"] as number) ?? this.video_dtap_right_sec;
     this.video_gesture_swipe_seek = (json["video_gesture_swipe_seek"] as boolean) ?? this.video_gesture_swipe_seek;
-    this.video_gesture_side_slide = (json["video_gesture_side_slide"] as boolean) ?? this.video_gesture_side_slide;
-    this.video_gesture_tap_toggle = (json["video_gesture_tap_toggle"] as boolean) ?? this.video_gesture_tap_toggle;
-    this.video_gesture_long_press = (json["video_gesture_long_press"] as boolean) ?? this.video_gesture_long_press;
+    this.video_slide_left = (json["video_slide_left"] as string) ?? this.video_slide_left;
+    this.video_slide_right = (json["video_slide_right"] as string) ?? this.video_slide_right;
+    this.video_long_press_rate = (json["video_long_press_rate"] as string) ?? this.video_long_press_rate;
     this.video_keyboard_shortcuts = (json["video_keyboard_shortcuts"] as boolean) ?? this.video_keyboard_shortcuts;
     this.video_kb_keys = (json["video_kb_keys"] as string) ?? this.video_kb_keys;
     this.exit_clear_data = (json["exit_clear_data"] as string) ?? this.exit_clear_data;
@@ -884,8 +909,8 @@ export class AppSettings {
   }
 
   @Monitor('search_engine_id', 'custom_engines', 'show_homepage_logo', 'restore_mode', 'default_incognito',
-    'do_not_track', 'disable_webrtc', 'disable_webrtc_udp', 'do_not_sell', 'intelligent_tracking_prevention', 'third_party_cookie', 'geolocation_access', 'language', 'screen_orientation', 'ua_mode', 'ua_desktop', 'desktop_mode', 'ua_simplify', 'custom_uas',     'video_player', 'video_gesture_enabled', 'video_gesture_double_tap', 'video_gesture_swipe_seek',
-    'video_gesture_side_slide', 'video_gesture_tap_toggle', 'video_gesture_long_press', 'video_keyboard_shortcuts', 'video_kb_keys',
+    'do_not_track', 'disable_webrtc', 'disable_webrtc_udp', 'do_not_sell', 'intelligent_tracking_prevention', 'third_party_cookie', 'geolocation_access', 'language', 'screen_orientation', 'ua_mode', 'ua_desktop', 'desktop_mode', 'ua_simplify', 'custom_uas',     'video_player', 'video_gesture_enabled', 'video_dtap_left', 'video_dtap_left_sec', 'video_dtap_middle', 'video_dtap_middle_sec', 'video_dtap_right', 'video_dtap_right_sec', 'video_gesture_swipe_seek',
+    'video_slide_left', 'video_slide_right', 'video_long_press_rate', 'video_keyboard_shortcuts', 'video_kb_keys',
     'exit_clear_data', 'no_image_mode', 'pause_web_timers', 'web_assistant', 'resource_sniff', 'allow_debug_web', 'disable_safe_browsing',
     'ignore_ssl_warning', 'web_vibration_enabled', 'web_haptic_enabled', 'back_to_top', 'blank_screen_retry', 'web_overscroll_bounce', 'web_min_font_size', 'web_text_autosizing', 'web_fast_destroy', 'web_block_private_network', 'dns_preconnect_enabled', 'web_prefetch',
     'dns_doh_enabled', 'dns_doh_provider', 'dns_doh_custom',
@@ -941,11 +966,16 @@ export class AppSettings {
     this.itp_bypass_hosts = [];
     this.video_player = 'system';
     this.video_gesture_enabled = false;
-    this.video_gesture_double_tap = true;
+    this.video_dtap_left = 'rewind';
+    this.video_dtap_left_sec = 10;
+    this.video_dtap_middle = 'playpause';
+    this.video_dtap_middle_sec = 10;
+    this.video_dtap_right = 'forward';
+    this.video_dtap_right_sec = 10;
     this.video_gesture_swipe_seek = true;
-    this.video_gesture_side_slide = true;
-    this.video_gesture_tap_toggle = true;
-    this.video_gesture_long_press = true;
+    this.video_slide_left = 'brightness';
+    this.video_slide_right = 'volume';
+    this.video_long_press_rate = '3';
     this.video_keyboard_shortcuts = false;
     this.video_kb_keys = '';
     this.exit_clear_data = 'cache,app_cache';

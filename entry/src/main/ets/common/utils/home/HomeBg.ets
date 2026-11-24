@@ -3,13 +3,15 @@ import { fileIo } from '@kit.CoreFileKit';
 import { ConfigurationConstant } from '@kit.AbilityKit';
 import { _QhState } from '../../../entryability/AppState';
 import { appSettings } from '../../entity/SettingsModel';
+import { StatusBarSync } from '../ui/StatusBarSync';
 import { createLogger } from '../app/Logger';
 
 const logger = createLogger('HomeBg');
 
 /**
  * 主页背景明暗：背景图优先采样均值亮度，无图按背景主题（跟随系统时按当前生效深浅色）。
- * 供操作栏/地址栏/工具栏/搜索框按背景取黑/白前景色（暗背景白字、亮背景黑字）
+ * 供操作栏/地址栏/工具栏/搜索框按背景取黑/白前景色（暗背景白字、亮背景黑字）；
+ * 明暗更新后同步状态栏图标色（主页沉浸时状态栏随主页背景反色）
  */
 @ObservedV2
 export class HomeBg {
@@ -29,6 +31,7 @@ export class HomeBg {
       return
     }
     this.dark = HomeBg.themeDark()
+    StatusBarSync.sync()
   }
 
   /** 背景主题判定：dark→true / light→false / system→当前生效深浅色 */
@@ -71,9 +74,11 @@ export class HomeBg {
         total += 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2]
       }
       this.dark = total / (w * h) < 140
+      StatusBarSync.sync()
     } catch (error) {
       logger.error(`sample bg failed: ${error}`)
       this.dark = HomeBg.themeDark()
+      StatusBarSync.sync()
     } finally {
       this.sampling = false
       if (pm !== null) {
