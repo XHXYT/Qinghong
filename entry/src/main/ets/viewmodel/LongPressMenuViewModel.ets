@@ -60,7 +60,7 @@ export class LongPressMenuViewModel {
         }
         break
       case 'page_info':
-        this.showPageInfo(ctx)
+        // 由 TabWeb 以统一弹窗风格展示（showPageInfo），VM 不再处理
         break
       case 'mark_ad':
         this.markAd(ctx)
@@ -180,32 +180,6 @@ export class LongPressMenuViewModel {
     }
     const target = `https://graph.baidu.com/pcpage/index?tpl_from=pc&image_url=${encodeURIComponent(imageUrl)}`
     this.openInTab(target, tab, false)
-  }
-
-  /** 页面/元素信息弹窗 */
-  private showPageInfo(ctx: LongPressContext): void {
-    const lines: string[] = []
-    if (ctx.pageTitle !== '') {
-      lines.push(ctx.pageTitle)
-    }
-    if (ctx.pageUrl !== '') {
-      lines.push(ctx.pageUrl)
-    }
-    if (ctx.linkUrl !== '' && ctx.linkUrl !== ctx.pageUrl) {
-      lines.push(ctx.linkUrl)
-    }
-    if (ctx.imageUrl !== '' && ctx.imageUrl !== ctx.linkUrl && ctx.imageUrl !== ctx.pageUrl) {
-      lines.push(ctx.imageUrl)
-    }
-    AlertDialog.show({
-      title: $r('app.string.long_press_page_info'),
-      message: lines.join('\n'),
-      confirm: {
-        value: $r('app.string.confirm'),
-        action: (): void => {
-        }
-      }
-    })
   }
 
   /** 标记广告：命中元素地址加入广告拦截自定义规则 */

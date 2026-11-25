@@ -108,14 +108,17 @@ struct KeyboardShortcutsPage {
     this.resetDialog = new CustomDialogController({
       builder: CustomContentDialog({
         primaryTitle: $r('app.string.reset_shortcuts'),
-        secondaryTitle: $r('app.string.reset_shortcuts_confirm'),
+        contentBuilder: (): void => {
+          this.resetConfirmContent()
+        },
         buttons: buildDialogButtons([$r('app.string.cancel'), $r('app.string.reset')], true,
           (index: number): void => {
             if (index === 1) {
               this.doReset()
             }
             this.resetDialog?.close()
-          })
+          }),
+        contentAreaPadding: { top: 8, bottom: 8, left: 24, right: 24 }
       }),
       autoCancel: true,
       alignment: DialogAlignment.Center,
@@ -128,6 +131,19 @@ struct KeyboardShortcutsPage {
     this.editingId = ''
     appSettings.keyboard_shortcuts = ''
     this.shortcuts = this.defaultShortcuts()
+  }
+
+  /** 重置确认弹窗正文 */
+  @Builder
+  resetConfirmContent() {
+    Column() {
+      Text($r('app.string.reset_shortcuts_confirm'))
+        .fontSize(16)
+        .fontColor($r('sys.color.font_primary'))
+        .width('100%')
+        .textAlign(TextAlign.Start)
+    }
+    .width('100%')
   }
 
   build() {

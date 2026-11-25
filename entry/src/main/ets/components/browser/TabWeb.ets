@@ -189,6 +189,8 @@ export struct TabWeb {
   private pendingRedirectUrl: string = ''
   /** 阅读可用性检测序号（页面开始导航时 +1，使旧延迟检测作废） */
   private detectSeq: number = 0
+  /** 色彩模式提前提取：已提前提取的导航序号（每导航一次，onPageEnd 再校正） */
+  private themeEarlySeq: number = -1
   /** 网络状态监听（WIFI 切换时刷新图片开关） */
   private netConn: connection.NetConnection | null = null
   /** 剪贴板 JS 代理（window.__qhNative）：网页剪贴板文本读写转发原生策略处理 */
@@ -257,6 +259,9 @@ export struct TabWeb {
 
   /** 长按/右键菜单：是否显示 */
   @Local ctxMenuVisible: boolean = false
+  /** 长按「页面信息」弹窗：内容行 */
+  @Local pageInfoLines: string[] = []
+  private pageInfoDialog: CustomDialogController | undefined = undefined
   /** 长按/右键菜单：条目列表 */
   @Local ctxMenuItems: LongPressMenuItem[] = []
   /** 长按/右键菜单：面板位置与高度（vp，相对 Web 组件） */
@@ -1718,13 +1723,14 @@ export struct TabWeb {
    * 返回 ["#hex顶部", "#hex顶部渐变端色", "#hex底部"]，渐变端色/底部色缺失为 ""
    */
   private detectThemeColor(): void {
-    if (!UISettings.action_bar_color_mode || this.tab.isHome) {
+    if (!UISettings.action_bar_color_mode || this.tab.isHome || this.tab.viewSourceHtml !== '') {
       return
     }
     const c = this.tab.controller
     if (c === null) {
       return
     }
+    const seq: number = this.detectSeq
     const script: string =
       '(function(){' +
       'function hx(c){var s="";for(var i=0;i<c.length;i++){var h=Math.round(c[i]).toString(16);s+=h.length<2?"0"+h:h}return "#"+s}' +
@@ -1755,6 +1761,10 @@ export struct TabWeb {
       '})()'
     c.runJavaScript(script)
       .then((raw: string) => {
+        // 提前提取的过期结果（提取后又发生导航）：丢弃，等新导航的检测
+        if (seq !== this.detectSeq) {
+          return
+        }
         let v: string = raw
         if (raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')) {
           try {
@@ -1991,9 +2001,66 @@ export struct TabWeb {
     ctx.pageTitle = this.tab.title
     const tab = this.tab
     this.closeCtxMenu()
+    // 页面信息：统一弹窗风格（CustomContentDialog），不走 VM 的系统 AlertDialog
+    if (item.id === 'page_info') {
+      this.showPageInfo(ctx)
+      return
+    }
     longPressVM.runAction(item.id, ctx, tab, (url: string): void => {
       this.imageViewerUrl = url
     })
+  }
+
+  /** 长按/右键「页面信息」弹窗：标题/页面地址/链接/图片地址逐行展示（与全应用弹窗同款风格） */
+  private showPageInfo(ctx: LongPressContext): void {
+    const lines: string[] = []
+    if (ctx.pageTitle !== '') {
+      lines.push(ctx.pageTitle)
+    }
+    if (ctx.pageUrl !== '') {
+      lines.push(ctx.pageUrl)
+    }
+    if (ctx.linkUrl !== '' && ctx.linkUrl !== ctx.pageUrl) {
+      lines.push(ctx.linkUrl)
+    }
+    if (ctx.imageUrl !== '' && ctx.imageUrl !== ctx.linkUrl && ctx.imageUrl !== ctx.pageUrl) {
+      lines.push(ctx.imageUrl)
+    }
+    this.pageInfoLines = lines
+    if (this.pageInfoDialog === undefined) {
+      this.pageInfoDialog = new CustomDialogController({
+        builder: CustomContentDialog({
+          primaryTitle: $r('app.string.long_press_page_info'),
+          contentBuilder: (): void => {
+            this.pageInfoContent()
+          },
+          buttons: buildDialogButtons([$r('app.string.confirm')], false,
+            (_index: number): void => {
+            }),
+          contentAreaPadding: { top: 8, bottom: 8, left: 24, right: 24 }
+        }),
+        autoCancel: true,
+        alignment: DialogAlignment.Center,
+        cornerRadius: 32
+      })
+    }
+    this.pageInfoDialog.open()
+  }
+
+  /** 页面信息弹窗正文 */
+  @Builder
+  pageInfoContent() {
+    Column({ space: 8 }) {
+      ForEach(this.pageInfoLines, (line: string, idx: number) => {
+        Text(line)
+          .fontSize(14)
+          .fontColor($r('sys.color.font_primary'))
+          .width('100%')
+          .textAlign(TextAlign.Start)
+      }, (line: string, idx: number) => `${idx}`)
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
   }
 
   /** 内核上报的当前选中文本（onTextSelectionChange 缓存；含 iframe 内跨帧选区，导航时重置） */
@@ -2819,6 +2886,13 @@ export struct TabWeb {
           this.tab.progress = event.newProgress
           if (event.newProgress >= 100) {
             this.tab.showSnapshotPlaceholder = false
+          }
+          // 色彩模式提前提取：进度 ≥60% 背景多已就位，先提取一次让操作栏早跟随；
+          // 每导航仅一次，onPageEnd 再跑一遍校正（背景后加载/渐变场景）
+          if (event.newProgress >= 60 && event.newProgress < 100
+            && this.themeEarlySeq !== this.detectSeq) {
+            this.themeEarlySeq = this.detectSeq
+            this.detectThemeColor()
           }
         })
         .onTitleReceive((event: OnTitleReceiveEvent) => {

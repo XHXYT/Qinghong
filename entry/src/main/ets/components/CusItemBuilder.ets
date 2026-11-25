@@ -5,8 +5,7 @@ import { ColorUtils } from "../common/utils/ui/ColorUtils";
 import { ButtonOptions } from "@ohos.arkui.advanced.Dialog"
 import { toastUtil } from "../common/utils/ui/ToastUtils";
 import { ResourceUtils } from "../common/utils/app/ResourceUtil";
-import { QhState } from "../entryability/AppState";
-import { appSettings, UISettings } from "../common/entity/SettingsModel";
+import { appSettings } from "../common/entity/SettingsModel";
 
 
 @ComponentV2
@@ -29,7 +28,7 @@ export struct CustomListItem {
           return {
             value: btn,
             buttonStyle: ButtonStyleMode.TEXTUAL,
-            fontColor: this.item.isDanger && index == Number(this.item.dialogConfig?.buttons?.length) - 1 ? Color.Red : QhState.currentThemeColor,
+            fontColor: this.item.isDanger && index == Number(this.item.dialogConfig?.buttons?.length) - 1 ? Color.Red : $r('sys.color.icon_emphasize'),
             action: () => {
               if (this.item.dialogConfig?.onClick) {
                 this.item.dialogConfig.onClick(btn, index, this.dialogController)
@@ -43,7 +42,7 @@ export struct CustomListItem {
           }
         }) || [];
 
-      const contentPadding: Padding = { top: 15, bottom: 15, left: 24, right: 24 };
+      const contentPadding: Padding = { top: 8, bottom: 8, left: 24, right: 24 };
 
       this.dialogController = new CustomDialogController({
         builder: CustomContentDialog({
@@ -56,7 +55,6 @@ export struct CustomListItem {
           },
           buttons: dialogButtons,
           contentAreaPadding: contentPadding,
-          themeColorMode: UISettings.color_mode + 1,
         }),
         autoCancel: true,
         alignment: DialogAlignment.Center,
